@@ -1,0 +1,12 @@
+{
+  "name": "rtl-airband-panel",
+  "private": true,
+  "workspaces": [
+    "backend/*",
+    "frontend"
+  ],
+  "scripts": {
+    "build:deps": "npm run build --workspace=backend/parser && npm run build --workspace=backend/validate",
+    "build": "npm run build:deps && npm run build --workspace=backend/api && npm run build --workspace=frontend"
+  }
+}
