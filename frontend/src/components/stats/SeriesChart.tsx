@@ -14,6 +14,7 @@ interface SeriesChartProps {
   title: string;
   series: Series[];
   emptyMessage?: string;
+  tooltip?: string;
 }
 
 type MergedRow = { ts: number } & Record<string, number | undefined>;
@@ -41,7 +42,7 @@ function formatTooltipLabel(ts: number): string {
   return new Date(ts).toLocaleString();
 }
 
-export function SeriesChart({ title, series, emptyMessage = "No data in this time range yet." }: SeriesChartProps) {
+export function SeriesChart({ title, series, emptyMessage = "No data in this time range yet.", tooltip }: SeriesChartProps) {
   const [showTable, setShowTable] = useState(false);
   const data = useMemo(() => mergeByTimestamp(series), [series]);
   const hasData = data.length > 0;
@@ -49,7 +50,12 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="font-medium text-slate-200">{title}</h3>
+        <h3
+          className={tooltip ? "cursor-help font-medium text-slate-200 underline decoration-dotted decoration-slate-600 underline-offset-2" : "font-medium text-slate-200"}
+          title={tooltip}
+        >
+          {title}
+        </h3>
         {hasData && (
           <button type="button" onClick={() => setShowTable((v) => !v)} className="text-xs text-sky-400 hover:text-sky-300">
             {showTable ? "View chart" : "View table"}

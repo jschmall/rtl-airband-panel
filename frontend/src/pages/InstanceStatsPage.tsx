@@ -5,6 +5,8 @@ import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
 import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
+import { CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
+import { humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
 
@@ -35,13 +37,6 @@ function discoverChannels(latest: StatSample[]): ChannelOption[] {
     }
   }
   return [...byKey.values()].sort((a, b) => Number(a.freq) - Number(b.freq));
-}
-
-function formatMetricLabel(metric: string, labels: Record<string, string>): string {
-  const labelStr = Object.entries(labels)
-    .map(([k, v]) => `${k}=${v}`)
-    .join(", ");
-  return labelStr ? `${metric} (${labelStr})` : metric;
 }
 
 function findValue(samples: StatSample[], metric: string): number | undefined {
@@ -151,19 +146,23 @@ export function InstanceStatsPage() {
             <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
           </div>
 
-          <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} />
+          <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
 
           {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
             <div className="space-y-2">
               <h2 className="text-sm font-medium text-slate-400">Channel counters (latest)</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {squelchOpens !== undefined && <StatTile label="Squelch opens" value={squelchOpens.toLocaleString()} />}
-                {flappyCount !== undefined && <StatTile label="Squelch flaps" value={flappyCount.toLocaleString()} />}
+                {squelchOpens !== undefined && (
+                  <StatTile label="Squelch Opens" value={squelchOpens.toLocaleString()} tooltip={SQUELCH_OPENS_TOOLTIP} />
+                )}
+                {flappyCount !== undefined && (
+                  <StatTile label="Squelch Flaps" value={flappyCount.toLocaleString()} tooltip={SQUELCH_FLAPS_TOOLTIP} />
+                )}
                 {ctcssTotal !== undefined && ctcssDetected !== undefined && (
                   <StatTile
-                    label="CTCSS detected"
+                    label={`CTCSS Detected${ctcssTotal > 0 ? ` (${((ctcssDetected / ctcssTotal) * 100).toFixed(1)}%)` : ""}`}
                     value={`${ctcssDetected.toLocaleString()} / ${ctcssTotal.toLocaleString()}`}
-                    sublabel={ctcssTotal > 0 ? `${((ctcssDetected / ctcssTotal) * 100).toFixed(1)}%` : undefined}
+                    tooltip={CTCSS_TOOLTIP}
                   />
                 )}
               </div>
@@ -175,7 +174,13 @@ export function InstanceStatsPage() {
               <h2 className="text-sm font-medium text-slate-400">Device / mixer counters (latest)</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {deviceSamples.map((sample, i) => (
-                  <StatTile key={i} label={formatMetricLabel(sample.metric, sample.labels)} value={sample.value} />
+                  <StatTile
+                    key={i}
+                    label={titleCaseMetric(sample.metric)}
+                    value={sample.value}
+                    sublabel={humanizeLabels(sample.labels)}
+                    tooltip={deviceMetricTooltip(sample.metric)}
+                  />
                 ))}
               </div>
             </div>
