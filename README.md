@@ -86,6 +86,63 @@ Then open `http://<this-machine's-LAN-IP>:3000` from another device.
 
 There is no authentication on this API. Binding to `0.0.0.0` means anyone on your network can read and write instance configs and trigger restarts (and, in `sudo` systemd mode, real `systemctl` actions). `127.0.0.1` is the default specifically so that reaching a wider network is a choice you make on purpose.
 
+### Running the panel as a systemd service
+
+Running the panel process directly in a terminal (or backgrounded with `&`/`nohup`) means it doesn't survive a reboot or restart itself if it crashes. An example unit file is provided at [`deploy/rtl-airband-panel.service`](./deploy/rtl-airband-panel.service) — this manages the *panel's own* process, separate from the per-instance `rtl_<name>.service` units the panel itself creates and controls for each RTLSDR-Airband instance.
+
+1. Clone and build the app in its final location, e.g. `/opt/rtl-airband-panel`:
+
+   ```bash
+   sudo git clone https://github.com/jschmall/rtl-airband-panel.git /opt/rtl-airband-panel
+   cd /opt/rtl-airband-panel
+   sudo npm install
+   sudo npm run build:deps
+   sudo npm run build
+   ```
+
+2. Create a dedicated system user to run the panel as (avoid running it as `root`):
+
+   ```bash
+   sudo useradd --system --create-home --home-dir /opt/rtl-airband-panel --shell /usr/sbin/nologin rtl-airband-panel
+   sudo chown -R rtl-airband-panel:rtl-airband-panel /opt/rtl-airband-panel
+   ```
+
+3. Copy your `.env` (see [Configuration](#configuration)) to `/opt/rtl-airband-panel/.env` if you're using one, owned by the same user.
+
+4. Install the unit file, adjusting `WorkingDirectory`, `User`, and `EnvironmentFile` inside it first if your install path or user differs from the example:
+
+   ```bash
+   sudo cp deploy/rtl-airband-panel.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now rtl-airband-panel
+   ```
+
+5. Check it's running and follow its logs:
+
+   ```bash
+   sudo systemctl status rtl-airband-panel
+   sudo journalctl -u rtl-airband-panel -f
+   ```
+
+If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see [Systemd control](#systemd-control)) so the panel can restart real `rtl_airband` instances, the `rtl-airband-panel` system user needs passwordless `sudo` access to `systemctl` for those instance units specifically — don't grant it blanket `sudo` access. For example, in a file under `/etc/sudoers.d/`:
+
+```
+rtl-airband-panel ALL=(root) NOPASSWD: /usr/bin/systemctl restart rtl_*.service, /usr/bin/systemctl status rtl_*.service
+```
+
+Adjust the command list to match whatever systemctl subcommands your version of the panel actually issues.
+
+After a `git pull` on a systemd-managed install, rebuild and restart instead of manually starting the server:
+
+```bash
+cd /opt/rtl-airband-panel
+sudo -u rtl-airband-panel git pull
+sudo -u rtl-airband-panel npm install
+sudo -u rtl-airband-panel npm run build:deps
+sudo -u rtl-airband-panel npm run build
+sudo systemctl restart rtl-airband-panel
+```
+
 ### Running the frontend separately (for frontend development)
 
 This is only needed if you're actively editing the frontend and want changes to show up instantly, without rebuilding. Most users should use the single `npm start` step above instead.

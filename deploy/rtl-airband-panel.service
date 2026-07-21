@@ -1,0 +1,38 @@
+# Example unit for running the panel process itself under systemd.
+#
+# This is distinct from the rtl_<name>.service units the panel generates
+# and manages for individual RTLSDR-Airband instances (see
+# backend/api/src/unit-template.ts) — this one is for the panel's own
+# Node.js process.
+#
+# Copy to /etc/systemd/system/rtl-airband-panel.service and adjust the
+# placeholders below (WorkingDirectory, User, EnvironmentFile) for your
+# install location before enabling. See README.md's "Running the panel as
+# a systemd service" section for the full walkthrough.
+
+[Unit]
+Description=rtl-airband-panel web control panel
+Documentation=https://github.com/jschmall/rtl-airband-panel
+After=network.target
+
+[Service]
+Type=simple
+User=rtl-airband-panel
+WorkingDirectory=/opt/rtl-airband-panel
+# Optional: KEY=VALUE settings, same format as .env.example. The leading
+# "-" means a missing file is not an error, matching the app's own
+# missing-.env behavior.
+EnvironmentFile=-/opt/rtl-airband-panel/.env
+ExecStart=/usr/bin/node backend/api/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Optional hardening once you've confirmed the panel works: uncomment to
+# restrict filesystem access to only what the panel actually needs
+# (instances dir, unit dir, stats DB). Adjust paths to match your
+# RTL_PANEL_* configuration.
+# ProtectSystem=strict
+# ReadWritePaths=/etc/rtl-airband-panel/instances /etc/systemd/system /home/rtl-airband-panel/.rtl-airband-panel
+
+[Install]
+WantedBy=multi-user.target
