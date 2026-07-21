@@ -134,39 +134,16 @@ export function StatsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-slate-100">Stats</h1>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          Device
-          <select
-            className={inputClass}
-            value={selectedInstanceName ?? ""}
-            onChange={(e) => setSelectedInstanceName(e.target.value)}
-          >
-            {instances.map((instance) => (
-              <option key={instance.name} value={instance.name}>
-                {instance.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {channels.length > 0 && (
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            Channel
-            <select
-              className={inputClass}
-              value={selectedChannel?.key ?? ""}
-              onChange={(e) => setSelectedChannelKey(e.target.value)}
-            >
-              {channels.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.freq} MHz{c.label ? ` — ${c.label}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
-      </div>
+      <label className="flex items-center gap-2 text-sm text-slate-300">
+        Device
+        <select className={inputClass} value={selectedInstanceName ?? ""} onChange={(e) => setSelectedInstanceName(e.target.value)}>
+          {instances.map((instance) => (
+            <option key={instance.name} value={instance.name}>
+              {instance.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {latest === null ? (
         <p className="text-slate-400">Loading…</p>
@@ -177,29 +154,6 @@ export function StatsPage() {
         </p>
       ) : (
         <>
-          <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
-
-          {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-400">Channel counters (latest)</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {squelchOpens !== undefined && (
-                  <StatTile label="Squelch Opens" value={squelchOpens.toLocaleString()} tooltip={SQUELCH_OPENS_TOOLTIP} />
-                )}
-                {flappyCount !== undefined && (
-                  <StatTile label="Squelch Flaps" value={flappyCount.toLocaleString()} tooltip={SQUELCH_FLAPS_TOOLTIP} />
-                )}
-                {ctcssTotal !== undefined && ctcssDetected !== undefined && (
-                  <StatTile
-                    label={`CTCSS Detected${ctcssTotal > 0 ? ` (${((ctcssDetected / ctcssTotal) * 100).toFixed(1)}%)` : ""}`}
-                    value={`${ctcssDetected.toLocaleString()} / ${ctcssTotal.toLocaleString()}`}
-                    tooltip={CTCSS_TOOLTIP}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
           {deviceSamples.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-sm font-medium text-slate-400">Device / mixer counters (latest)</h2>
@@ -216,6 +170,51 @@ export function StatsPage() {
               </div>
             </div>
           )}
+
+          <div className="space-y-4 border-t border-slate-800 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {channels.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  Channel
+                  <select
+                    className={inputClass}
+                    value={selectedChannel?.key ?? ""}
+                    onChange={(e) => setSelectedChannelKey(e.target.value)}
+                  >
+                    {channels.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.freq} MHz{c.label ? ` — ${c.label}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
+            </div>
+
+            <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
+
+            {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
+              <div className="space-y-2">
+                <h2 className="text-sm font-medium text-slate-400">Channel counters (latest)</h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {squelchOpens !== undefined && (
+                    <StatTile label="Squelch Opens" value={squelchOpens.toLocaleString()} tooltip={SQUELCH_OPENS_TOOLTIP} />
+                  )}
+                  {flappyCount !== undefined && (
+                    <StatTile label="Squelch Flaps" value={flappyCount.toLocaleString()} tooltip={SQUELCH_FLAPS_TOOLTIP} />
+                  )}
+                  {ctcssTotal !== undefined && ctcssDetected !== undefined && (
+                    <StatTile
+                      label={`CTCSS Detected${ctcssTotal > 0 ? ` (${((ctcssDetected / ctcssTotal) * 100).toFixed(1)}%)` : ""}`}
+                      value={`${ctcssDetected.toLocaleString()} / ${ctcssTotal.toLocaleString()}`}
+                      tooltip={CTCSS_TOOLTIP}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
