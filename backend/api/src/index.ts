@@ -27,7 +27,7 @@ if (cli.help) {
 // dotenv only fills in keys not already present in process.env, so real
 // env vars set by the caller (e.g. systemd Environment=) always win over
 // a .env file. Missing file is not an error -- it's an optional layer.
-const dotenvResult = loadDotenv(cli.envFile ? { path: cli.envFile } : {});
+const dotenvResult = loadDotenv({ quiet: true, ...(cli.envFile ? { path: cli.envFile } : {}) });
 if (cli.envFile && dotenvResult.error) {
   console.error(`Warning: --env-file '${cli.envFile}' could not be loaded: ${dotenvResult.error.message}`);
 }
