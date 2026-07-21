@@ -1,9 +1,14 @@
+import { lazy, Suspense } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { TwoPaneLayout } from "./components/layout/TwoPaneLayout.js";
 import { WelcomePage } from "./pages/WelcomePage.js";
 import { InstanceEditPage } from "./pages/InstanceEditPage.js";
 import { InstanceCreatePage } from "./pages/InstanceCreatePage.js";
-import { StatsPage } from "./pages/StatsPage.js";
+
+// recharts (and its d3 dependencies) account for most of the bundle size but
+// are only needed on this one route -- split into its own chunk instead of
+// shipping them to everyone loading the instance list/editor.
+const StatsPage = lazy(() => import("./pages/StatsPage.js").then((m) => ({ default: m.StatsPage })));
 
 export function App() {
   return (
@@ -21,7 +26,14 @@ export function App() {
             <Route index element={<WelcomePage />} />
             <Route path="instances/new" element={<InstanceCreatePage />} />
             <Route path="instances/:name" element={<InstanceEditPage />} />
-            <Route path="stats" element={<StatsPage />} />
+            <Route
+              path="stats"
+              element={
+                <Suspense fallback={<p className="text-slate-400">Loading…</p>}>
+                  <StatsPage />
+                </Suspense>
+              }
+            />
           </Route>
         </Routes>
       </main>
