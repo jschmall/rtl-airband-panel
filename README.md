@@ -20,7 +20,7 @@ A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-A
 1. Clone the repository and move into it:
 
    ```bash
-   git clone git@github.com:jschmall/rtl-airband-panel.git
+   git clone https://github.com/jschmall/rtl-airband-panel.git
    cd rtl-airband-panel
    ```
 
