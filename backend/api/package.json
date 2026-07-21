@@ -6,6 +6,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
@@ -13,17 +16,17 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@fastify/static": "^7.0.4",
+    "@fastify/static": "^10.1.0",
     "@rtl-airband-panel/parser": "*",
     "@rtl-airband-panel/validate": "*",
     "better-sqlite3": "^11.3.0",
     "dotenv": "^17.4.2",
-    "fastify": "^4.28.1"
+    "fastify": "^5.10.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.0",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^4.1.10"
   }
 }

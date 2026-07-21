@@ -4,7 +4,11 @@ import { ShapeValidationError } from "./config-shape.js";
 import { InvalidInstanceNameError } from "./instance-name.js";
 
 export function installErrorHandler(app: FastifyInstance): void {
-  app.setErrorHandler((err, request, reply) => {
+  // Fastify 5's setErrorHandler defaults its error generic to `unknown`
+  // (previously implicitly typed); this codebase's error handler always
+  // receives an Error-like value (thrown domain errors or Fastify's own
+  // request-lifecycle errors), optionally carrying a statusCode.
+  app.setErrorHandler<Error & { statusCode?: number }>((err, request, reply) => {
     if (err instanceof InstanceNotFoundError) {
       reply.code(404).send({ error: err.message });
       return;

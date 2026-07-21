@@ -6,11 +6,11 @@
     "backend/*",
     "frontend"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build:deps": "npm run build --workspace=backend/parser && npm run build --workspace=backend/validate",
     "build": "npm run build:deps && npm run build --workspace=backend/api && npm run build --workspace=frontend"
-  },
-  "overrides": {
-    "fast-uri": "^3.1.2"
   }
 }

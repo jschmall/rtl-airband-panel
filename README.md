@@ -4,12 +4,14 @@ A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-A
 
 ## Prerequisites
 
-- Node.js 18 or newer, and npm. Check what you have installed:
+- Node.js 20 or newer, and npm. Check what you have installed:
 
   ```bash
   node --version
   npm --version
   ```
+
+  This is a hard requirement, not a suggestion — the app will fail to start on Node 18. If you're updating an existing install, upgrade Node on that machine *before* pulling this version.
 
 - To control real systemd units (start/stop/restart actual `rtl_airband` services), the user running the panel needs `sudo` access to `systemctl`. This is optional — see [Systemd control](#systemd-control) below. Without it, the panel still runs fully in a safe simulated mode.
 
@@ -69,6 +71,8 @@ npm run build:deps
 npm run build
 npm start --workspace=backend/api
 ```
+
+If you're updating from a version older than the Node 20 requirement was added, upgrade Node on this machine first — `npm install` will fail (or the server will fail to start) on Node 18.
 
 ### Making the panel reachable on your network
 
