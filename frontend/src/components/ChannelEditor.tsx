@@ -14,7 +14,7 @@ interface ChannelEditorProps {
 
 export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProps) {
   return (
-    <div className="space-y-3 rounded border border-slate-800 bg-slate-900/20 p-3">
+    <div className="space-y-3 rounded border border-slate-600 bg-slate-800 p-3">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-slate-200">Channel {(channel.freq / 1e6).toFixed(4)} MHz</h4>
         <button type="button" onClick={onRemove} className={removeButtonClass}>

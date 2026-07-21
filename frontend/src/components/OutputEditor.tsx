@@ -36,7 +36,7 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
 
 export function OutputEditor({ output, onChange, onRemove }: OutputEditorProps) {
   return (
-    <div className="space-y-2 rounded border border-slate-800 bg-slate-900/40 p-3">
+    <div className="space-y-2 rounded border border-slate-600 bg-slate-700 p-3">
       <div className="flex items-center justify-between">
         <Field label="Output type">
           <select

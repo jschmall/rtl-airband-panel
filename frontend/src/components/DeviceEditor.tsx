@@ -14,7 +14,7 @@ interface DeviceEditorProps {
 
 export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) {
   return (
-    <div className="space-y-4 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+    <div className="space-y-4 rounded-lg border border-slate-700 bg-slate-900 p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-100">
           Device — {device.type} ({(device.centerfreq / 1e6).toFixed(3)} MHz)
