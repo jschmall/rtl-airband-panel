@@ -82,7 +82,7 @@ Open `http://localhost:5173` — the Vite dev server proxies `/api/*` to the bac
 
 ## Configuration
 
-`backend/api` reads its configuration from environment variables (see [`backend/api/src/config.ts`](./backend/api/src/config.ts)):
+`backend/api` reads its configuration from environment variables, a `.env` file, and/or command-line flags (see [`backend/api/src/config.ts`](./backend/api/src/config.ts) and [`backend/api/src/cli.ts`](./backend/api/src/cli.ts)). Every setting below has a matching `--kebab-case` flag (e.g. `RTL_PANEL_PORT` ↔ `--port`); run `node dist/index.js --help` for the full list. Precedence, highest first: command-line flags, then real environment variables, then a `.env` file (in the current directory by default, or wherever `--env-file <path>` points), then the defaults below. A missing `.env` file is not an error — it's an optional layer.
 
 | Variable | Default | Purpose |
 |---|---|---|

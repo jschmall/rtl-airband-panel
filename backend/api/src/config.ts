@@ -26,8 +26,14 @@ export interface ApiConfig {
   frontendDistPath: string;
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
-  return {
+/**
+ * `env` is expected to already reflect any loaded .env file (dotenv only
+ * fills in keys not already set, so real env vars naturally win over a
+ * .env file). `overrides` is the CLI-flags layer (see cli.ts), applied on
+ * top so a command-line flag always wins over both.
+ */
+export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Partial<ApiConfig> = {}): ApiConfig {
+  const base: ApiConfig = {
     instancesDir: env.RTL_PANEL_INSTANCES_DIR ?? "/etc/rtl-airband-panel/instances",
     unitDir: env.RTL_PANEL_UNIT_DIR ?? "/etc/systemd/system",
     rtlAirbandBinary: env.RTL_PANEL_RTL_AIRBAND_BIN ?? "/usr/local/bin/rtl_airband",
@@ -39,4 +45,5 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     statsRetentionDays: env.RTL_PANEL_STATS_RETENTION_DAYS ? Number(env.RTL_PANEL_STATS_RETENTION_DAYS) : 7,
     frontendDistPath: env.RTL_PANEL_FRONTEND_DIST ?? DEFAULT_FRONTEND_DIST,
   };
+  return { ...base, ...overrides };
 }
