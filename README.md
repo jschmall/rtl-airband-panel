@@ -107,7 +107,7 @@ The server can be configured three ways, and they can be mixed:
 
 - Command-line flags, e.g. `npm start --workspace=backend/api -- --port 8080`
 - Environment variables, e.g. `RTL_PANEL_PORT=8080 npm start --workspace=backend/api`
-- A `.env` file in the current directory (or a custom path via `--env-file <path>`)
+- A `.env` file in the directory you invoke `npm`/`node` from (or a custom path via `--env-file <path>`)
 
 If the same setting is given more than one way, the order of precedence, highest first, is: command-line flag, then environment variable, then `.env` file, then the default below. A missing `.env` file is not an error — it's simply skipped.
 

@@ -18,7 +18,7 @@ const OPTIONS = {
 
 export interface CliResult {
   help: boolean;
-  /** Explicit --env-file path, if given; undefined means dotenv's own default (.env in the cwd). */
+  /** Explicit --env-file path, if given; undefined means index.ts's default (.env next to INIT_CWD, falling back to dotenv's own cwd-based default). */
   envFile: string | undefined;
   overrides: Partial<ApiConfig>;
 }
@@ -66,7 +66,7 @@ Options:
   --stats-poll-interval-ms <n>  How often each instance's stats file is re-read (default: 15000)
   --stats-retention-days <n>    Stats samples older than this are pruned; 0 disables pruning (default: 7)
   --frontend-dist <path>        Where to look for the built frontend to serve (default: frontend/dist)
-  --env-file <path>             Load environment variables from this .env file (default: .env in the current directory, if present)
+  --env-file <path>             Load environment variables from this .env file (default: .env in the directory you ran npm/node from, if present)
   -h, --help                    Show this help and exit
 
 Every option can also be set via a RTL_PANEL_* environment variable or a

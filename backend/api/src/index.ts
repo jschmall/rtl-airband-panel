@@ -1,3 +1,4 @@
+import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { loadConfig } from "./config.js";
 import { parseCliArgs, HELP_TEXT } from "./cli.js";
@@ -27,7 +28,18 @@ if (cli.help) {
 // dotenv only fills in keys not already present in process.env, so real
 // env vars set by the caller (e.g. systemd Environment=) always win over
 // a .env file. Missing file is not an error -- it's an optional layer.
-const dotenvResult = loadDotenv({ quiet: true, ...(cli.envFile ? { path: cli.envFile } : {}) });
+//
+// dotenv's own default resolves ".env" against process.cwd(), but `npm
+// start --workspace=backend/api` runs this file with cwd set to
+// backend/api/, not the directory the user invoked npm from. Prefer npm's
+// INIT_CWD (the original invocation directory) so a .env dropped next to
+// package.json at the repo root -- as the README instructs -- is actually
+// found. Falls back to dotenv's own cwd-based default outside of npm.
+const defaultEnvPath = process.env.INIT_CWD ? path.resolve(process.env.INIT_CWD, ".env") : undefined;
+const dotenvResult = loadDotenv({
+  quiet: true,
+  ...(cli.envFile ? { path: cli.envFile } : defaultEnvPath ? { path: defaultEnvPath } : {}),
+});
 if (cli.envFile && dotenvResult.error) {
   console.error(`Warning: --env-file '${cli.envFile}' could not be loaded: ${dotenvResult.error.message}`);
 }
