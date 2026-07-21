@@ -172,6 +172,48 @@ describe("POST /instances/:name/restart", () => {
   });
 });
 
+describe("POST /instances/:name/rename", () => {
+  it("renames the instance and stands up the new unit", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/rename`,
+      payload: { newName: "rtl_renamed" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(h.systemd.calls).toContain("start rtl_renamed.service");
+    expect(await h.service.listInstances()).toEqual([
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service" },
+    ]);
+  });
+
+  it("400s on a structurally invalid body", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/rename`,
+      payload: { notNewName: "rtl_renamed" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("404s for a nonexistent instance", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/instances/nope/rename", payload: { newName: "rtl_renamed" } });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("409s when the new name is already taken", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/rename`,
+      payload: { newName: "rtl_other" },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+});
+
 describe("GET /instances/:name/health", () => {
   it("returns the unit's status", async () => {
     await seedFixture(h.instancesDir);

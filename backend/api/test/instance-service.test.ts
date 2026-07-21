@@ -171,6 +171,78 @@ describe("createInstance", () => {
   });
 });
 
+describe("renameInstance", () => {
+  it("stops the old unit, stands up the new one, then tears down the old one", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const result = await h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_renamed");
+
+    expect(result.status).toMatchObject({ activeState: "active" });
+    expect(h.systemd.calls).toEqual([
+      `stop ${FIXTURE_INSTANCE_NAME}.service`,
+      "install-unit rtl_renamed.service",
+      "daemon-reload",
+      "enable rtl_renamed.service",
+      "start rtl_renamed.service",
+      `disable ${FIXTURE_INSTANCE_NAME}.service`,
+      `remove-unit ${FIXTURE_INSTANCE_NAME}.service`,
+      "daemon-reload",
+      "status rtl_renamed.service",
+    ]);
+    expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("Description=RTLSDR-Airband instance: rtl_renamed");
+
+    expect(await h.service.listInstances()).toEqual([
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service" },
+    ]);
+    const renamed = await h.service.getConfig("rtl_renamed");
+    expect(renamed).toEqual(before);
+  });
+
+  it("is a no-op when renaming to the same name", async () => {
+    await seedFixture(h.instancesDir);
+    const result = await h.service.renameInstance(FIXTURE_INSTANCE_NAME, FIXTURE_INSTANCE_NAME);
+
+    expect(result.status).toBeDefined();
+    expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
+    expect(await h.service.listInstances()).toEqual([
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+    ]);
+  });
+
+  it("refuses to rename onto an existing instance", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+
+    await expect(h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_other")).rejects.toBeInstanceOf(InstanceAlreadyExistsError);
+    expect(h.systemd.calls).toEqual([]);
+  });
+
+  it("throws InstanceNotFoundError for a nonexistent instance", async () => {
+    await expect(h.service.renameInstance("nope", "rtl_new")).rejects.toBeInstanceOf(InstanceNotFoundError);
+    expect(h.systemd.calls).toEqual([]);
+  });
+
+  it("rolls back and restores the old unit if standing up the new one fails", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    h.systemd.installUnitFile = async () => {
+      throw new Error("simulated systemd failure");
+    };
+
+    await expect(h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_renamed")).rejects.toThrow("simulated systemd failure");
+
+    // old conf untouched, new conf rolled back, old unit restarted
+    expect(await h.service.listInstances()).toEqual([
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+    ]);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+    expect(h.systemd.unitFiles.has("rtl_renamed.service")).toBe(false);
+    expect(h.systemd.calls.at(-1)).toBe(`start ${FIXTURE_INSTANCE_NAME}.service`);
+  });
+});
+
 describe("deleteInstance", () => {
   it("stops, disables, removes the unit, reloads, and removes the conf file", async () => {
     await seedFixture(h.instancesDir);

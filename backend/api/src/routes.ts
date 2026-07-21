@@ -25,6 +25,11 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return service.restartInstance(request.params.name);
   });
 
+  app.post<{ Params: { name: string } }>("/instances/:name/rename", async (request) => {
+    const { newName } = extractRenameBody(request.body);
+    return service.renameInstance(request.params.name, newName);
+  });
+
   app.post("/instances", async (request) => {
     const { name, config } = extractCreateBody(request.body);
     return service.createInstance(name, config);
@@ -45,4 +50,15 @@ function extractCreateBody(body: unknown): { name: string; config: RtlAirbandCon
     throw new ShapeValidationError("Expected 'name' to be a string", "$");
   }
   return { name: rec["name"], config: parseRtlAirbandConfigBody(rec["config"]) };
+}
+
+function extractRenameBody(body: unknown): { newName: string } {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new ShapeValidationError("Expected an object", "$");
+  }
+  const rec = body as Record<string, unknown>;
+  if (typeof rec["newName"] !== "string") {
+    throw new ShapeValidationError("Expected 'newName' to be a string", "$");
+  }
+  return { newName: rec["newName"] };
 }

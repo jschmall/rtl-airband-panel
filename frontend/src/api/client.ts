@@ -93,6 +93,12 @@ export const api = {
   restartInstance: (name: string): Promise<UnitStatus> =>
     request(`/instances/${encodeURIComponent(name)}/restart`, { method: "POST" }),
 
+  renameInstance: (name: string, newName: string): Promise<WriteResult> =>
+    request(`/instances/${encodeURIComponent(name)}/rename`, {
+      method: "POST",
+      body: JSON.stringify({ newName }),
+    }),
+
   getLatestStats: (name: string): Promise<StatSample[]> => request(`/instances/${encodeURIComponent(name)}/stats/latest`),
 
   getStatsHistory: (name: string, params: HistoryParams): Promise<HistoryPoint[]> => {

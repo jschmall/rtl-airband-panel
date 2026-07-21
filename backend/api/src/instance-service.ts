@@ -120,6 +120,56 @@ export class InstanceService {
     return { warnings, status };
   }
 
+  /**
+   * Stops the old unit, stands up the new conf+unit, and only tears down
+   * the old unit once the new one is confirmed running — so a failure
+   * never leaves the instance running under neither name. Failures before
+   * the new unit starts are fully rolled back; failures during old-unit
+   * teardown (after the new unit is already up) propagate as errors.
+   */
+  async renameInstance(oldName: string, newName: string): Promise<WriteResult> {
+    assertValidInstanceName(newName);
+    await this.requireExists(oldName);
+
+    if (newName === oldName) {
+      return { warnings: [], status: await this.systemd.status(unitFileName(oldName)) };
+    }
+    if (await this.configStore.exists(newName)) throw new InstanceAlreadyExistsError(newName);
+
+    const config = await this.configStore.read(oldName);
+    const oldUnit = unitFileName(oldName);
+    const newUnit = unitFileName(newName);
+    const newUnitContents = renderUnitFile({
+      description: `RTLSDR-Airband instance: ${newName}`,
+      binaryPath: this.options.rtlAirbandBinary,
+      confPath: confFilePath(this.options.instancesDir, newName),
+    });
+
+    await this.systemd.stop(oldUnit);
+
+    try {
+      await this.configStore.write(newName, config);
+      await this.systemd.installUnitFile(newUnit, newUnitContents);
+      await this.systemd.daemonReload();
+      await this.systemd.enable(newUnit);
+      await this.systemd.start(newUnit);
+    } catch (err) {
+      await this.configStore.remove(newName).catch(() => undefined);
+      await this.systemd.removeUnitFile(newUnit).catch(() => undefined);
+      await this.systemd.daemonReload().catch(() => undefined);
+      await this.systemd.start(oldUnit).catch(() => undefined);
+      throw err;
+    }
+
+    await this.systemd.disable(oldUnit);
+    await this.systemd.removeUnitFile(oldUnit);
+    await this.systemd.daemonReload();
+    await this.configStore.remove(oldName);
+
+    const status = await this.systemd.status(newUnit);
+    return { warnings: [], status };
+  }
+
   /** Stops, disables, and removes both the unit file and the conf file. */
   async deleteInstance(name: string): Promise<void> {
     await this.requireExists(name);
