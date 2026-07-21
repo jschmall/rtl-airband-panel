@@ -111,19 +111,7 @@ The server can be configured three ways, and they can be mixed:
 
 If the same setting is given more than one way, the order of precedence, highest first, is: command-line flag, then environment variable, then `.env` file, then the default below. A missing `.env` file is not an error — it's simply skipped.
 
-Example `.env` file, placed in the directory you run `npm start --workspace=backend/api` from (only the settings you want to override need to be present):
-
-```dotenv
-RTL_PANEL_INSTANCES_DIR=/etc/rtl-airband-panel/instances
-RTL_PANEL_UNIT_DIR=/etc/systemd/system
-RTL_PANEL_RTL_AIRBAND_BIN=/usr/local/bin/rtl_airband
-RTL_PANEL_SYSTEMD_MODE=mock
-RTL_PANEL_PORT=3000
-RTL_PANEL_HOST=127.0.0.1
-RTL_PANEL_STATS_DB_PATH=/home/youruser/.rtl-airband-panel/stats.db
-RTL_PANEL_STATS_POLL_INTERVAL_MS=15000
-RTL_PANEL_STATS_RETENTION_DAYS=7
-```
+See [`.env.example`](.env.example) in the repo root for a template covering every setting — copy it to `.env` in the directory you run `npm start --workspace=backend/api` from, and adjust as needed (only the settings you want to override need to be present).
 
 Run `node backend/api/dist/index.js --help` after building to see the full flag list.
 
