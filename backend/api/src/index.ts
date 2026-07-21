@@ -46,7 +46,16 @@ if (cli.envFile && dotenvResult.error) {
 
 const config = loadConfig(process.env, cli.overrides);
 const configStore = new ConfigStore(config.instancesDir);
-const systemd = config.systemdMode === "sudo" ? new SudoSystemctlAdapter(config.unitDir) : new MockSystemdAdapter();
+let systemd;
+try {
+  systemd =
+    config.systemdMode === "sudo"
+      ? new SudoSystemctlAdapter(config.unitDir, config.sudoUnitNamePrefix)
+      : new MockSystemdAdapter();
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
 const service = new InstanceService(configStore, systemd, {
   instancesDir: config.instancesDir,
   rtlAirbandBinary: config.rtlAirbandBinary,
@@ -68,6 +77,10 @@ poller.start();
 if (config.systemdMode === "mock") {
   app.log.warn(
     "RTL_PANEL_SYSTEMD_MODE=mock: systemd actions are simulated, not real. Set RTL_PANEL_SYSTEMD_MODE=sudo to control real units."
+  );
+} else if (config.sudoUnitNamePrefix === "") {
+  app.log.warn(
+    "RTL_PANEL_SYSTEMD_MODE=sudo with no RTL_PANEL_SUDO_UNIT_PREFIX set: the sudo adapter will act on any validly-named unit, with no unit-identity scoping beyond that. Set RTL_PANEL_SUDO_UNIT_PREFIX (and a matching sudoers glob, see deploy/rtl-airband-panel.sudoers) to scope real sudo access to only your instances' units."
   );
 }
 

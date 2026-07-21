@@ -6,6 +6,7 @@ const OPTIONS = {
   "unit-dir": { type: "string" },
   "rtl-airband-bin": { type: "string" },
   "systemd-mode": { type: "string" },
+  "sudo-unit-prefix": { type: "string" },
   port: { type: "string" },
   host: { type: "string" },
   "stats-db-path": { type: "string" },
@@ -37,6 +38,7 @@ export function parseCliArgs(argv: string[]): CliResult {
   if (values["unit-dir"] !== undefined) overrides.unitDir = values["unit-dir"];
   if (values["rtl-airband-bin"] !== undefined) overrides.rtlAirbandBinary = values["rtl-airband-bin"];
   if (values["systemd-mode"] !== undefined) overrides.systemdMode = values["systemd-mode"] === "sudo" ? "sudo" : "mock";
+  if (values["sudo-unit-prefix"] !== undefined) overrides.sudoUnitNamePrefix = values["sudo-unit-prefix"];
   if (values.port !== undefined) overrides.port = Number(values.port);
   if (values.host !== undefined) overrides.host = values.host;
   if (values["stats-db-path"] !== undefined) overrides.statsDbPath = values["stats-db-path"];
@@ -60,6 +62,7 @@ Options:
   --unit-dir <path>             Where systemd unit files are installed (default: /etc/systemd/system)
   --rtl-airband-bin <path>      Binary path used in generated unit files (default: /usr/local/bin/rtl_airband)
   --systemd-mode <mock|sudo>    mock (safe, no real systemctl calls) or sudo (default: mock)
+  --sudo-unit-prefix <prefix>   In sudo mode, only act on units named <prefix>*.service (default: "", no restriction beyond the existing safe-name check)
   --port <number>               API listen port (default: 3000)
   --host <address>              API listen host (default: 127.0.0.1)
   --stats-db-path <path>        SQLite file for historical stats samples (default: ~/.rtl-airband-panel/stats.db)

@@ -1,26 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { SudoSystemctlAdapter, UnitOutOfScopeError, assertScopedUnit } from "../src/systemd/sudo-adapter.js";
+import {
+  SudoSystemctlAdapter,
+  UnitOutOfScopeError,
+  InvalidUnitNamePrefixError,
+  buildScopedUnitPattern,
+} from "../src/systemd/sudo-adapter.js";
 
-describe("assertScopedUnit", () => {
-  const outOfScopeUnits = [
-    "sshd.service",
-    "rtl_100000.timer",
-    "rtl_.service",
-    "airband.service",
-    "../rtl_100000.service",
-    "rtl_100000.service; rm -rf /",
-  ];
+describe("buildScopedUnitPattern", () => {
+  it("with no prefix, matches any unit in the existing safe-name charset", () => {
+    const pattern = buildScopedUnitPattern("");
+    expect(pattern.test("rtl_100000.service")).toBe(true);
+    expect(pattern.test("office-scanner.service")).toBe(true);
+    expect(pattern.test("151780.service")).toBe(true);
+    expect(pattern.test("sshd.service")).toBe(true); // no scoping configured -- nothing to distinguish it
+  });
 
-  for (const unit of outOfScopeUnits) {
-    it(`rejects ${JSON.stringify(unit)}`, () => {
-      expect(() => assertScopedUnit(unit)).toThrow(UnitOutOfScopeError);
-    });
-  }
+  it("with a prefix, only matches units starting with it", () => {
+    const pattern = buildScopedUnitPattern("rtl_");
+    expect(pattern.test("rtl_100000.service")).toBe(true);
+    expect(pattern.test("sshd.service")).toBe(false);
+    expect(pattern.test("office-scanner.service")).toBe(false);
+    expect(pattern.test("rtl_.service")).toBe(false); // nothing after the prefix
+  });
 
-  it("accepts units in the rtl_<name>.service namespace", () => {
-    for (const unit of ["rtl_100000.service", "rtl_151780.service", "rtl_my-instance_2.service"]) {
-      expect(() => assertScopedUnit(unit)).not.toThrow();
-    }
+  it("rejects a prefix containing characters outside the safe-name charset", () => {
+    expect(() => buildScopedUnitPattern("rtl.")).toThrow(InvalidUnitNamePrefixError);
+    expect(() => buildScopedUnitPattern("rtl*")).toThrow(InvalidUnitNamePrefixError);
+    expect(() => buildScopedUnitPattern("../")).toThrow(InvalidUnitNamePrefixError);
   });
 });
 
@@ -29,10 +35,10 @@ describe("assertScopedUnit", () => {
 // interaction in the test suite). A rejected unit throws before any command
 // is spawned, so no sudo/systemctl binary needs to be present to run these.
 describe("SudoSystemctlAdapter unit scoping", () => {
-  const adapter = new SudoSystemctlAdapter();
-  const unit = "sshd.service";
+  it("with a configured prefix, rejects out-of-scope units across every unit-taking method", async () => {
+    const adapter = new SudoSystemctlAdapter("/etc/systemd/system", "rtl_");
+    const unit = "sshd.service";
 
-  it("rejects out-of-scope units across every unit-taking method", async () => {
     await expect(adapter.restart(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.start(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.stop(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
@@ -41,5 +47,9 @@ describe("SudoSystemctlAdapter unit scoping", () => {
     await expect(adapter.status(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.installUnitFile(unit, "contents")).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.removeUnitFile(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
+  });
+
+  it("constructing with an invalid prefix fails fast instead of silently misscoping", () => {
+    expect(() => new SudoSystemctlAdapter("/etc/systemd/system", "rtl*")).toThrow(InvalidUnitNamePrefixError);
   });
 });

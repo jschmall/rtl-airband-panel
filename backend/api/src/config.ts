@@ -14,6 +14,16 @@ export interface ApiConfig {
   rtlAirbandBinary: string;
   /** "mock" logs systemd actions without touching the system; "sudo" shells out for real. */
   systemdMode: "mock" | "sudo";
+  /**
+   * In "sudo" mode, SudoSystemctlAdapter refuses to act on any unit whose
+   * name doesn't start with this prefix -- e.g. "rtl_" if all your
+   * instances are named that way. Empty string (the default) means no
+   * extra restriction beyond the existing instance-name charset check, so
+   * instances can be named however you like out of the box; set this (and
+   * a matching sudoers glob, see deploy/rtl-airband-panel.sudoers) if you
+   * want real unit-identity scoping for the sudo grant.
+   */
+  sudoUnitNamePrefix: string;
   port: number;
   host: string;
   /** SQLite file the stats poller writes historical samples to. */
@@ -38,6 +48,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     unitDir: env.RTL_PANEL_UNIT_DIR ?? "/etc/systemd/system",
     rtlAirbandBinary: env.RTL_PANEL_RTL_AIRBAND_BIN ?? "/usr/local/bin/rtl_airband",
     systemdMode: env.RTL_PANEL_SYSTEMD_MODE === "sudo" ? "sudo" : "mock",
+    sudoUnitNamePrefix: env.RTL_PANEL_SUDO_UNIT_PREFIX ?? "",
     port: env.RTL_PANEL_PORT ? Number(env.RTL_PANEL_PORT) : 3000,
     host: env.RTL_PANEL_HOST ?? "127.0.0.1",
     statsDbPath: env.RTL_PANEL_STATS_DB_PATH ?? path.join(os.homedir(), ".rtl-airband-panel", "stats.db"),

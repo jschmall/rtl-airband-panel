@@ -124,15 +124,13 @@ Running the panel process directly in a terminal (or backgrounded with `&`/`nohu
    sudo journalctl -u rtl-airband-panel -f
    ```
 
-If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see [Systemd control](#systemd-control)) so the panel can restart real `rtl_airband` instances, the `rtl-airband-panel` system user needs passwordless `sudo` access to `systemctl` for those instance units specifically — don't grant it blanket `sudo` access. Install the example rule at [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers):
+If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see [Systemd control](#systemd-control)) so the panel can restart real `rtl_airband` instances, the `rtl-airband-panel` system user needs passwordless `sudo` access to `systemctl` — don't grant it blanket `sudo` access. Instance naming is entirely up to you (see [Systemd control](#systemd-control) for how to scope this to only your instances), but even without that extra scoping, the example rule at [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers) still limits the grant to exactly the `systemctl`/`tee`/`rm` commands the sudo adapter issues, never a blanket `sudo systemctl` or `sudo ALL`:
 
 ```bash
 sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel
 sudo chmod 0440 /etc/sudoers.d/rtl-airband-panel
 sudo visudo -c -f /etc/sudoers.d/rtl-airband-panel
 ```
-
-It scopes access to exactly the `systemctl`/`tee`/`rm` commands the sudo adapter issues, and only against `rtl_*.service` units — matching the `rtl_<name>.service` naming the adapter itself requires (see [Systemd control](#systemd-control)).
 
 After a `git pull` on a systemd-managed install, rebuild and restart instead of manually starting the server:
 
@@ -180,6 +178,7 @@ Run `node backend/api/dist/index.js --help` after building to see the full flag 
 | `RTL_PANEL_UNIT_DIR` | `--unit-dir` | `/etc/systemd/system` | Where systemd unit files are installed |
 | `RTL_PANEL_RTL_AIRBAND_BIN` | `--rtl-airband-bin` | `/usr/local/bin/rtl_airband` | Binary path used in generated unit files |
 | `RTL_PANEL_SYSTEMD_MODE` | `--systemd-mode` | `mock` | `mock` (safe, no real systemctl calls) or `sudo` (real) |
+| `RTL_PANEL_SUDO_UNIT_PREFIX` | `--sudo-unit-prefix` | `` (empty) | In `sudo` mode, only act on units named `<prefix>*.service`; empty means no restriction beyond the existing safe-name check. See [Systemd control](#systemd-control) |
 | `RTL_PANEL_PORT` | `--port` | `3000` | API listen port |
 | `RTL_PANEL_HOST` | `--host` | `127.0.0.1` | API listen host |
 | `RTL_PANEL_FRONTEND_DIST` | `--frontend-dist` | `frontend/dist` (repo-relative) | Where to look for the frontend's build to serve as a single process; a missing build is not an error, it just falls back to API-only |
@@ -189,9 +188,9 @@ Run `node backend/api/dist/index.js --help` after building to see the full flag 
 
 ### Systemd control
 
-Instance names map to config files and systemd units by a fixed convention: `rtl_<name>.conf` ↔ `rtl_<name>.service`, matching basenames, no `@` templating. Setting `RTL_PANEL_SYSTEMD_MODE=sudo` (or `--systemd-mode sudo`) makes the backend shell out to real `sudo systemctl` commands. Only turn this on once you're ready to affect real running instances, and consider testing against a non-critical instance first.
+Instance names map to config files and systemd units by a fixed convention: `<name>.conf` ↔ `<name>.service`, matching basenames exactly, no `@` templating. The name itself is entirely up to you — `rtl_151780`, `office-scanner`, `151780`, whatever fits your own systemd units. Setting `RTL_PANEL_SYSTEMD_MODE=sudo` (or `--systemd-mode sudo`) makes the backend shell out to real `sudo systemctl` commands. Only turn this on once you're ready to affect real running instances, and consider testing against a non-critical instance first.
 
-In `sudo` mode, the adapter refuses to act on any unit name outside the `rtl_<name>.service` namespace, even before the underlying `sudo` call would — this is what makes the [scoped sudoers rule](#running-the-panel-as-a-systemd-service) (`rtl_*.service` only, never blanket `systemctl` access) meaningful rather than nominal. If you name an instance without the `rtl_` prefix, config CRUD and `mock` mode still work, but `sudo` mode will reject restart/start/stop/enable/disable/status/install/remove for it.
+**Scoping sudo access to your instances.** By default (`RTL_PANEL_SUDO_UNIT_PREFIX` unset), `sudo` mode will act on any unit whose name passes the existing safe-name check — there's no naming convention forced on you. That also means, on its own, sudo access isn't scoped by *which* units they are, only by which `systemctl`/`tee`/`rm` commands the adapter is allowed to run at all (see the sudoers rule below). If you'd rather the panel's sudo grant be provably limited to only the units it manages, set `RTL_PANEL_SUDO_UNIT_PREFIX` to a prefix your instance names always start with (e.g. `rtl_` if you name instances `rtl_151780`, `rtl_office`, etc.) — the adapter will then refuse in-process to act on any unit not starting with it, and you write a matching glob into the sudoers rule (see [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers), which uses `rtl_` as its example). The two checks — the adapter's in-process prefix check and the sudoers glob — need to agree for an action to reach systemd; a mismatch fails closed (the adapter rejects, or sudo denies), never open. If your instances don't share a common prefix, leave it unset and rely on the command-scoping alone.
 
 ### Stats & graphing
 

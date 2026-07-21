@@ -8,6 +8,12 @@ describe("loadConfig", () => {
     expect(config.systemdMode).toBe("mock");
     expect(config.port).toBe(3000);
     expect(config.host).toBe("127.0.0.1");
+    expect(config.sudoUnitNamePrefix).toBe("");
+  });
+
+  it("RTL_PANEL_SUDO_UNIT_PREFIX sets the sudo-mode unit scoping prefix", () => {
+    const config = loadConfig({ RTL_PANEL_SUDO_UNIT_PREFIX: "rtl_" });
+    expect(config.sudoUnitNamePrefix).toBe("rtl_");
   });
 
   it("env vars (standing in for a loaded .env file too, since dotenv just populates process.env) override defaults", () => {
