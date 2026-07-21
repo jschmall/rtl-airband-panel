@@ -1,0 +1,28 @@
+# Example sudoers rule for RTL_PANEL_SYSTEMD_MODE=sudo.
+#
+# Scopes the panel's sudo access to exactly the systemctl/tee/rm invocations
+# SudoSystemctlAdapter (backend/api/src/systemd/sudo-adapter.ts) issues, and
+# only against units in the rtl_<name>.service namespace -- never a blanket
+# `ALL` grant. The adapter itself also refuses in-process to act on any unit
+# outside that namespace (see UnitOutOfScopeError), so this sudoers scope and
+# the adapter's own check both have to agree for an action to reach systemd.
+#
+# Install as /etc/sudoers.d/rtl-airband-panel (mode 0440), and validate with
+# `visudo -c -f /etc/sudoers.d/rtl-airband-panel` before relying on it.
+# Adjust the "rtl-airband-panel" username and /etc/systemd/system path below
+# to match your actual system user (see README.md) and RTL_PANEL_UNIT_DIR.
+
+Cmnd_Alias RTL_PANEL_SYSTEMCTL = \
+    /usr/bin/systemctl restart rtl_*.service, \
+    /usr/bin/systemctl start rtl_*.service, \
+    /usr/bin/systemctl stop rtl_*.service, \
+    /usr/bin/systemctl enable rtl_*.service, \
+    /usr/bin/systemctl disable rtl_*.service, \
+    /usr/bin/systemctl show rtl_*.service --property=ActiveState --property=SubState, \
+    /usr/bin/systemctl daemon-reload
+
+Cmnd_Alias RTL_PANEL_UNIT_FILES = \
+    /usr/bin/tee /etc/systemd/system/rtl_*.service, \
+    /usr/bin/rm -f /etc/systemd/system/rtl_*.service
+
+rtl-airband-panel ALL=(root) NOPASSWD: RTL_PANEL_SYSTEMCTL, RTL_PANEL_UNIT_FILES
