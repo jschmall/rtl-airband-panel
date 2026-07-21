@@ -1,6 +1,6 @@
 {
   "name": "@rtl-airband-panel/frontend",
-  "version": "0.3.1",
+  "version": "0.2.1",
   "private": true,
   "description": "Web control panel UI for RTLSDR-Airband instances",
   "type": "module",
