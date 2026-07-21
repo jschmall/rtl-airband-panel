@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, type StatSample } from "../api/client.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
+import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
+import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
 
@@ -42,6 +44,10 @@ function formatMetricLabel(metric: string, labels: Record<string, string>): stri
   return labelStr ? `${metric} (${labelStr})` : metric;
 }
 
+function findValue(samples: StatSample[], metric: string): number | undefined {
+  return samples.find((s) => s.metric === metric)?.value;
+}
+
 export function InstanceStatsPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
@@ -50,12 +56,21 @@ export function InstanceStatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
   const [rangeMs, setRangeMs] = useState<number>(60 * 60 * 1000);
-  const [signalNoiseSeries, setSignalNoiseSeries] = useState<Series[]>([]);
-  const [squelchSeries, setSquelchSeries] = useState<Series[]>([]);
+  const [snrSeries, setSnrSeries] = useState<Series[]>([]);
 
   const channels = useMemo(() => (latest ? discoverChannels(latest) : []), [latest]);
   const deviceSamples = useMemo(() => (latest ? latest.filter((s) => !s.metric.startsWith("channel_")) : []), [latest]);
   const selectedChannel = channels.find((c) => c.key === selectedChannelKey) ?? channels[0];
+  const channelSamples = useMemo(
+    () => (latest && selectedChannel ? latest.filter((s) => canonicalizeLabels(s.labels) === selectedChannel.key) : []),
+    [latest, selectedChannel]
+  );
+
+  const squelchOpens = findValue(channelSamples, "channel_squelch_counter");
+  const flappyCount = findValue(channelSamples, "channel_flappy_counter");
+  const ctcssDetected = findValue(channelSamples, "channel_ctcss_counter");
+  const ctcssNotDetected = findValue(channelSamples, "channel_no_ctcss_counter");
+  const ctcssTotal = ctcssDetected !== undefined && ctcssNotDetected !== undefined ? ctcssDetected + ctcssNotDetected : undefined;
 
   const loadLatest = useCallback(async () => {
     if (!name) return;
@@ -76,8 +91,7 @@ export function InstanceStatsPage() {
 
   useEffect(() => {
     if (!name || !selectedChannel) {
-      setSignalNoiseSeries([]);
-      setSquelchSeries([]);
+      setSnrSeries([]);
       return;
     }
     const sinceMs = Date.now() - rangeMs;
@@ -85,16 +99,18 @@ export function InstanceStatsPage() {
 
     void Promise.all([
       api.getStatsHistory(name, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
-      api.getStatsHistory(name, { metric: "channel_dbfs_noise_level", labels, sinceMs }),
-    ]).then(([signal, noise]) => {
-      setSignalNoiseSeries([
-        { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: signal },
-        { key: "noise", label: "Noise (dBFS)", color: CATEGORICAL[1], points: noise },
+      api.getStatsHistory(name, { metric: "channel_signal_level", labels, sinceMs }),
+      api.getStatsHistory(name, { metric: "channel_squelch_level", labels, sinceMs }),
+    ]).then(([dbfsSignal, rawSignal, rawSquelch]) => {
+      setSnrSeries([
+        { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
+        {
+          key: "squelchThreshold",
+          label: "Squelch threshold (dBFS)",
+          color: CATEGORICAL[1],
+          points: deriveSquelchThresholdSeries(dbfsSignal, rawSignal, rawSquelch),
+        },
       ]);
-    });
-
-    void api.getStatsHistory(name, { metric: "channel_squelch_counter", labels, sinceMs }).then((points) => {
-      setSquelchSeries([{ key: "squelch", label: "Squelch opens", color: CATEGORICAL[0], points }]);
     });
   }, [name, selectedChannel, rangeMs]);
 
@@ -135,18 +151,31 @@ export function InstanceStatsPage() {
             <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
           </div>
 
-          <SeriesChart title="Signal vs noise (dBFS)" series={signalNoiseSeries} />
-          <SeriesChart title="Squelch opens" series={squelchSeries} />
+          <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} />
+
+          {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-medium text-slate-400">Channel counters (latest)</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {squelchOpens !== undefined && <StatTile label="Squelch opens" value={squelchOpens.toLocaleString()} />}
+                {flappyCount !== undefined && <StatTile label="Squelch flaps" value={flappyCount.toLocaleString()} />}
+                {ctcssTotal !== undefined && ctcssDetected !== undefined && (
+                  <StatTile
+                    label="CTCSS detected"
+                    value={`${ctcssDetected.toLocaleString()} / ${ctcssTotal.toLocaleString()}`}
+                    sublabel={ctcssTotal > 0 ? `${((ctcssDetected / ctcssTotal) * 100).toFixed(1)}%` : undefined}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           {deviceSamples.length > 0 && (
             <div className="space-y-2">
               <h2 className="text-sm font-medium text-slate-400">Device / mixer counters (latest)</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {deviceSamples.map((sample, i) => (
-                  <div key={i} className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-                    <p className="text-xs text-slate-400">{formatMetricLabel(sample.metric, sample.labels)}</p>
-                    <p className="text-lg font-semibold tabular-nums text-slate-100">{sample.value}</p>
-                  </div>
+                  <StatTile key={i} label={formatMetricLabel(sample.metric, sample.labels)} value={sample.value} />
                 ))}
               </div>
             </div>
