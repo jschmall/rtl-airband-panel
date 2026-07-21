@@ -46,12 +46,7 @@ export function InstanceCreatePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">New instance</h1>
-        <button type="button" onClick={() => navigate("/")} className="text-sm text-slate-400 hover:text-slate-200">
-          ← Back to instances
-        </button>
-      </div>
+      <h1 className="text-xl font-semibold text-slate-100">New instance</h1>
 
       <div className="max-w-sm rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <Field label="Instance name (used for the .conf file and systemd unit)">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
 import { api, ApiError } from "../api/client.js";
@@ -8,7 +8,6 @@ import { ValidationBanner } from "../components/ValidationBanner.js";
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
-  const navigate = useNavigate();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
@@ -58,14 +57,9 @@ export function InstanceEditPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
-        <div className="flex items-center gap-4">
-          <Link to={`/instances/${name}/stats`} className="text-sm text-sky-400 hover:text-sky-300">
-            View stats →
-          </Link>
-          <button type="button" onClick={() => navigate("/")} className="text-sm text-slate-400 hover:text-slate-200">
-            ← Back to instances
-          </button>
-        </div>
+        <Link to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
+          View stats →
+        </Link>
       </div>
 
       <ValidationBanner errors={errors} warnings={warnings} />

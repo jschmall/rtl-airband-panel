@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, type StatSample } from "../api/client.js";
+import { useLocation } from "react-router-dom";
+import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
@@ -43,15 +43,29 @@ function findValue(samples: StatSample[], metric: string): number | undefined {
   return samples.find((s) => s.metric === metric)?.value;
 }
 
-export function InstanceStatsPage() {
-  const { name } = useParams<{ name: string }>();
-  const navigate = useNavigate();
+export function StatsPage() {
+  const location = useLocation();
+  const initialInstanceName = (location.state as { instanceName?: string } | null)?.instanceName;
 
+  const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
+  const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(initialInstanceName ?? null);
   const [latest, setLatest] = useState<StatSample[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
   const [rangeMs, setRangeMs] = useState<number>(60 * 60 * 1000);
   const [snrSeries, setSnrSeries] = useState<Series[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await api.listInstances();
+        setInstances(list);
+        setSelectedInstanceName((current) => (current && list.some((i) => i.name === current) ? current : (list[0]?.name ?? null)));
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Failed to load instances");
+      }
+    })();
+  }, []);
 
   const channels = useMemo(() => (latest ? discoverChannels(latest) : []), [latest]);
   const deviceSamples = useMemo(() => (latest ? latest.filter((s) => !s.metric.startsWith("channel_")) : []), [latest]);
@@ -68,24 +82,27 @@ export function InstanceStatsPage() {
   const ctcssTotal = ctcssDetected !== undefined && ctcssNotDetected !== undefined ? ctcssDetected + ctcssNotDetected : undefined;
 
   const loadLatest = useCallback(async () => {
-    if (!name) return;
+    if (!selectedInstanceName) return;
     try {
-      const samples = await api.getLatestStats(name);
+      const samples = await api.getLatestStats(selectedInstanceName);
       setLatest(samples);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load stats");
     }
-  }, [name]);
+  }, [selectedInstanceName]);
 
   useEffect(() => {
+    setLatest(null);
+    setSelectedChannelKey(null);
+    if (!selectedInstanceName) return;
     void loadLatest();
     const interval = setInterval(() => void loadLatest(), AUTO_REFRESH_MS);
     return () => clearInterval(interval);
-  }, [loadLatest]);
+  }, [loadLatest, selectedInstanceName]);
 
   useEffect(() => {
-    if (!name || !selectedChannel) {
+    if (!selectedInstanceName || !selectedChannel) {
       setSnrSeries([]);
       return;
     }
@@ -93,9 +110,9 @@ export function InstanceStatsPage() {
     const { labels } = selectedChannel;
 
     void Promise.all([
-      api.getStatsHistory(name, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
-      api.getStatsHistory(name, { metric: "channel_signal_level", labels, sinceMs }),
-      api.getStatsHistory(name, { metric: "channel_squelch_level", labels, sinceMs }),
+      api.getStatsHistory(selectedInstanceName, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
+      api.getStatsHistory(selectedInstanceName, { metric: "channel_signal_level", labels, sinceMs }),
+      api.getStatsHistory(selectedInstanceName, { metric: "channel_squelch_level", labels, sinceMs }),
     ]).then(([dbfsSignal, rawSignal, rawSquelch]) => {
       setSnrSeries([
         { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
@@ -107,45 +124,59 @@ export function InstanceStatsPage() {
         },
       ]);
     });
-  }, [name, selectedChannel, rangeMs]);
+  }, [selectedInstanceName, selectedChannel, rangeMs]);
 
   if (error) return <div className="text-red-300">{error}</div>;
-  if (!latest) return <p className="text-slate-400">Loading…</p>;
+  if (instances === null) return <p className="text-slate-400">Loading…</p>;
+  if (instances.length === 0) return <p className="text-slate-400">No instances yet. Create one first.</p>;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">Stats — {name}</h1>
-        <button type="button" onClick={() => navigate(`/instances/${name}`)} className="text-sm text-slate-400 hover:text-slate-200">
-          ← Back to config
-        </button>
+      <h1 className="text-xl font-semibold text-slate-100">Stats</h1>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          Device
+          <select
+            className={inputClass}
+            value={selectedInstanceName ?? ""}
+            onChange={(e) => setSelectedInstanceName(e.target.value)}
+          >
+            {instances.map((instance) => (
+              <option key={instance.name} value={instance.name}>
+                {instance.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {channels.length > 0 && (
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            Channel
+            <select
+              className={inputClass}
+              value={selectedChannel?.key ?? ""}
+              onChange={(e) => setSelectedChannelKey(e.target.value)}
+            >
+              {channels.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.freq} MHz{c.label ? ` — ${c.label}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
       </div>
 
-      {latest.length === 0 ? (
+      {latest === null ? (
+        <p className="text-slate-400">Loading…</p>
+      ) : latest.length === 0 ? (
         <p className="text-slate-400">
           No stats recorded yet for this instance. Make sure it's running and its config has <code>stats_filepath</code> set —
           RTLSDR-Airband writes that file roughly every 15 seconds.
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
-              Channel
-              <select
-                className={inputClass}
-                value={selectedChannel?.key ?? ""}
-                onChange={(e) => setSelectedChannelKey(e.target.value)}
-              >
-                {channels.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.freq} MHz{c.label ? ` — ${c.label}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <TimeRangePicker value={rangeMs} onChange={setRangeMs} />
-          </div>
-
           <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
 
           {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
