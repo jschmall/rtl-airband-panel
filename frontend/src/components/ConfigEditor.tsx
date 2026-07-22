@@ -1,11 +1,12 @@
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import { Field } from "./Field.js";
+import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
-import { addButtonClass, checkboxClass, inputClass } from "./styles.js";
+import { addButtonClass, inputClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultDevice, defaultMixer } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { GLOBAL_TOOLTIPS } from "../lib/config-descriptions.js";
 
 interface ConfigEditorProps {
   config: RtlAirbandConfig;
@@ -16,14 +17,14 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-        <Field label="Stats filepath">
+        <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
           <input
             className={inputClass}
             value={config.stats_filepath}
             onChange={(e) => onChange({ ...config, stats_filepath: e.target.value })}
           />
         </Field>
-        <Field label="FFT size (optional, power of two 256-8192)">
+        <Field label="FFT size (optional, power of two 256-8192)" tooltip={GLOBAL_TOOLTIPS.fftSize}>
           <input
             type="number"
             className={inputClass}
@@ -31,14 +32,14 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             onChange={(e) => onChange({ ...config, fft_size: e.target.value === "" ? undefined : Number(e.target.value) })}
           />
         </Field>
-        <Field label="PID file (optional, default /run/rtl_airband.pid)">
+        <Field label="PID file (optional, default /run/rtl_airband.pid)" tooltip={GLOBAL_TOOLTIPS.pidfile}>
           <input
             className={inputClass}
             value={config.pidfile ?? ""}
             onChange={(e) => onChange({ ...config, pidfile: e.target.value || undefined })}
           />
         </Field>
-        <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)">
+        <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)" tooltip={GLOBAL_TOOLTIPS.shoutMetadataDelay}>
           <input
             type="number"
             min="0"
@@ -48,7 +49,7 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             onChange={(e) => onChange({ ...config, shout_metadata_delay: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Tau, µs (optional; global NFM deemphasis, default 200)">
+        <Field label="Tau, µs (optional; global NFM deemphasis, default 200)" tooltip={GLOBAL_TOOLTIPS.tau}>
           <input
             type="number"
             className={inputClass}
@@ -56,42 +57,25 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-slate-400">
-          <input
-            type="checkbox"
-            className={checkboxClass}
-            checked={config.multiple_demod_threads}
-            onChange={(e) => onChange({ ...config, multiple_demod_threads: e.target.checked })}
-          />
-          Multiple demod threads
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-400">
-          <input
-            type="checkbox"
-            className={checkboxClass}
-            checked={config.multiple_output_threads}
-            onChange={(e) => onChange({ ...config, multiple_output_threads: e.target.checked })}
-          />
-          Multiple output threads
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-400">
-          <input
-            type="checkbox"
-            className={checkboxClass}
-            checked={config.localtime}
-            onChange={(e) => onChange({ ...config, localtime: e.target.checked })}
-          />
-          Localtime
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-400">
-          <input
-            type="checkbox"
-            className={checkboxClass}
-            checked={config.log_scan_activity ?? false}
-            onChange={(e) => onChange({ ...config, log_scan_activity: e.target.checked })}
-          />
-          Log scan activity
-        </label>
+        <BoolField
+          label="Multiple demod threads"
+          tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
+          checked={config.multiple_demod_threads}
+          onChange={(v) => onChange({ ...config, multiple_demod_threads: v })}
+        />
+        <BoolField
+          label="Multiple output threads"
+          tooltip={GLOBAL_TOOLTIPS.multipleOutputThreads}
+          checked={config.multiple_output_threads}
+          onChange={(v) => onChange({ ...config, multiple_output_threads: v })}
+        />
+        <BoolField label="Localtime" tooltip={GLOBAL_TOOLTIPS.localtime} checked={config.localtime} onChange={(v) => onChange({ ...config, localtime: v })} />
+        <BoolField
+          label="Log scan activity"
+          tooltip={GLOBAL_TOOLTIPS.logScanActivity}
+          checked={config.log_scan_activity ?? false}
+          onChange={(v) => onChange({ ...config, log_scan_activity: v })}
+        />
       </div>
 
       <div className="space-y-3">

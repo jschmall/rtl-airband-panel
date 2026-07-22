@@ -10,6 +10,7 @@ import type {
 import { BoolField, Field } from "./Field.js";
 import { inputClass, removeButtonClass } from "./styles.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { OUTPUT_TOOLTIPS } from "../lib/config-descriptions.js";
 import {
   defaultFileOutput,
   defaultIcecastOutput,
@@ -65,7 +66,7 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
       {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} />}
       {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
       {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
-      <BoolField label="Disable" checked={output.disable} onChange={(v) => onChange({ ...output, disable: v } as Output)} />
+      <BoolField label="Disable" tooltip={OUTPUT_TOOLTIPS.disable} checked={output.disable} onChange={(v) => onChange({ ...output, disable: v } as Output)} />
     </div>
   );
 }
@@ -73,35 +74,35 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
 function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Server (optional; PulseAudio default if blank)">
+      <Field label="Server (optional; PulseAudio default if blank)" tooltip={OUTPUT_TOOLTIPS.pulseServer}>
         <input
           className={inputClass}
           value={output.server ?? ""}
           onChange={(e) => onChange({ ...output, server: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Sink (optional; PulseAudio default if blank)">
+      <Field label="Sink (optional; PulseAudio default if blank)" tooltip={OUTPUT_TOOLTIPS.pulseSink}>
         <input
           className={inputClass}
           value={output.sink ?? ""}
           onChange={(e) => onChange({ ...output, sink: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Name (optional, default: rtl_airband)">
+      <Field label="Name (optional, default: rtl_airband)" tooltip={OUTPUT_TOOLTIPS.pulseName}>
         <input
           className={inputClass}
           value={output.name ?? ""}
           onChange={(e) => onChange({ ...output, name: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Stream name (optional; auto-generated from freq if blank)">
+      <Field label="Stream name (optional; auto-generated from freq if blank)" tooltip={OUTPUT_TOOLTIPS.streamName}>
         <input
           className={inputClass}
           value={output.stream_name ?? ""}
           onChange={(e) => onChange({ ...output, stream_name: e.target.value || undefined })}
         />
       </Field>
-      <BoolField label="Continuous" checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
     </div>
   );
 }
@@ -109,17 +110,17 @@ function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: 
 function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Directory">
+      <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
         <input className={inputClass} value={output.directory} onChange={(e) => onChange({ ...output, directory: e.target.value })} />
       </Field>
-      <Field label="Filename template">
+      <Field label="Filename template" tooltip={OUTPUT_TOOLTIPS.filenameTemplate}>
         <input
           className={inputClass}
           value={output.filename_template}
           onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
         />
       </Field>
-      <Field label="Min RX seconds (only used if split_on_transmission)">
+      <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
         <input
           type="number"
           step="0.1"
@@ -128,23 +129,25 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
           onChange={(e) => onChange({ ...output, min_rx_seconds: numberOrUndefined(e.target.value) })}
         />
       </Field>
-      <Field label="Post-write script (optional)">
+      <Field label="Post-write script (optional)" tooltip={OUTPUT_TOOLTIPS.postWriteScript}>
         <input
           className={inputClass}
           value={output.post_write_script ?? ""}
           onChange={(e) => onChange({ ...output, post_write_script: e.target.value || undefined })}
         />
       </Field>
-      <BoolField label="Continuous" checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
       <BoolField
         label="Split on transmission"
+        tooltip={OUTPUT_TOOLTIPS.splitOnTransmission}
         checked={output.split_on_transmission}
         onChange={(v) => onChange({ ...output, split_on_transmission: v })}
       />
-      <BoolField label="Include freq" checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
-      <BoolField label="Append" checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
+      <BoolField label="Include freq" tooltip={OUTPUT_TOOLTIPS.includeFreq} checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
+      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
       <BoolField
         label="Dated subdirectories"
+        tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
       />
@@ -155,26 +158,28 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
 function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Directory">
+      <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
         <input className={inputClass} value={output.directory} onChange={(e) => onChange({ ...output, directory: e.target.value })} />
       </Field>
-      <Field label="Filename template">
+      <Field label="Filename template" tooltip={OUTPUT_TOOLTIPS.filenameTemplate}>
         <input
           className={inputClass}
           value={output.filename_template}
           onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
         />
       </Field>
-      <BoolField label="Continuous" checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
       <BoolField
         label="Split on transmission"
+        tooltip={OUTPUT_TOOLTIPS.splitOnTransmission}
         checked={output.split_on_transmission}
         onChange={(v) => onChange({ ...output, split_on_transmission: v })}
       />
-      <BoolField label="Include freq" checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
-      <BoolField label="Append" checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
+      <BoolField label="Include freq" tooltip={OUTPUT_TOOLTIPS.includeFreq} checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
+      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
       <BoolField
         label="Dated subdirectories"
+        tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
       />
@@ -187,10 +192,10 @@ const TLS_OPTIONS = ["", "auto", "auto_no_plain", "transport", "upgrade", "disab
 function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Server">
+      <Field label="Server" tooltip={OUTPUT_TOOLTIPS.icecastServer}>
         <input className={inputClass} value={output.server} onChange={(e) => onChange({ ...output, server: e.target.value })} />
       </Field>
-      <Field label="Port">
+      <Field label="Port" tooltip={OUTPUT_TOOLTIPS.port}>
         <input
           type="number"
           className={inputClass}
@@ -198,17 +203,17 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
           onChange={(e) => onChange({ ...output, port: Number(e.target.value) })}
         />
       </Field>
-      <Field label="Mountpoint">
+      <Field label="Mountpoint" tooltip={OUTPUT_TOOLTIPS.mountpoint}>
         <input
           className={inputClass}
           value={output.mountpoint}
           onChange={(e) => onChange({ ...output, mountpoint: e.target.value })}
         />
       </Field>
-      <Field label="Username">
+      <Field label="Username" tooltip={OUTPUT_TOOLTIPS.username}>
         <input className={inputClass} value={output.username} onChange={(e) => onChange({ ...output, username: e.target.value })} />
       </Field>
-      <Field label="Password">
+      <Field label="Password" tooltip={OUTPUT_TOOLTIPS.password}>
         <input
           type="password"
           className={inputClass}
@@ -216,28 +221,28 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
           onChange={(e) => onChange({ ...output, password: e.target.value })}
         />
       </Field>
-      <Field label="Name (optional)">
+      <Field label="Name (optional)" tooltip={OUTPUT_TOOLTIPS.icecastName}>
         <input
           className={inputClass}
           value={output.name ?? ""}
           onChange={(e) => onChange({ ...output, name: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Genre (optional)">
+      <Field label="Genre (optional)" tooltip={OUTPUT_TOOLTIPS.genre}>
         <input
           className={inputClass}
           value={output.genre ?? ""}
           onChange={(e) => onChange({ ...output, genre: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Description (optional)">
+      <Field label="Description (optional)" tooltip={OUTPUT_TOOLTIPS.description}>
         <input
           className={inputClass}
           value={output.description ?? ""}
           onChange={(e) => onChange({ ...output, description: e.target.value || undefined })}
         />
       </Field>
-      <Field label="TLS (optional; only if built with libshout TLS support)">
+      <Field label="TLS (optional; only if built with libshout TLS support)" tooltip={OUTPUT_TOOLTIPS.tls}>
         <select
           className={inputClass}
           value={output.tls ?? ""}
@@ -254,6 +259,7 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
       </Field>
       <BoolField
         label="Send scan freq tags"
+        tooltip={OUTPUT_TOOLTIPS.sendScanFreqTags}
         checked={output.send_scan_freq_tags}
         onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
       />
@@ -264,21 +270,21 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
 function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Destination address">
+      <Field label="Destination address" tooltip={OUTPUT_TOOLTIPS.destAddress}>
         <input
           className={inputClass}
           value={output.dest_address}
           onChange={(e) => onChange({ ...output, dest_address: e.target.value })}
         />
       </Field>
-      <Field label="Destination port (number or service name)">
+      <Field label="Destination port (number or service name)" tooltip={OUTPUT_TOOLTIPS.destPort}>
         <input
           className={inputClass}
           value={output.dest_port}
           onChange={(e) => onChange({ ...output, dest_port: e.target.value })}
         />
       </Field>
-      <BoolField label="Continuous" checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
     </div>
   );
 }
@@ -286,10 +292,10 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
 function MixerFields({ output, onChange }: { output: MixerOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Mixer name (must match a top-level mixer definition)">
+      <Field label="Mixer name (must match a top-level mixer definition)" tooltip={OUTPUT_TOOLTIPS.mixerName}>
         <input className={inputClass} value={output.name} onChange={(e) => onChange({ ...output, name: e.target.value })} />
       </Field>
-      <Field label="Ampfactor (optional, default 1.0)">
+      <Field label="Ampfactor (optional, default 1.0)" tooltip={OUTPUT_TOOLTIPS.mixerAmpfactor}>
         <input
           type="number"
           step="0.1"
@@ -298,7 +304,7 @@ function MixerFields({ output, onChange }: { output: MixerOutput; onChange: (o: 
           onChange={(e) => onChange({ ...output, ampfactor: numberOrUndefined(e.target.value) })}
         />
       </Field>
-      <Field label="Balance (optional, -1.0 to 1.0, default 0.0)">
+      <Field label="Balance (optional, -1.0 to 1.0, default 0.0)" tooltip={OUTPUT_TOOLTIPS.balance}>
         <input
           type="number"
           step="0.1"

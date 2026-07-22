@@ -13,6 +13,7 @@ import {
   parseNumberOrList,
   parseStringListOrUndefined,
 } from "../lib/number-utils.js";
+import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
 
 interface ScanChannelEditorProps {
   channel: ScanChannel;
@@ -31,21 +32,21 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
       <h4 className="font-medium text-slate-200">Scan channel — {channel.freqs.length} frequencies</h4>
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Frequencies, Hz (comma-separated, one per scanned frequency)">
+        <Field label="Frequencies, Hz (comma-separated, one per scanned frequency)" tooltip={CHANNEL_TOOLTIPS.freqs}>
           <input
             className={inputClass}
             value={formatNumberList(channel.freqs)}
             onChange={(e) => onChange({ ...channel, freqs: parseNumberList(e.target.value) })}
           />
         </Field>
-        <Field label="Labels (optional, comma-separated, one per frequency)">
+        <Field label="Labels (optional, comma-separated, one per frequency)" tooltip={CHANNEL_TOOLTIPS.labels}>
           <input
             className={inputClass}
             value={formatStringList(channel.labels)}
             onChange={(e) => onChange({ ...channel, labels: parseStringListOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Modulation, applied to all (blank = default: am)">
+        <Field label="Modulation, applied to all (blank = default: am)" tooltip={CHANNEL_TOOLTIPS.modulation}>
           <select
             className={inputClass}
             value={channel.modulation ?? ""}
@@ -56,14 +57,14 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             <option value="am">am</option>
           </select>
         </Field>
-        <Field label="Modulations (optional, comma-separated per frequency; overrides Modulation above)">
+        <Field label="Modulations (optional, comma-separated per frequency; overrides Modulation above)" tooltip={CHANNEL_TOOLTIPS.modulations}>
           <input
             className={inputClass}
             value={formatStringList(channel.modulations)}
             onChange={(e) => onChange({ ...channel, modulations: parseStringListOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="AFC (blank = default: 0)">
+        <Field label="AFC (blank = default: 0)" tooltip={CHANNEL_TOOLTIPS.afc}>
           <input
             type="number"
             className={inputClass}
@@ -71,22 +72,24 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             onChange={(e) => onChange({ ...channel, afc: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <NumberOrListField label="Bandwidth, Hz (single value or comma-separated per frequency)" value={channel.bandwidth} onChange={(v) => onChange({ ...channel, bandwidth: v })} />
-        <NumberOrListField label="Ampfactor (single value or comma-separated per frequency)" value={channel.ampfactor} onChange={(v) => onChange({ ...channel, ampfactor: v })} />
-        <NumberOrListField label="CTCSS Hz (single value or comma-separated; 0.0 disables for that frequency)" value={channel.ctcss} onChange={(v) => onChange({ ...channel, ctcss: v })} />
-        <NumberOrListField label="Notch Hz (single value or comma-separated; 0.0 keeps default for that frequency)" value={channel.notch} onChange={(v) => onChange({ ...channel, notch: v })} />
-        <NumberOrListField label="Notch Q (single value or comma-separated, default 10.0)" value={channel.notch_q} onChange={(v) => onChange({ ...channel, notch_q: v })} />
+        <NumberOrListField label="Bandwidth, Hz (single value or comma-separated per frequency)" tooltip={CHANNEL_TOOLTIPS.bandwidth} value={channel.bandwidth} onChange={(v) => onChange({ ...channel, bandwidth: v })} />
+        <NumberOrListField label="Ampfactor (single value or comma-separated per frequency)" tooltip={CHANNEL_TOOLTIPS.ampfactor} value={channel.ampfactor} onChange={(v) => onChange({ ...channel, ampfactor: v })} />
+        <NumberOrListField label="CTCSS Hz (single value or comma-separated; 0.0 disables for that frequency)" tooltip={CHANNEL_TOOLTIPS.ctcss} value={channel.ctcss} onChange={(v) => onChange({ ...channel, ctcss: v })} />
+        <NumberOrListField label="Notch Hz (single value or comma-separated; 0.0 keeps default for that frequency)" tooltip={CHANNEL_TOOLTIPS.notch} value={channel.notch} onChange={(v) => onChange({ ...channel, notch: v })} />
+        <NumberOrListField label="Notch Q (single value or comma-separated, default 10.0)" tooltip={CHANNEL_TOOLTIPS.notchQ} value={channel.notch_q} onChange={(v) => onChange({ ...channel, notch_q: v })} />
         <NumberOrListField
           label="Squelch threshold, dBFS (single value or comma-separated; 0 = auto-squelch for that frequency)"
+          tooltip={CHANNEL_TOOLTIPS.squelchThreshold}
           value={channel.squelch_threshold}
           onChange={(v) => onChange({ ...channel, squelch_threshold: v })}
         />
         <NumberOrListField
           label="Squelch SNR threshold (single value or comma-separated; 0 = always open, -1.0 = keep default, per frequency)"
+          tooltip={CHANNEL_TOOLTIPS.squelchSnrThreshold}
           value={channel.squelch_snr_threshold}
           onChange={(v) => onChange({ ...channel, squelch_snr_threshold: v })}
         />
-        <Field label="Highpass Hz (optional, default 100; 0 disables)">
+        <Field label="Highpass Hz (optional, default 100; 0 disables)" tooltip={CHANNEL_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
@@ -94,7 +97,7 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             onChange={(e) => onChange({ ...channel, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Lowpass Hz (optional, default 2500; 0 disables)">
+        <Field label="Lowpass Hz (optional, default 2500; 0 disables)" tooltip={CHANNEL_TOOLTIPS.lowpass}>
           <input
             type="number"
             className={inputClass}
@@ -102,7 +105,7 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             onChange={(e) => onChange({ ...channel, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Tau, µs (optional; NFM deemphasis, falls back to device/global)">
+        <Field label="Tau, µs (optional; NFM deemphasis, falls back to device/global)" tooltip={CHANNEL_TOOLTIPS.tauChannel}>
           <input
             type="number"
             className={inputClass}
@@ -110,7 +113,7 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             onChange={(e) => onChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <BoolField label="Disable" checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+        <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
       </div>
 
       <div className="space-y-2">
@@ -139,15 +142,17 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
 
 function NumberOrListField({
   label,
+  tooltip,
   value,
   onChange,
 }: {
   label: string;
+  tooltip?: string;
   value: number | number[] | undefined;
   onChange: (value: number | number[] | undefined) => void;
 }) {
   return (
-    <Field label={label}>
+    <Field label={label} tooltip={tooltip}>
       <input className={inputClass} value={formatNumberOrList(value)} onChange={(e) => onChange(parseNumberOrList(e.target.value))} />
     </Field>
   );

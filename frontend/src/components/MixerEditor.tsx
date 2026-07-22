@@ -5,6 +5,7 @@ import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultIcecastOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { MIXER_TOOLTIPS } from "../lib/config-descriptions.js";
 
 interface MixerEditorProps {
   mixer: Mixer;
@@ -24,10 +25,10 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Field label="Name (referenced by channel outputs of type 'mixer')">
+        <Field label="Name (referenced by channel outputs of type 'mixer')" tooltip={MIXER_TOOLTIPS.name}>
           <input className={inputClass} value={mixer.name} onChange={(e) => onChange({ ...mixer, name: e.target.value })} />
         </Field>
-        <Field label="Highpass Hz (optional; 0 disables)">
+        <Field label="Highpass Hz (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
@@ -35,7 +36,7 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
             onChange={(e) => onChange({ ...mixer, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Lowpass Hz (optional; 0 disables)">
+        <Field label="Lowpass Hz (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.lowpass}>
           <input
             type="number"
             className={inputClass}
@@ -43,7 +44,7 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
             onChange={(e) => onChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <BoolField label="Disable" checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
+        <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
       </div>
 
       <div className="space-y-2">

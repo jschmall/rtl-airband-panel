@@ -5,6 +5,7 @@ import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
 
 interface ChannelEditorProps {
   channel: MultichannelChannel;
@@ -23,7 +24,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
       </div>
 
       <div className="grid grid-cols-4 gap-2">
-        <Field label="Frequency (Hz)">
+        <Field label="Frequency (Hz)" tooltip={CHANNEL_TOOLTIPS.freq}>
           <input
             type="number"
             className={inputClass}
@@ -31,7 +32,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, freq: Number(e.target.value) })}
           />
         </Field>
-        <Field label="Modulation (blank = default: am)">
+        <Field label="Modulation (blank = default: am)" tooltip={CHANNEL_TOOLTIPS.modulation}>
           <select
             className={inputClass}
             value={channel.modulation ?? ""}
@@ -42,7 +43,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             <option value="am">am</option>
           </select>
         </Field>
-        <Field label="AFC (blank = default: 0)">
+        <Field label="AFC (blank = default: 0)" tooltip={CHANNEL_TOOLTIPS.afc}>
           <input
             type="number"
             className={inputClass}
@@ -50,7 +51,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, afc: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Bandwidth (Hz, optional)">
+        <Field label="Bandwidth (Hz, optional)" tooltip={CHANNEL_TOOLTIPS.bandwidth}>
           <input
             type="number"
             className={inputClass}
@@ -58,7 +59,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, bandwidth: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Ampfactor (optional)">
+        <Field label="Ampfactor (optional)" tooltip={CHANNEL_TOOLTIPS.ampfactor}>
           <input
             type="number"
             step="0.1"
@@ -67,7 +68,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, ampfactor: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="CTCSS Hz (optional)">
+        <Field label="CTCSS Hz (optional)" tooltip={CHANNEL_TOOLTIPS.ctcss}>
           <input
             type="number"
             step="0.1"
@@ -76,7 +77,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, ctcss: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Notch Hz (optional)">
+        <Field label="Notch Hz (optional)" tooltip={CHANNEL_TOOLTIPS.notch}>
           <input
             type="number"
             step="0.1"
@@ -85,7 +86,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, notch: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Squelch SNR threshold (optional)">
+        <Field label="Squelch SNR threshold (optional)" tooltip={CHANNEL_TOOLTIPS.squelchSnrThreshold}>
           <input
             type="number"
             className={inputClass}
@@ -93,7 +94,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Squelch threshold, dBFS (optional; mutually exclusive with SNR threshold in practice)">
+        <Field label="Squelch threshold, dBFS (optional; mutually exclusive with SNR threshold in practice)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
           <input
             type="number"
             className={inputClass}
@@ -101,14 +102,14 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, squelch_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Label (optional)">
+        <Field label="Label (optional)" tooltip={CHANNEL_TOOLTIPS.label}>
           <input
             className={inputClass}
             value={channel.label ?? ""}
             onChange={(e) => onChange({ ...channel, label: e.target.value || undefined })}
           />
         </Field>
-        <Field label="Notch Q (optional, default 10.0)">
+        <Field label="Notch Q (optional, default 10.0)" tooltip={CHANNEL_TOOLTIPS.notchQ}>
           <input
             type="number"
             step="0.1"
@@ -117,7 +118,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, notch_q: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Highpass Hz (optional, default 100; 0 disables)">
+        <Field label="Highpass Hz (optional, default 100; 0 disables)" tooltip={CHANNEL_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
@@ -125,7 +126,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Lowpass Hz (optional, default 2500; 0 disables)">
+        <Field label="Lowpass Hz (optional, default 2500; 0 disables)" tooltip={CHANNEL_TOOLTIPS.lowpass}>
           <input
             type="number"
             className={inputClass}
@@ -133,7 +134,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Tau, µs (optional; NFM deemphasis, falls back to device/global)">
+        <Field label="Tau, µs (optional; NFM deemphasis, falls back to device/global)" tooltip={CHANNEL_TOOLTIPS.tauChannel}>
           <input
             type="number"
             className={inputClass}
@@ -141,7 +142,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <BoolField label="Disable" checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+        <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
       </div>
 
       <div className="space-y-2">

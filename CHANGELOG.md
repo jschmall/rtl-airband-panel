@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.3.1] - 2026-07-22
+
+### Added
+
+- **Hover tooltips on every config field.** The device, channel/scan-channel,
+  output, mixer, and global settings editors now show a plain-language
+  explanation on hover (`title` attribute + dotted-underline hint, matching
+  the existing Stats page convention), sourced from a new
+  `config-descriptions.ts`. Field labels are unchanged — tooltips add depth
+  without cluttering the visible label text.
+- **Device fields now adapt to device type and channel mode.** `Serial`/
+  `Index` are hidden for SoapySDR devices (which are identified by
+  `device_string` instead); `Center frequency` is hidden in scan mode
+  (the dongle retunes per frequency, so it's unused). Switching a device's
+  `type` or `mode` now strips fields that no longer apply (e.g. `buffers`,
+  `device_string`, `centerfreq`) instead of leaving stale values sitting in
+  the saved config.
+
+### Fixed
+
+- MiriSDR's `correction` field was labeled "ppm" like rtlsdr/soapysdr, but
+  RTLSDR-Airband documents it in Hz for that device type. The label (and
+  its tooltip) now switch units based on the selected device type.
+
 ## [0.3.0] - 2026-07-22
 
 ### Added

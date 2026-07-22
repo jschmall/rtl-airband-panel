@@ -70,6 +70,36 @@ export function channelsForMode(existing: Channel[], mode: "multichannel" | "sca
   return existing.some((c) => "freqs" in c) ? [defaultChannel()] : existing;
 }
 
+/** Fields that only apply to a subset of device types; kept out of a device object once its type no longer uses them. */
+const TYPE_SPECIFIC_FIELDS = ["serial", "index", "buffers", "num_buffers", "device_string", "channel", "antenna"] as const;
+
+const FIELDS_BY_TYPE: Record<string, readonly (typeof TYPE_SPECIFIC_FIELDS)[number][]> = {
+  rtlsdr: ["serial", "index", "buffers"],
+  mirisdr: ["serial", "index", "num_buffers"],
+  soapysdr: ["device_string", "channel", "antenna"],
+};
+
+/**
+ * Strips device fields that don't apply to `newType` (e.g. `device_string`
+ * when switching away from soapysdr), so switching types doesn't leave
+ * stale, inapplicable values behind in the saved config.
+ */
+export function deviceForType(device: Device, newType: string): Device {
+  const next: Device = { ...device, type: newType };
+  const keep = new Set(FIELDS_BY_TYPE[newType] ?? []);
+  for (const field of TYPE_SPECIFIC_FIELDS) {
+    if (!keep.has(field)) delete next[field];
+  }
+  return next;
+}
+
+/** Strips device fields that don't apply to `newMode` (centerfreq is multichannel-only). */
+export function deviceForMode(device: Device, newMode: Device["mode"]): Device {
+  const next: Device = { ...device };
+  if (newMode === "scan") delete next.centerfreq;
+  return next;
+}
+
 export function defaultDevice(): Device {
   return {
     type: "rtlsdr",

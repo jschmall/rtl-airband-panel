@@ -4,8 +4,9 @@ import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
-import { channelsForMode, defaultChannel, defaultScanChannel } from "../lib/defaults.js";
+import { channelsForMode, defaultChannel, defaultScanChannel, deviceForMode, deviceForType } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 
 function isMultichannelChannel(channel: Channel): channel is MultichannelChannel {
   return "freq" in channel;
@@ -38,6 +39,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
   const isRtl = device.type === "rtlsdr";
+  const isScan = device.mode === "scan";
 
   return (
     <div className="space-y-4 rounded-lg border border-slate-700 bg-slate-900 p-4">
@@ -52,8 +54,8 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Field label="Type">
-          <select className={inputClass} value={device.type} onChange={(e) => onChange({ ...device, type: e.target.value })}>
+        <Field label="Type" tooltip={DEVICE_TOOLTIPS.type}>
+          <select className={inputClass} value={device.type} onChange={(e) => onChange(deviceForType(device, e.target.value))}>
             {DEVICE_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -61,13 +63,13 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             ))}
           </select>
         </Field>
-        <Field label="Mode (blank = default: multichannel)">
+        <Field label="Mode (blank = default: multichannel)" tooltip={DEVICE_TOOLTIPS.mode}>
           <select
             className={inputClass}
             value={device.mode ?? ""}
             onChange={(e) => {
               const mode = (e.target.value || undefined) as Device["mode"];
-              onChange({ ...device, mode, channels: channelsForMode(device.channels, mode) });
+              onChange({ ...deviceForMode(device, mode), mode, channels: channelsForMode(device.channels, mode) });
             }}
           >
             <option value="">(default: multichannel)</option>
@@ -75,33 +77,42 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             <option value="scan">scan</option>
           </select>
         </Field>
-        <Field label="Serial (optional if index is set)">
-          <input
-            className={inputClass}
-            value={device.serial ?? ""}
-            onChange={(e) => onChange({ ...device, serial: e.target.value || undefined })}
-          />
-        </Field>
-        <Field label="Index (optional, used if serial is blank; default 0)">
-          <input
-            type="number"
-            className={inputClass}
-            value={device.index ?? ""}
-            onChange={(e) => onChange({ ...device, index: numberOrUndefined(e.target.value) })}
-          />
-        </Field>
-        <Field label={isSoapy ? "Gain (number, or 'component=value' pairs; blank = AGC)" : "Gain"}>
+        {!isSoapy && (
+          <>
+            <Field label="Serial (optional if index is set)" tooltip={DEVICE_TOOLTIPS.serial}>
+              <input
+                className={inputClass}
+                value={device.serial ?? ""}
+                onChange={(e) => onChange({ ...device, serial: e.target.value || undefined })}
+              />
+            </Field>
+            <Field label="Index (optional, used if serial is blank; default 0)" tooltip={DEVICE_TOOLTIPS.index}>
+              <input
+                type="number"
+                className={inputClass}
+                value={device.index ?? ""}
+                onChange={(e) => onChange({ ...device, index: numberOrUndefined(e.target.value) })}
+              />
+            </Field>
+          </>
+        )}
+        <Field
+          label={isSoapy ? "Gain (number, or 'component=value' pairs; blank = AGC)" : "Gain"}
+          tooltip={isSoapy ? DEVICE_TOOLTIPS.gainSoapy : DEVICE_TOOLTIPS.gain}
+        >
           <input className={inputClass} value={gainToText(device.gain)} onChange={(e) => onChange({ ...device, gain: parseGain(e.target.value) })} />
         </Field>
-        <Field label={device.mode === "scan" ? "Center frequency (Hz, not used in scan mode)" : "Center frequency (Hz)"}>
-          <input
-            type="number"
-            className={inputClass}
-            value={device.centerfreq ?? ""}
-            onChange={(e) => onChange({ ...device, centerfreq: numberOrUndefined(e.target.value) })}
-          />
-        </Field>
-        <Field label="Sample rate (Hz, blank = default 2,560,000)">
+        {!isScan && (
+          <Field label="Center frequency (Hz)" tooltip={DEVICE_TOOLTIPS.centerfreq}>
+            <input
+              type="number"
+              className={inputClass}
+              value={device.centerfreq ?? ""}
+              onChange={(e) => onChange({ ...device, centerfreq: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
+        <Field label="Sample rate (Hz, blank = default 2,560,000)" tooltip={DEVICE_TOOLTIPS.sampleRate}>
           <input
             type="number"
             className={inputClass}
@@ -109,7 +120,10 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Correction (ppm, blank = default 0)">
+        <Field
+          label={isMiri ? "Correction (Hz, blank = default 0)" : "Correction (ppm, blank = default 0)"}
+          tooltip={isMiri ? DEVICE_TOOLTIPS.correctionHz : DEVICE_TOOLTIPS.correctionPpm}
+        >
           <input
             type="number"
             className={inputClass}
@@ -117,7 +131,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             onChange={(e) => onChange({ ...device, correction: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Tau, µs (optional; NFM deemphasis, overrides global)">
+        <Field label="Tau, µs (optional; NFM deemphasis, overrides global)" tooltip={DEVICE_TOOLTIPS.tauDevice}>
           <input
             type="number"
             className={inputClass}
@@ -127,7 +141,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
         </Field>
 
         {isRtl && (
-          <Field label="Buffers (optional, default 10)">
+          <Field label="Buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.buffers}>
             <input
               type="number"
               className={inputClass}
@@ -137,7 +151,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
           </Field>
         )}
         {isMiri && (
-          <Field label="Num buffers (optional, default 10)">
+          <Field label="Num buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.numBuffers}>
             <input
               type="number"
               className={inputClass}
@@ -148,14 +162,14 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
         )}
         {isSoapy && (
           <>
-            <Field label="Device string (required, e.g. 'driver=rtlsdr,serial=00000001')">
+            <Field label="Device string (required, e.g. 'driver=rtlsdr,serial=00000001')" tooltip={DEVICE_TOOLTIPS.deviceString}>
               <input
                 className={inputClass}
                 value={device.device_string ?? ""}
                 onChange={(e) => onChange({ ...device, device_string: e.target.value || undefined })}
               />
             </Field>
-            <Field label="Channel (optional, default 0)">
+            <Field label="Channel (optional, default 0)" tooltip={DEVICE_TOOLTIPS.channel}>
               <input
                 type="number"
                 className={inputClass}
@@ -163,7 +177,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
                 onChange={(e) => onChange({ ...device, channel: numberOrUndefined(e.target.value) })}
               />
             </Field>
-            <Field label="Antenna (optional)">
+            <Field label="Antenna (optional)" tooltip={DEVICE_TOOLTIPS.antenna}>
               <input
                 className={inputClass}
                 value={device.antenna ?? ""}
@@ -173,13 +187,13 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
           </>
         )}
 
-        <BoolField label="Disable" checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
+        <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="font-medium text-slate-300">Channels</h4>
-          {device.mode !== "scan" && (
+          {!isScan && (
             <button
               type="button"
               className={addButtonClass}
@@ -189,7 +203,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             </button>
           )}
         </div>
-        {device.mode === "scan" ? (
+        {isScan ? (
           <ScanChannelEditor
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}
             onChange={(next) => onChange({ ...device, channels: [next] })}
