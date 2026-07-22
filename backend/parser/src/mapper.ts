@@ -5,18 +5,27 @@ import {
   findSetting,
   group,
   list as listNode,
+  numberOrListSetting,
+  numberOrStringSetting,
+  numberListSetting,
   numberSetting,
   optionalBool,
   optionalHzNumber,
+  optionalHzNumberOrList,
   optionalNumber,
+  optionalNumberOrList,
+  optionalNumberOrString,
   optionalString,
+  optionalStringList,
   requireBool,
   requireGroupItems,
   requireHzNumber,
+  requireHzNumberList,
   requireList,
   requireNumber,
   requireString,
   setting,
+  stringListSetting,
   stringSetting,
 } from "./ast-utils.js";
 import type {
@@ -24,15 +33,19 @@ import type {
   Device,
   FileOutput,
   IcecastOutput,
+  Mixer,
   MixerOutput,
+  MultichannelChannel,
   Output,
   PulseOutput,
   RawFileOutput,
   RtlAirbandConfig,
+  ScanChannel,
   UdpStreamOutput,
 } from "./domain.js";
 
 const TLS_MODES = ["auto", "auto_no_plain", "transport", "upgrade", "disabled"] as const;
+const DEVICE_MODES = ["multichannel", "scan"] as const;
 
 export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   const root: GroupNode = { kind: "group", members: ast.members };
@@ -50,7 +63,31 @@ export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   };
   const fftSize = optionalNumber(root, "fft_size", path);
   if (fftSize !== undefined) config.fft_size = fftSize;
+  const pidfile = optionalString(root, "pidfile", path);
+  if (pidfile !== undefined) config.pidfile = pidfile;
+  const logScanActivity = optionalBool(root, "log_scan_activity", path);
+  if (logScanActivity !== undefined) config.log_scan_activity = logScanActivity;
+  const shoutMetadataDelay = optionalNumber(root, "shout_metadata_delay", path);
+  if (shoutMetadataDelay !== undefined) config.shout_metadata_delay = shoutMetadataDelay;
+  const tau = optionalNumber(root, "tau", path);
+  if (tau !== undefined) config.tau = tau;
+
+  const mixersList = findSetting(root, "mixers");
+  if (mixersList) {
+    const ml = requireList(root, "mixers", path);
+    const mixerGroups = requireGroupItems(ml, `${path}.mixers`);
+    config.mixers = mixerGroups.map((g, i) => toMixer(g, `${path}.mixers[${i}]`));
+  }
   return config;
+}
+
+function toDeviceMode(g: GroupNode, path: string): "multichannel" | "scan" | undefined {
+  const mode = optionalString(g, "mode", path);
+  if (mode === undefined) return undefined;
+  if (!(DEVICE_MODES as readonly string[]).includes(mode)) {
+    throw new DomainMappingError(`Invalid mode value '${mode}' (must be one of: ${DEVICE_MODES.join(", ")})`, path);
+  }
+  return mode as "multichannel" | "scan";
 }
 
 function toDevice(g: GroupNode, path: string): Device {
@@ -58,28 +95,57 @@ function toDevice(g: GroupNode, path: string): Device {
   const channelGroups = requireGroupItems(channelsList, `${path}.channels`);
   const device: Device = {
     type: requireString(g, "type", path),
-    gain: requireNumber(g, "gain", path),
-    centerfreq: requireHzNumber(g, "centerfreq", path),
     channels: channelGroups.map((c, i) => toChannel(c, `${path}.channels[${i}]`)),
   };
   const serial = optionalString(g, "serial", path);
   if (serial !== undefined) device.serial = serial;
   const index = optionalNumber(g, "index", path);
   if (index !== undefined) device.index = index;
+  const gain = optionalNumberOrString(g, "gain", path);
+  if (gain !== undefined) device.gain = gain;
+  const centerfreq = optionalHzNumber(g, "centerfreq", path);
+  if (centerfreq !== undefined) device.centerfreq = centerfreq;
   const sampleRate = optionalHzNumber(g, "sample_rate", path);
   if (sampleRate !== undefined) device.sample_rate = sampleRate;
   const correction = optionalNumber(g, "correction", path);
   if (correction !== undefined) device.correction = correction;
+  const mode = toDeviceMode(g, path);
+  if (mode !== undefined) device.mode = mode;
+  const disable = optionalBool(g, "disable", path);
+  if (disable !== undefined) device.disable = disable;
+  const tau = optionalNumber(g, "tau", path);
+  if (tau !== undefined) device.tau = tau;
+  const buffers = optionalNumber(g, "buffers", path);
+  if (buffers !== undefined) device.buffers = buffers;
+  const numBuffers = optionalNumber(g, "num_buffers", path);
+  if (numBuffers !== undefined) device.num_buffers = numBuffers;
+  const deviceString = optionalString(g, "device_string", path);
+  if (deviceString !== undefined) device.device_string = deviceString;
+  const channel = optionalNumber(g, "channel", path);
+  if (channel !== undefined) device.channel = channel;
+  const antenna = optionalString(g, "antenna", path);
+  if (antenna !== undefined) device.antenna = antenna;
   return device;
 }
 
 function toChannel(g: GroupNode, path: string): Channel {
+  const hasFreqs = findSetting(g, "freqs") !== undefined;
+  const hasFreq = findSetting(g, "freq") !== undefined;
+  if (hasFreqs === hasFreq) {
+    throw new DomainMappingError("Channel must have exactly one of 'freq' (multichannel) or 'freqs' (scan mode)", path);
+  }
+  return hasFreqs ? toScanChannel(g, path) : toMultichannelChannel(g, path);
+}
+
+function toMultichannelChannel(g: GroupNode, path: string): MultichannelChannel {
   const outputsList = requireList(g, "outputs", path);
   const outputGroups = requireGroupItems(outputsList, `${path}.outputs`);
-  const channel: Channel = {
+  const channel: MultichannelChannel = {
     freq: requireHzNumber(g, "freq", path),
     outputs: outputGroups.map((o, i) => toOutput(o, `${path}.outputs[${i}]`)),
   };
+  const label = optionalString(g, "label", path);
+  if (label !== undefined) channel.label = label;
   const afc = optionalNumber(g, "afc", path);
   if (afc !== undefined) channel.afc = afc;
   const modulation = optionalString(g, "modulation", path);
@@ -92,9 +158,87 @@ function toChannel(g: GroupNode, path: string): Channel {
   if (ctcss !== undefined) channel.ctcss = ctcss;
   const notch = optionalNumber(g, "notch", path);
   if (notch !== undefined) channel.notch = notch;
-  const squelch = optionalNumber(g, "squelch_snr_threshold", path);
-  if (squelch !== undefined) channel.squelch_snr_threshold = squelch;
+  const notchQ = optionalNumber(g, "notch_q", path);
+  if (notchQ !== undefined) channel.notch_q = notchQ;
+  const highpass = optionalNumber(g, "highpass", path);
+  if (highpass !== undefined) channel.highpass = highpass;
+  const lowpass = optionalNumber(g, "lowpass", path);
+  if (lowpass !== undefined) channel.lowpass = lowpass;
+  const tau = optionalNumber(g, "tau", path);
+  if (tau !== undefined) channel.tau = tau;
+  const squelchThreshold = optionalNumber(g, "squelch_threshold", path);
+  if (squelchThreshold !== undefined) channel.squelch_threshold = squelchThreshold;
+  const squelchSnr = optionalNumber(g, "squelch_snr_threshold", path);
+  if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
+  const disable = optionalBool(g, "disable", path);
+  if (disable !== undefined) channel.disable = disable;
   return channel;
+}
+
+function toScanChannel(g: GroupNode, path: string): ScanChannel {
+  const outputsList = requireList(g, "outputs", path);
+  const outputGroups = requireGroupItems(outputsList, `${path}.outputs`);
+  const channel: ScanChannel = {
+    freqs: requireHzNumberList(g, "freqs", path),
+    outputs: outputGroups.map((o, i) => toOutput(o, `${path}.outputs[${i}]`)),
+  };
+  const labels = optionalStringList(g, "labels", path);
+  if (labels !== undefined) channel.labels = labels;
+  const modulation = optionalString(g, "modulation", path);
+  if (modulation !== undefined) channel.modulation = modulation;
+  const modulations = optionalStringList(g, "modulations", path);
+  if (modulations !== undefined) channel.modulations = modulations;
+  const bandwidth = optionalHzNumberOrList(g, "bandwidth", path);
+  if (bandwidth !== undefined) channel.bandwidth = bandwidth;
+  const ampfactor = optionalNumberOrList(g, "ampfactor", path);
+  if (ampfactor !== undefined) channel.ampfactor = ampfactor;
+  const afc = optionalNumber(g, "afc", path);
+  if (afc !== undefined) channel.afc = afc;
+  const ctcss = optionalNumberOrList(g, "ctcss", path);
+  if (ctcss !== undefined) channel.ctcss = ctcss;
+  const notch = optionalNumberOrList(g, "notch", path);
+  if (notch !== undefined) channel.notch = notch;
+  const notchQ = optionalNumberOrList(g, "notch_q", path);
+  if (notchQ !== undefined) channel.notch_q = notchQ;
+  const highpass = optionalNumber(g, "highpass", path);
+  if (highpass !== undefined) channel.highpass = highpass;
+  const lowpass = optionalNumber(g, "lowpass", path);
+  if (lowpass !== undefined) channel.lowpass = lowpass;
+  const tau = optionalNumber(g, "tau", path);
+  if (tau !== undefined) channel.tau = tau;
+  const squelchThreshold = optionalNumberOrList(g, "squelch_threshold", path);
+  if (squelchThreshold !== undefined) channel.squelch_threshold = squelchThreshold;
+  const squelchSnr = optionalNumberOrList(g, "squelch_snr_threshold", path);
+  if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
+  const disable = optionalBool(g, "disable", path);
+  if (disable !== undefined) channel.disable = disable;
+  return channel;
+}
+
+function isScanChannel(channel: Channel): channel is ScanChannel {
+  return "freqs" in channel;
+}
+
+function toMixer(g: GroupNode, path: string): Mixer {
+  const outputsList = requireList(g, "outputs", path);
+  const outputGroups = requireGroupItems(outputsList, `${path}.outputs`);
+  const outputs = outputGroups.map((o, i) => toOutput(o, `${path}.outputs[${i}]`));
+  outputs.forEach((o, i) => {
+    if (o.type === "mixer") {
+      throw new DomainMappingError("A mixer's outputs cannot themselves be of type 'mixer'", `${path}.outputs[${i}]`);
+    }
+  });
+  const mixer: Mixer = {
+    name: requireString(g, "name", path),
+    outputs: outputs as Mixer["outputs"],
+  };
+  const disable = optionalBool(g, "disable", path);
+  if (disable !== undefined) mixer.disable = disable;
+  const highpass = optionalNumber(g, "highpass", path);
+  if (highpass !== undefined) mixer.highpass = highpass;
+  const lowpass = optionalNumber(g, "lowpass", path);
+  if (lowpass !== undefined) mixer.lowpass = lowpass;
+  return mixer;
 }
 
 function toOutput(g: GroupNode, path: string): Output {
@@ -117,6 +261,11 @@ function toOutput(g: GroupNode, path: string): Output {
   }
 }
 
+function applyDisable(g: GroupNode, path: string, out: { disable?: boolean }): void {
+  const disable = optionalBool(g, "disable", path);
+  if (disable !== undefined) out.disable = disable;
+}
+
 function toPulseOutput(g: GroupNode, path: string): PulseOutput {
   const out: PulseOutput = { type: "pulse" };
   const server = optionalString(g, "server", path);
@@ -129,6 +278,7 @@ function toPulseOutput(g: GroupNode, path: string): PulseOutput {
   if (streamName !== undefined) out.stream_name = streamName;
   const continuous = optionalBool(g, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
+  applyDisable(g, path, out);
   return out;
 }
 
@@ -167,6 +317,7 @@ function applyCommonFileFields(g: GroupNode, path: string, out: FileOutput | Raw
   if (append !== undefined) out.append = append;
   const datedSubdirectories = optionalBool(g, "dated_subdirectories", path);
   if (datedSubdirectories !== undefined) out.dated_subdirectories = datedSubdirectories;
+  applyDisable(g, path, out);
 }
 
 function toIcecastOutput(g: GroupNode, path: string): IcecastOutput {
@@ -193,6 +344,7 @@ function toIcecastOutput(g: GroupNode, path: string): IcecastOutput {
     }
     out.tls = tls as Exclude<IcecastOutput["tls"], undefined>;
   }
+  applyDisable(g, path, out);
   return out;
 }
 
@@ -205,6 +357,7 @@ function toUdpStreamOutput(g: GroupNode, path: string): UdpStreamOutput {
   };
   const continuous = optionalBool(g, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
+  applyDisable(g, path, out);
   return out;
 }
 
@@ -229,6 +382,7 @@ function toMixerOutput(g: GroupNode, path: string): MixerOutput {
   if (ampfactor !== undefined) out.ampfactor = ampfactor;
   const balance = optionalNumber(g, "balance", path);
   if (balance !== undefined) out.balance = balance;
+  applyDisable(g, path, out);
   return out;
 }
 
@@ -240,7 +394,16 @@ export function fromDomain(config: RtlAirbandConfig): ConfigFile {
     boolSetting("localtime", config.localtime),
   ];
   if (config.fft_size !== undefined) members.push(numberSetting("fft_size", config.fft_size, "int"));
+  if (config.pidfile !== undefined) members.push(stringSetting("pidfile", config.pidfile));
+  if (config.log_scan_activity !== undefined) members.push(boolSetting("log_scan_activity", config.log_scan_activity));
+  if (config.shout_metadata_delay !== undefined) {
+    members.push(numberSetting("shout_metadata_delay", config.shout_metadata_delay, "int"));
+  }
+  if (config.tau !== undefined) members.push(numberSetting("tau", config.tau, "int"));
   members.push(setting("devices", listNode(config.devices.map(deviceFromDomain))));
+  if (config.mixers !== undefined) {
+    members.push(setting("mixers", listNode(config.mixers.map(mixerFromDomain))));
+  }
   return { members };
 }
 
@@ -248,26 +411,81 @@ function deviceFromDomain(device: Device) {
   const members = [stringSetting("type", device.type)];
   if (device.serial !== undefined) members.push(stringSetting("serial", device.serial));
   if (device.index !== undefined) members.push(numberSetting("index", device.index, "int"));
-  members.push(numberSetting("gain", device.gain, "int"));
-  members.push(numberSetting("centerfreq", device.centerfreq, "int"));
+  if (device.gain !== undefined) members.push(numberOrStringSetting("gain", device.gain));
+  if (device.centerfreq !== undefined) members.push(numberSetting("centerfreq", device.centerfreq, "int"));
   if (device.sample_rate !== undefined) members.push(numberSetting("sample_rate", device.sample_rate, "int"));
   if (device.correction !== undefined) members.push(numberSetting("correction", device.correction, "int"));
+  if (device.mode !== undefined) members.push(stringSetting("mode", device.mode));
+  if (device.disable !== undefined) members.push(boolSetting("disable", device.disable));
+  if (device.tau !== undefined) members.push(numberSetting("tau", device.tau, "int"));
+  if (device.buffers !== undefined) members.push(numberSetting("buffers", device.buffers, "int"));
+  if (device.num_buffers !== undefined) members.push(numberSetting("num_buffers", device.num_buffers, "int"));
+  if (device.device_string !== undefined) members.push(stringSetting("device_string", device.device_string));
+  if (device.channel !== undefined) members.push(numberSetting("channel", device.channel, "int"));
+  if (device.antenna !== undefined) members.push(stringSetting("antenna", device.antenna));
   members.push(setting("channels", listNode(device.channels.map(channelFromDomain))));
   return group(members);
 }
 
-function channelFromDomain(channel: Channel) {
+function channelFromDomain(channel: Channel): GroupNode {
+  return isScanChannel(channel) ? scanChannelFromDomain(channel) : multichannelChannelFromDomain(channel);
+}
+
+function multichannelChannelFromDomain(channel: MultichannelChannel): GroupNode {
   const members = [numberSetting("freq", channel.freq, "int")];
+  if (channel.label !== undefined) members.push(stringSetting("label", channel.label));
   if (channel.bandwidth !== undefined) members.push(numberSetting("bandwidth", channel.bandwidth, "int"));
   if (channel.ampfactor !== undefined) members.push(numberSetting("ampfactor", channel.ampfactor, "float"));
   if (channel.afc !== undefined) members.push(numberSetting("afc", channel.afc, "int"));
   if (channel.modulation !== undefined) members.push(stringSetting("modulation", channel.modulation));
   if (channel.ctcss !== undefined) members.push(numberSetting("ctcss", channel.ctcss, "float"));
   if (channel.notch !== undefined) members.push(numberSetting("notch", channel.notch, "float"));
+  if (channel.notch_q !== undefined) members.push(numberSetting("notch_q", channel.notch_q, "float"));
+  if (channel.highpass !== undefined) members.push(numberSetting("highpass", channel.highpass, "int"));
+  if (channel.lowpass !== undefined) members.push(numberSetting("lowpass", channel.lowpass, "int"));
+  if (channel.tau !== undefined) members.push(numberSetting("tau", channel.tau, "int"));
+  if (channel.squelch_threshold !== undefined) {
+    members.push(numberSetting("squelch_threshold", channel.squelch_threshold, "int"));
+  }
   if (channel.squelch_snr_threshold !== undefined) {
     members.push(numberSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "int"));
   }
+  if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
   members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
+  return group(members);
+}
+
+function scanChannelFromDomain(channel: ScanChannel): GroupNode {
+  const members = [numberListSetting("freqs", channel.freqs, "int")];
+  if (channel.labels !== undefined) members.push(stringListSetting("labels", channel.labels));
+  if (channel.modulation !== undefined) members.push(stringSetting("modulation", channel.modulation));
+  if (channel.modulations !== undefined) members.push(stringListSetting("modulations", channel.modulations));
+  if (channel.bandwidth !== undefined) members.push(numberOrListSetting("bandwidth", channel.bandwidth, "int"));
+  if (channel.ampfactor !== undefined) members.push(numberOrListSetting("ampfactor", channel.ampfactor, "float"));
+  if (channel.afc !== undefined) members.push(numberSetting("afc", channel.afc, "int"));
+  if (channel.ctcss !== undefined) members.push(numberOrListSetting("ctcss", channel.ctcss, "float"));
+  if (channel.notch !== undefined) members.push(numberOrListSetting("notch", channel.notch, "float"));
+  if (channel.notch_q !== undefined) members.push(numberOrListSetting("notch_q", channel.notch_q, "float"));
+  if (channel.highpass !== undefined) members.push(numberSetting("highpass", channel.highpass, "int"));
+  if (channel.lowpass !== undefined) members.push(numberSetting("lowpass", channel.lowpass, "int"));
+  if (channel.tau !== undefined) members.push(numberSetting("tau", channel.tau, "int"));
+  if (channel.squelch_threshold !== undefined) {
+    members.push(numberOrListSetting("squelch_threshold", channel.squelch_threshold, "int"));
+  }
+  if (channel.squelch_snr_threshold !== undefined) {
+    members.push(numberOrListSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "float"));
+  }
+  if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
+  members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
+  return group(members);
+}
+
+function mixerFromDomain(mixer: Mixer): GroupNode {
+  const members = [stringSetting("name", mixer.name)];
+  if (mixer.disable !== undefined) members.push(boolSetting("disable", mixer.disable));
+  if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
+  if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
+  members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));
   return group(members);
 }
 
@@ -288,6 +506,10 @@ function outputFromDomain(output: Output): GroupNode {
   }
 }
 
+function appendDisable(members: SettingNodeLike[], output: { disable?: boolean }): void {
+  if (output.disable !== undefined) members.push(boolSetting("disable", output.disable));
+}
+
 function pulseOutputToAst(output: PulseOutput): GroupNode {
   const members = [stringSetting("type", output.type)];
   if (output.server !== undefined) members.push(stringSetting("server", output.server));
@@ -295,6 +517,7 @@ function pulseOutputToAst(output: PulseOutput): GroupNode {
   if (output.name !== undefined) members.push(stringSetting("name", output.name));
   if (output.stream_name !== undefined) members.push(stringSetting("stream_name", output.stream_name));
   if (output.continuous !== undefined) members.push(boolSetting("continuous", output.continuous));
+  appendDisable(members, output);
   return group(members);
 }
 
@@ -320,12 +543,15 @@ function rawFileOutputToAst(output: RawFileOutput): GroupNode {
   return group(members);
 }
 
-function appendCommonFileFields(members: ReturnType<typeof stringSetting>[], output: FileOutput | RawFileOutput): void {
+type SettingNodeLike = ReturnType<typeof stringSetting>;
+
+function appendCommonFileFields(members: SettingNodeLike[], output: FileOutput | RawFileOutput): void {
   if (output.continuous !== undefined) members.push(boolSetting("continuous", output.continuous));
   if (output.split_on_transmission !== undefined) members.push(boolSetting("split_on_transmission", output.split_on_transmission));
   if (output.include_freq !== undefined) members.push(boolSetting("include_freq", output.include_freq));
   if (output.append !== undefined) members.push(boolSetting("append", output.append));
   if (output.dated_subdirectories !== undefined) members.push(boolSetting("dated_subdirectories", output.dated_subdirectories));
+  appendDisable(members, output);
 }
 
 function icecastOutputToAst(output: IcecastOutput): GroupNode {
@@ -342,6 +568,7 @@ function icecastOutputToAst(output: IcecastOutput): GroupNode {
   if (output.description !== undefined) members.push(stringSetting("description", output.description));
   if (output.send_scan_freq_tags !== undefined) members.push(boolSetting("send_scan_freq_tags", output.send_scan_freq_tags));
   if (output.tls !== undefined) members.push(stringSetting("tls", output.tls));
+  appendDisable(members, output);
   return group(members);
 }
 
@@ -352,6 +579,7 @@ function udpStreamOutputToAst(output: UdpStreamOutput): GroupNode {
     stringSetting("dest_port", output.dest_port),
   ];
   if (output.continuous !== undefined) members.push(boolSetting("continuous", output.continuous));
+  appendDisable(members, output);
   return group(members);
 }
 
@@ -359,6 +587,7 @@ function mixerOutputToAst(output: MixerOutput): GroupNode {
   const members = [stringSetting("type", output.type), stringSetting("name", output.name)];
   if (output.ampfactor !== undefined) members.push(numberSetting("ampfactor", output.ampfactor, "float"));
   if (output.balance !== undefined) members.push(numberSetting("balance", output.balance, "float"));
+  appendDisable(members, output);
   return group(members);
 }
 

@@ -3,10 +3,13 @@ import type {
   Device,
   FileOutput,
   IcecastOutput,
+  Mixer,
   MixerOutput,
+  MultichannelChannel,
   PulseOutput,
   RawFileOutput,
   RtlAirbandConfig,
+  ScanChannel,
   UdpStreamOutput,
 } from "@rtl-airband-panel/parser";
 
@@ -53,8 +56,18 @@ export function defaultMixerOutput(): MixerOutput {
   return { type: "mixer", name: "" };
 }
 
-export function defaultChannel(): Channel {
+export function defaultChannel(): MultichannelChannel {
   return { freq: 0, afc: 0, modulation: "nfm", outputs: [defaultPulseOutput()] };
+}
+
+export function defaultScanChannel(): ScanChannel {
+  return { freqs: [0], outputs: [defaultPulseOutput()] };
+}
+
+/** Rebuilds a device's channels array to match its mode when the mode toggle changes. */
+export function channelsForMode(existing: Channel[], mode: "multichannel" | "scan" | undefined): Channel[] {
+  if (mode === "scan") return [defaultScanChannel()];
+  return existing.some((c) => "freqs" in c) ? [defaultChannel()] : existing;
 }
 
 export function defaultDevice(): Device {
@@ -67,6 +80,10 @@ export function defaultDevice(): Device {
     correction: 0,
     channels: [defaultChannel()],
   };
+}
+
+export function defaultMixer(): Mixer {
+  return { name: "", outputs: [] };
 }
 
 export function defaultConfig(): RtlAirbandConfig {

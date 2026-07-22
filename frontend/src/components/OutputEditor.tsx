@@ -7,8 +7,8 @@ import type {
   RawFileOutput,
   UdpStreamOutput,
 } from "@rtl-airband-panel/parser";
-import { Field } from "./Field.js";
-import { checkboxClass, inputClass, removeButtonClass } from "./styles.js";
+import { BoolField, Field } from "./Field.js";
+import { inputClass, removeButtonClass } from "./styles.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import {
   defaultFileOutput,
@@ -23,6 +23,8 @@ interface OutputEditorProps {
   output: Output;
   onChange: (output: Output) => void;
   onRemove: () => void;
+  /** A mixer's own outputs cannot themselves be of type "mixer" (RTLSDR-Airband disallows nesting). */
+  excludeMixerType?: boolean;
 }
 
 const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
@@ -34,7 +36,7 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   mixer: defaultMixerOutput,
 };
 
-export function OutputEditor({ output, onChange, onRemove }: OutputEditorProps) {
+export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: OutputEditorProps) {
   return (
     <div className="space-y-2 rounded border border-slate-600 bg-slate-700 p-3">
       <div className="flex items-center justify-between">
@@ -49,7 +51,7 @@ export function OutputEditor({ output, onChange, onRemove }: OutputEditorProps) 
             <option value="rawfile">rawfile</option>
             <option value="icecast">icecast</option>
             <option value="udp_stream">udp_stream</option>
-            <option value="mixer">mixer</option>
+            {!excludeMixerType && <option value="mixer">mixer</option>}
           </select>
         </Field>
         <button type="button" onClick={onRemove} className={removeButtonClass}>
@@ -63,6 +65,7 @@ export function OutputEditor({ output, onChange, onRemove }: OutputEditorProps) 
       {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} />}
       {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
       {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
+      <BoolField label="Disable" checked={output.disable} onChange={(v) => onChange({ ...output, disable: v } as Output)} />
     </div>
   );
 }
@@ -307,14 +310,5 @@ function MixerFields({ output, onChange }: { output: MixerOutput; onChange: (o: 
         />
       </Field>
     </div>
-  );
-}
-
-function BoolField({ label, checked, onChange }: { label: string; checked?: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-2 text-sm text-slate-400">
-      <input type="checkbox" className={checkboxClass} checked={checked ?? false} onChange={(e) => onChange(e.target.checked)} />
-      {label}
-    </label>
   );
 }

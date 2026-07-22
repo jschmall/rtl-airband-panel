@@ -107,6 +107,13 @@ export function requireList(group: GroupNode, name: string, path: string): ListN
   return value;
 }
 
+function optionalList(group: GroupNode, name: string, path: string): ListNode | undefined {
+  const setting = findSetting(group, name);
+  if (!setting) return undefined;
+  if (setting.value.kind !== "list") throw new DomainMappingError(`Expected '${name}' to be a list`, path);
+  return setting.value;
+}
+
 export function requireGroupItems(list: ListNode, path: string): GroupNode[] {
   return list.items.map((item, idx) => {
     if (item.kind !== "group") {
@@ -114,6 +121,71 @@ export function requireGroupItems(list: ListNode, path: string): GroupNode[] {
     }
     return item;
   });
+}
+
+function scalarItemsToNumbers(list: ListNode, name: string, path: string): number[] {
+  return list.items.map((item, idx) => {
+    if (item.kind !== "scalar" || (item.type !== "int" && item.type !== "int64" && item.type !== "float")) {
+      throw new DomainMappingError(`Expected '${name}' list item to be numeric`, `${path}[${idx}]`);
+    }
+    return item.value as number;
+  });
+}
+
+function scalarItemsToHzNumbers(list: ListNode, name: string, path: string): number[] {
+  return list.items.map((item, idx) => {
+    if (item.kind !== "scalar") throw new DomainMappingError(`Expected '${name}' list item to be numeric`, `${path}[${idx}]`);
+    return toHz(item, name, `${path}[${idx}]`);
+  });
+}
+
+function scalarItemsToStrings(list: ListNode, name: string, path: string): string[] {
+  return list.items.map((item, idx) => {
+    if (item.kind !== "scalar" || item.type !== "string") {
+      throw new DomainMappingError(`Expected '${name}' list item to be a string`, `${path}[${idx}]`);
+    }
+    return item.value as string;
+  });
+}
+
+/** Reads a required Hz-valued list field, e.g. scan-mode `freqs`. */
+export function requireHzNumberList(group: GroupNode, name: string, path: string): number[] {
+  const list = requireList(group, name, path);
+  return scalarItemsToHzNumbers(list, name, path);
+}
+
+/** Reads an optional field that may be a single number or a list of numbers, e.g. scan-mode `ampfactor`. */
+export function optionalNumberOrList(group: GroupNode, name: string, path: string): number | number[] | undefined {
+  const setting = findSetting(group, name);
+  if (!setting) return undefined;
+  if (setting.value.kind === "list") return scalarItemsToNumbers(setting.value, name, path);
+  if (setting.value.kind === "scalar") return optionalNumber(group, name, path);
+  throw new DomainMappingError(`Expected '${name}' to be a number or a list of numbers`, path);
+}
+
+/** Like optionalNumberOrList, but scalar values are Hz-converted (float literal = MHz), e.g. scan-mode `bandwidth`. */
+export function optionalHzNumberOrList(group: GroupNode, name: string, path: string): number | number[] | undefined {
+  const setting = findSetting(group, name);
+  if (!setting) return undefined;
+  if (setting.value.kind === "list") return scalarItemsToHzNumbers(setting.value, name, path);
+  if (setting.value.kind === "scalar") return toHz(setting.value, name, path);
+  throw new DomainMappingError(`Expected '${name}' to be a number or a list of numbers`, path);
+}
+
+/** Reads an optional list-of-strings field, e.g. scan-mode `modulations`/`labels`. */
+export function optionalStringList(group: GroupNode, name: string, path: string): string[] | undefined {
+  const list = optionalList(group, name, path);
+  if (!list) return undefined;
+  return scalarItemsToStrings(list, name, path);
+}
+
+/** Reads an optional field that may be a number or a string, e.g. SoapySDR `gain`. */
+export function optionalNumberOrString(group: GroupNode, name: string, path: string): number | string | undefined {
+  const s = optionalScalar(group, name, path);
+  if (!s) return undefined;
+  if (s.type === "string") return s.value as string;
+  if (s.type === "int" || s.type === "int64" || s.type === "float") return s.value as number;
+  throw new DomainMappingError(`Expected '${name}' to be a number or a string`, path);
 }
 
 /** Builds a setting node; groups/lists conventionally use ':', scalars use '='. */
@@ -139,4 +211,23 @@ export function boolSetting(name: string, value: boolean): SettingNode {
 
 export function numberSetting(name: string, value: number, type: "int" | "float"): SettingNode {
   return setting(name, scalar(type, value));
+}
+
+export function numberListSetting(name: string, values: number[], type: "int" | "float"): SettingNode {
+  return setting(name, list(values.map((v) => scalar(type, v))));
+}
+
+/** Builds a setting whose value may be a single number or a list of numbers, e.g. scan-mode `ampfactor`. */
+export function numberOrListSetting(name: string, value: number | number[], type: "int" | "float"): SettingNode {
+  return Array.isArray(value) ? numberListSetting(name, value, type) : numberSetting(name, value, type);
+}
+
+export function stringListSetting(name: string, values: string[]): SettingNode {
+  return setting(name, list(values.map((v) => scalar("string", v))));
+}
+
+/** Builds a setting whose value may be a number or a string, e.g. SoapySDR `gain`. */
+export function numberOrStringSetting(name: string, value: number | string): SettingNode {
+  if (typeof value === "string") return stringSetting(name, value);
+  return numberSetting(name, value, Number.isInteger(value) ? "int" : "float");
 }

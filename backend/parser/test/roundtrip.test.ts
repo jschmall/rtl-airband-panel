@@ -6,7 +6,7 @@ import { parseConfig } from "../src/parser.js";
 import { serializeConfig } from "../src/serializer.js";
 import { toDomain, fromDomain } from "../src/mapper.js";
 import { parseConfigFile, serializeConfigFile } from "../src/index.js";
-import type { Output, RtlAirbandConfig } from "../src/domain.js";
+import type { Channel, Device, Mixer, Output, RtlAirbandConfig, ScanChannel } from "../src/domain.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.join(here, "../../../fixtures/151719.conf");
@@ -273,5 +273,268 @@ describe("output types", () => {
       );
     `;
     expect(() => parseConfigFile(source)).toThrow(/Unrecognized output type/);
+  });
+
+  it("round-trips disable at every output level", () => {
+    const output: Output = { type: "pulse", disable: true };
+    expect(roundTrip(output)).toEqual(output);
+  });
+});
+
+function minimalMultichannelConfig(channel: Partial<import("../src/domain.js").MultichannelChannel> & { freq: number }): RtlAirbandConfig {
+  return {
+    multiple_demod_threads: true,
+    multiple_output_threads: true,
+    stats_filepath: "/tmp/stats.txt",
+    localtime: true,
+    devices: [
+      {
+        type: "rtlsdr",
+        serial: "1",
+        gain: 29,
+        centerfreq: 100_000_000,
+        channels: [{ outputs: [{ type: "pulse" }], ...channel }],
+      },
+    ],
+  };
+}
+
+function roundTripDomain(domain: RtlAirbandConfig): RtlAirbandConfig {
+  return parseConfigFile(serializeConfigFile(domain));
+}
+
+describe("new multichannel channel fields", () => {
+  it("round-trips squelch_threshold alongside squelch_snr_threshold", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000, squelch_threshold: -30, squelch_snr_threshold: 12 });
+    const result = roundTripDomain(domain);
+    const channel = result.devices[0]!.channels[0]!;
+    expect(channel).toMatchObject({ squelch_threshold: -30, squelch_snr_threshold: 12 });
+  });
+
+  it("round-trips label, notch_q, highpass, lowpass, tau, and disable", () => {
+    const domain = minimalMultichannelConfig({
+      freq: 100_000_000,
+      label: "Tower",
+      notch_q: 15.5,
+      highpass: 200,
+      lowpass: 3200,
+      tau: 0,
+      disable: true,
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("omits new optional fields entirely when absent", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    const text = serializeConfigFile(domain);
+    expect(text).not.toMatch(/squelch_threshold|notch_q|highpass|lowpass|\btau\b|disable|label/);
+  });
+});
+
+function minimalScanConfig(channel: ScanChannel): RtlAirbandConfig {
+  return {
+    multiple_demod_threads: true,
+    multiple_output_threads: true,
+    stats_filepath: "/tmp/stats.txt",
+    localtime: true,
+    devices: [
+      {
+        type: "rtlsdr",
+        serial: "1",
+        gain: 29,
+        mode: "scan",
+        channels: [channel],
+      },
+    ],
+  };
+}
+
+describe("scan mode channels", () => {
+  it("round-trips a scalar squelch_threshold applied to all scanned frequencies", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000, 128_225_000, 131_375_000],
+      squelch_threshold: -30,
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips a per-frequency squelch_threshold list, including the 0 = auto-squelch sentinel", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000, 128_225_000, 131_375_000],
+      squelch_threshold: [-30, -25, 0, -35],
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips a per-frequency squelch_snr_threshold list, including the 0 and -1.0 sentinels", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000, 128_225_000, 131_375_000],
+      squelch_snr_threshold: [30, 5, 0, -1.0],
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips modulations, labels, and list-valued ampfactor/ctcss/notch/notch_q/bandwidth", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000],
+      labels: ["Radar", "Emergency"],
+      modulations: ["am", "nfm"],
+      ampfactor: [1.0, 2.5],
+      ctcss: [103.5, 0.0],
+      notch: [136.5, 0.0],
+      notch_q: [12.0, 10.0],
+      bandwidth: [8000, 10000],
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips a scalar modulation/ampfactor/ctcss/notch/notch_q/bandwidth applied to all frequencies", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000],
+      modulation: "nfm",
+      ampfactor: 2.0,
+      ctcss: 103.5,
+      notch: 136.5,
+      notch_q: 12.0,
+      bandwidth: 8000,
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("rejects a channel with neither freq nor freqs", () => {
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        { type = "rtlsdr"; serial = "1"; gain = 29; mode = "scan";
+          channels: ( { outputs: ( { type = "pulse"; } ); } ); }
+      );
+    `;
+    expect(() => parseConfigFile(source)).toThrow(/exactly one of 'freq'.*'freqs'/);
+  });
+
+  it("rejects a channel with both freq and freqs", () => {
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        { type = "rtlsdr"; serial = "1"; gain = 29; mode = "scan";
+          channels: ( { freq = 100.0; freqs = ( 100.0, 101.0 ); outputs: ( { type = "pulse"; } ); } ); }
+      );
+    `;
+    expect(() => parseConfigFile(source)).toThrow(/exactly one of 'freq'.*'freqs'/);
+  });
+});
+
+describe("device-level fields", () => {
+  it("round-trips mode, disable, tau, buffers on an rtlsdr device", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.devices[0]!.mode = "multichannel";
+    domain.devices[0]!.disable = true;
+    domain.devices[0]!.tau = 100;
+    domain.devices[0]!.buffers = 12;
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips a mirisdr device's num_buffers", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.devices[0] = { ...domain.devices[0]!, type: "mirisdr", num_buffers: 8 };
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips a soapysdr device with a string gain, device_string, channel, and antenna, and no centerfreq requirement", () => {
+    const device: Device = {
+      type: "soapysdr",
+      device_string: "driver=rtlsdr,serial=00000001",
+      channel: 0,
+      antenna: "RX",
+      gain: "LNA=32,VGA=20",
+      mode: "scan",
+      channels: [{ freqs: [100_000_000, 101_000_000], outputs: [{ type: "pulse" }] }],
+    };
+    const domain: RtlAirbandConfig = {
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices: [device],
+    };
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("rejects an invalid device mode", () => {
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        { type = "rtlsdr"; serial = "1"; gain = 29; centerfreq = 100.0; mode = "bogus";
+          channels: ( { freq = 100.0; outputs: ( { type = "pulse"; } ); } ); }
+      );
+    `;
+    expect(() => parseConfigFile(source)).toThrow(/Invalid mode value/);
+  });
+});
+
+describe("global settings", () => {
+  it("round-trips pidfile, log_scan_activity, shout_metadata_delay, and tau", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.pidfile = "/var/tmp/rtl_airband.pid";
+    domain.log_scan_activity = true;
+    domain.shout_metadata_delay = 5;
+    domain.tau = 100;
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+});
+
+describe("mixers", () => {
+  it("round-trips a top-level mixer definition and a channel routing into it", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      disable: false,
+      highpass: 200,
+      lowpass: 3000,
+      outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
+    };
+    const channel: Channel = {
+      freq: 100_000_000,
+      outputs: [{ type: "mixer", name: "mix1", ampfactor: 1.5, balance: 0.2 }],
+    };
+    const domain: RtlAirbandConfig = {
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices: [{ type: "rtlsdr", serial: "1", gain: 29, centerfreq: 100_000_000, channels: [channel] }],
+      mixers: [mixer],
+    };
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("rejects a mixer whose own outputs include a nested mixer output", () => {
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        { type = "rtlsdr"; serial = "1"; gain = 29; centerfreq = 100.0;
+          channels: ( { freq = 100.0; outputs: ( { type = "mixer"; name = "mix1"; } ); } ); }
+      );
+      mixers: (
+        { name = "mix1"; outputs: ( { type = "mixer"; name = "mix2"; } ); }
+      );
+    `;
+    expect(() => parseConfigFile(source)).toThrow(/cannot themselves be of type 'mixer'/);
   });
 });

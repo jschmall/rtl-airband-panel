@@ -12,19 +12,26 @@ import { DEFAULT_SAMPLE_RATE_HZ } from "../rtlsdr-defaults.js";
  * Channels sharing an *identical* frequency are never flagged: that's the
  * legitimate multi-CTCSS pattern (several logical channels demodulating
  * the same physical frequency, gated by different CTCSS tones).
+ *
+ * Does not apply to scan-mode devices: only one frequency is ever being
+ * received at a time (the dongle retunes between them), so there's no
+ * concept of two channels contending for the same FFT bin simultaneously.
  */
 export function checkBinCollisions(config: RtlAirbandConfig): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const fftSize = config.fft_size ?? DEFAULT_FFT_SIZE;
 
   config.devices.forEach((device, di) => {
+    if (device.mode === "scan" || device.centerfreq === undefined) return;
+    const centerfreq = device.centerfreq;
     const sampleRate = device.sample_rate ?? DEFAULT_SAMPLE_RATE_HZ;
     const binWidthHz = sampleRate / fftSize;
     // bin -> (freq -> index of the first channel seen at that freq/bin)
     const binAnchors = new Map<number, Map<number, number>>();
 
     device.channels.forEach((channel, ci) => {
-      const bin = computeBin(channel.freq, device.centerfreq, sampleRate, fftSize);
+      if (!("freq" in channel)) return;
+      const bin = computeBin(channel.freq, centerfreq, sampleRate, fftSize);
       let anchorsForBin = binAnchors.get(bin);
       if (!anchorsForBin) {
         anchorsForBin = new Map();

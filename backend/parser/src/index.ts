@@ -8,11 +8,14 @@ export type {
   Device,
   FileOutput,
   IcecastOutput,
+  Mixer,
   MixerOutput,
+  MultichannelChannel,
   Output,
   PulseOutput,
   RawFileOutput,
   RtlAirbandConfig,
+  ScanChannel,
   UdpStreamOutput,
 } from "./domain.js";
 
