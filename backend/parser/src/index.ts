@@ -14,6 +14,7 @@ export type {
   Output,
   PulseOutput,
   RawFileOutput,
+  RdioScannerConfig,
   RtlAirbandConfig,
   ScanChannel,
   UdpStreamOutput,

@@ -7,6 +7,7 @@ import { checkScanMode } from "./checks/scan-mode.js";
 import { checkDeviceRequirements } from "./checks/device-requirements.js";
 import { checkMixerReferences } from "./checks/mixers.js";
 import { checkDisableCascade } from "./checks/disable-cascade.js";
+import { checkRdioScanner } from "./checks/rdio-scanner.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -17,6 +18,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkDeviceRequirements(config),
     ...checkMixerReferences(config),
     ...checkDisableCascade(config),
+    ...checkRdioScanner(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -35,3 +37,4 @@ export { checkScanMode } from "./checks/scan-mode.js";
 export { checkDeviceRequirements } from "./checks/device-requirements.js";
 export { checkMixerReferences } from "./checks/mixers.js";
 export { checkDisableCascade } from "./checks/disable-cascade.js";
+export { checkRdioScanner } from "./checks/rdio-scanner.js";

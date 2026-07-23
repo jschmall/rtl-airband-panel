@@ -114,6 +114,39 @@ describe("parseRtlAirbandConfigBody output types", () => {
     expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005" });
   });
 
+  it("accepts a file output with a rdio_scanner block", () => {
+    const config = parseRtlAirbandConfigBody(
+      bodyWithOutput({
+        type: "file",
+        directory: "/tmp",
+        filename_template: "x",
+        split_on_transmission: true,
+        rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1, use_tls: true },
+      })
+    );
+    expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({
+      type: "file",
+      directory: "/tmp",
+      filename_template: "x",
+      split_on_transmission: true,
+      rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1, use_tls: true },
+    });
+  });
+
+  it("rejects a rdio_scanner block missing a required field", () => {
+    expect(() =>
+      parseRtlAirbandConfigBody(
+        bodyWithOutput({
+          type: "file",
+          directory: "/tmp",
+          filename_template: "x",
+          split_on_transmission: true,
+          rdio_scanner: { server: "rdio.example.com", port: 443, talkgroup_id: 1 },
+        })
+      )
+    ).toThrow(ShapeValidationError);
+  });
+
   it("accepts a mixer output", () => {
     const config = parseRtlAirbandConfigBody(bodyWithOutput({ type: "mixer", name: "mix1", ampfactor: 1.5 }));
     expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({ type: "mixer", name: "mix1", ampfactor: 1.5 });

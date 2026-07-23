@@ -206,6 +206,54 @@ describe("output types", () => {
     expect(result).not.toHaveProperty("post_write_script");
   });
 
+  it("round-trips a file output with a minimal rdio_scanner block (only required fields)", () => {
+    const output: Output = {
+      type: "file",
+      directory: "/tmp/audio",
+      filename_template: "rec",
+      split_on_transmission: true,
+      rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1 },
+    };
+    expect(roundTrip(output)).toEqual(output);
+  });
+
+  it("round-trips a file output with a fully-populated rdio_scanner block", () => {
+    const output: Output = {
+      type: "file",
+      directory: "/tmp/audio",
+      filename_template: "rec",
+      split_on_transmission: true,
+      rdio_scanner: {
+        server: "rdio.example.com",
+        port: 443,
+        use_tls: true,
+        api_key: "secret",
+        system_id: 1,
+        system_label: "County",
+        talkgroup_id: 100,
+        talkgroup_label: "Dispatch",
+        talkgroup_tag: "Law",
+        talkgroup_group: "Public Safety",
+        source_id: 42,
+        delete_after_upload: true,
+        timeout_ms: 8000,
+        max_retries: 5,
+      },
+    };
+    expect(roundTrip(output)).toEqual(output);
+  });
+
+  it("round-trips a rawfile output, which has no rdio_scanner field", () => {
+    const output: Output = {
+      type: "rawfile",
+      directory: "/tmp/iq",
+      filename_template: "raw",
+      split_on_transmission: true,
+    };
+    const result = roundTrip(output);
+    expect(result).not.toHaveProperty("rdio_scanner");
+  });
+
   it("round-trips an icecast output with required fields plus tls", () => {
     const output: Output = {
       type: "icecast",

@@ -16,6 +16,7 @@ import type {
   Output,
   PulseOutput,
   RawFileOutput,
+  RdioScannerConfig,
   RtlAirbandConfig,
   ScanChannel,
   UdpStreamOutput,
@@ -389,6 +390,41 @@ function parseFileOutput(obj: Record<string, unknown>, path: string): FileOutput
   if (minRxSeconds !== undefined) out.min_rx_seconds = minRxSeconds;
   const postWriteScript = optionalString(obj, "post_write_script", path);
   if (postWriteScript !== undefined) out.post_write_script = postWriteScript;
+  const rdioScanner = obj["rdio_scanner"];
+  if (rdioScanner !== undefined) {
+    out.rdio_scanner = parseRdioScannerConfig(rdioScanner, `${path}.rdio_scanner`);
+  }
+  return out;
+}
+
+function parseRdioScannerConfig(input: unknown, path: string): RdioScannerConfig {
+  const obj = requireRecord(input, path);
+  const out: RdioScannerConfig = {
+    server: requireString(obj, "server", path),
+    port: requireNumber(obj, "port", path),
+    api_key: requireString(obj, "api_key", path),
+    talkgroup_id: requireNumber(obj, "talkgroup_id", path),
+  };
+  const useTls = optionalBoolean(obj, "use_tls", path);
+  if (useTls !== undefined) out.use_tls = useTls;
+  const systemId = optionalNumber(obj, "system_id", path);
+  if (systemId !== undefined) out.system_id = systemId;
+  const systemLabel = optionalString(obj, "system_label", path);
+  if (systemLabel !== undefined) out.system_label = systemLabel;
+  const talkgroupLabel = optionalString(obj, "talkgroup_label", path);
+  if (talkgroupLabel !== undefined) out.talkgroup_label = talkgroupLabel;
+  const talkgroupTag = optionalString(obj, "talkgroup_tag", path);
+  if (talkgroupTag !== undefined) out.talkgroup_tag = talkgroupTag;
+  const talkgroupGroup = optionalString(obj, "talkgroup_group", path);
+  if (talkgroupGroup !== undefined) out.talkgroup_group = talkgroupGroup;
+  const sourceId = optionalNumber(obj, "source_id", path);
+  if (sourceId !== undefined) out.source_id = sourceId;
+  const deleteAfterUpload = optionalBoolean(obj, "delete_after_upload", path);
+  if (deleteAfterUpload !== undefined) out.delete_after_upload = deleteAfterUpload;
+  const timeoutMs = optionalNumber(obj, "timeout_ms", path);
+  if (timeoutMs !== undefined) out.timeout_ms = timeoutMs;
+  const maxRetries = optionalNumber(obj, "max_retries", path);
+  if (maxRetries !== undefined) out.max_retries = maxRetries;
   return out;
 }
 

@@ -5,6 +5,7 @@ import type {
   Output,
   PulseOutput,
   RawFileOutput,
+  RdioScannerConfig,
   UdpStreamOutput,
 } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
@@ -17,6 +18,7 @@ import {
   defaultMixerOutput,
   defaultPulseOutput,
   defaultRawFileOutput,
+  defaultRdioScannerConfig,
   defaultUdpStreamOutput,
 } from "../lib/defaults.js";
 
@@ -150,6 +152,126 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
         tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
+      />
+      <div className="col-span-2 space-y-2 rounded border border-slate-600 bg-slate-800 p-3">
+        <BoolField
+          label="Upload to rdio-scanner"
+          tooltip={OUTPUT_TOOLTIPS.rdioScannerEnabled}
+          checked={output.rdio_scanner !== undefined}
+          onChange={(v) => onChange({ ...output, rdio_scanner: v ? defaultRdioScannerConfig() : undefined })}
+        />
+        {output.rdio_scanner !== undefined && (
+          <RdioScannerFields
+            config={output.rdio_scanner}
+            onChange={(rdio_scanner) => onChange({ ...output, rdio_scanner })}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; onChange: (c: RdioScannerConfig) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Field label="Server" tooltip={OUTPUT_TOOLTIPS.rdioScannerServer}>
+        <input className={inputClass} value={config.server} onChange={(e) => onChange({ ...config, server: e.target.value })} />
+      </Field>
+      <Field label="Port" tooltip={OUTPUT_TOOLTIPS.rdioScannerPort}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.port}
+          onChange={(e) => onChange({ ...config, port: Number(e.target.value) })}
+        />
+      </Field>
+      <Field label="API key" tooltip={OUTPUT_TOOLTIPS.rdioScannerApiKey}>
+        <input
+          type="password"
+          className={inputClass}
+          value={config.api_key}
+          onChange={(e) => onChange({ ...config, api_key: e.target.value })}
+        />
+      </Field>
+      <Field label="Talkgroup ID" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupId}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.talkgroup_id}
+          onChange={(e) => onChange({ ...config, talkgroup_id: Number(e.target.value) })}
+        />
+      </Field>
+      <Field label="System ID (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerSystemId}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.system_id ?? ""}
+          onChange={(e) => onChange({ ...config, system_id: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+      <Field label="System label (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerSystemLabel}>
+        <input
+          className={inputClass}
+          value={config.system_label ?? ""}
+          onChange={(e) => onChange({ ...config, system_label: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label="Talkgroup label (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupLabel}>
+        <input
+          className={inputClass}
+          value={config.talkgroup_label ?? ""}
+          onChange={(e) => onChange({ ...config, talkgroup_label: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label="Talkgroup tag (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupTag}>
+        <input
+          className={inputClass}
+          value={config.talkgroup_tag ?? ""}
+          onChange={(e) => onChange({ ...config, talkgroup_tag: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label="Talkgroup group (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupGroup}>
+        <input
+          className={inputClass}
+          value={config.talkgroup_group ?? ""}
+          onChange={(e) => onChange({ ...config, talkgroup_group: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label="Source ID (optional, default 0)" tooltip={OUTPUT_TOOLTIPS.rdioScannerSourceId}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.source_id ?? ""}
+          onChange={(e) => onChange({ ...config, source_id: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+      <Field label="Timeout, ms (optional, default 5000)" tooltip={OUTPUT_TOOLTIPS.rdioScannerTimeoutMs}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.timeout_ms ?? ""}
+          onChange={(e) => onChange({ ...config, timeout_ms: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+      <Field label="Max retries (optional, default 2)" tooltip={OUTPUT_TOOLTIPS.rdioScannerMaxRetries}>
+        <input
+          type="number"
+          className={inputClass}
+          value={config.max_retries ?? ""}
+          onChange={(e) => onChange({ ...config, max_retries: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+      <BoolField
+        label="Use TLS"
+        tooltip={OUTPUT_TOOLTIPS.rdioScannerUseTls}
+        checked={config.use_tls}
+        onChange={(v) => onChange({ ...config, use_tls: v })}
+      />
+      <BoolField
+        label="Delete local file after upload"
+        tooltip={OUTPUT_TOOLTIPS.rdioScannerDeleteAfterUpload}
+        checked={config.delete_after_upload}
+        onChange={(v) => onChange({ ...config, delete_after_upload: v })}
       />
     </div>
   );

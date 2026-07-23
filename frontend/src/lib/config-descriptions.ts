@@ -92,6 +92,21 @@ export const OUTPUT_TOOLTIPS = {
   mixerAmpfactor: "Volume multiplier applied to this channel's contribution to the mixer. Defaults to 1.0.",
   balance: "Stereo balance of this channel's contribution to the mixer, from -1.0 (full left) to 1.0 (full right). Defaults to 0.0 (centered).",
   disable: "Ignores this output entirely, as if it weren't configured. The channel it belongs to still needs at least one other non-disabled output.",
+  rdioScannerEnabled: "Uploads each completed transmission to a rdio-scanner (https://github.com/chuot/rdio-scanner) instance's call-upload API. Requires split_on_transmission and a build with -DRDIO_SCANNER=ON.",
+  rdioScannerServer: "Hostname or IP address of the rdio-scanner instance's API server.",
+  rdioScannerPort: "TCP port the rdio-scanner API is listening on.",
+  rdioScannerUseTls: "Connects to the rdio-scanner API over HTTPS instead of plain HTTP. Defaults to false.",
+  rdioScannerApiKey: "API key configured on the rdio-scanner instance for this system's call-upload access.",
+  rdioScannerSystemId: "The rdio-scanner system ID this upload belongs to. Defaults to unset (-1) when absent.",
+  rdioScannerSystemLabel: "Optional display label for the system, shown in the rdio-scanner UI.",
+  rdioScannerTalkgroupId: "The rdio-scanner talkgroup ID this upload belongs to.",
+  rdioScannerTalkgroupLabel: "Optional display label for the talkgroup, shown in the rdio-scanner UI.",
+  rdioScannerTalkgroupTag: "Optional short tag for the talkgroup (e.g. its category), shown in the rdio-scanner UI.",
+  rdioScannerTalkgroupGroup: "Optional group name the talkgroup belongs to, shown in the rdio-scanner UI.",
+  rdioScannerSourceId: "Optional radio/source ID to attribute the call to. Defaults to 0 when absent.",
+  rdioScannerDeleteAfterUpload: "Deletes the local MP3 file after a successful upload. A failed upload never deletes the file, even when this is enabled.",
+  rdioScannerTimeoutMs: "How long to wait for the rdio-scanner API to respond before treating the upload as failed, in milliseconds. Defaults to 5000.",
+  rdioScannerMaxRetries: "How many times to retry a failed upload before giving up. Defaults to 2.",
 } as const;
 
 export const MIXER_TOOLTIPS = {

@@ -207,8 +207,38 @@ export interface FileOutput {
   /** RTLSDR-Airband defaults to false when absent. */
   dated_subdirectories?: boolean;
   post_write_script?: string;
+  /**
+   * Uploads each completed transmission to a rdio-scanner instance's
+   * call-upload API. Only meaningful when split_on_transmission is true;
+   * requires RTLSDR-Airband to have been built with -DRDIO_SCANNER=ON.
+   */
+  rdio_scanner?: RdioScannerConfig;
   /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */
   disable?: boolean;
+}
+
+/** Config for uploading completed transmissions to a rdio-scanner (https://github.com/chuot/rdio-scanner) instance's call-upload API. */
+export interface RdioScannerConfig {
+  server: string;
+  port: number;
+  /** RTLSDR-Airband defaults to false when absent. */
+  use_tls?: boolean;
+  api_key: string;
+  /** RTLSDR-Airband defaults to -1 (unset) when absent. */
+  system_id?: number;
+  system_label?: string;
+  talkgroup_id: number;
+  talkgroup_label?: string;
+  talkgroup_tag?: string;
+  talkgroup_group?: string;
+  /** RTLSDR-Airband defaults to 0 when absent. */
+  source_id?: number;
+  /** RTLSDR-Airband defaults to false when absent. A failed upload never deletes the local file, even when true. */
+  delete_after_upload?: boolean;
+  /** RTLSDR-Airband defaults to 5000 when absent. */
+  timeout_ms?: number;
+  /** RTLSDR-Airband defaults to 2 when absent. */
+  max_retries?: number;
 }
 
 /** Like FileOutput but writes raw IQ (.cf32) instead of MP3, and has no min_rx_seconds/post_write_script. */

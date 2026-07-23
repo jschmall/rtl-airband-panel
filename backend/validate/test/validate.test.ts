@@ -11,6 +11,7 @@ import {
   checkDisableCascade,
   checkFrequencyWindow,
   checkMixerReferences,
+  checkRdioScanner,
   checkScanMode,
   computeBin,
   validateConfig,
@@ -326,6 +327,45 @@ describe("checkMixerReferences", () => {
     const issues = checkMixerReferences(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]!.code).toBe("mixer-reference-not-found");
+  });
+});
+
+describe("checkRdioScanner", () => {
+  const rdioScanner = { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1 };
+
+  it("does not flag a file output with rdio_scanner and split_on_transmission set", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: rdioScanner }],
+      }),
+    ]);
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a file output with no rdio_scanner configured at all", () => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "file", directory: "/tmp", filename_template: "x" }] })]);
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when rdio_scanner is set without split_on_transmission", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", rdio_scanner: rdioScanner }],
+      }),
+    ]);
+    const issues = checkRdioScanner(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-requires-split-on-transmission" });
+  });
+
+  it("also checks outputs on top-level mixers", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "file", directory: "/tmp", filename_template: "x", rdio_scanner: rdioScanner }],
+    };
+    const issues = checkRdioScanner(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-requires-split-on-transmission", path: "$.mixers[0].outputs[0]" });
   });
 });
 

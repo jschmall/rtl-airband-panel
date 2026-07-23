@@ -10,6 +10,7 @@ import {
   numberListSetting,
   numberSetting,
   optionalBool,
+  optionalGroup,
   optionalHzNumber,
   optionalHzNumberOrList,
   optionalNumber,
@@ -39,6 +40,7 @@ import type {
   Output,
   PulseOutput,
   RawFileOutput,
+  RdioScannerConfig,
   RtlAirbandConfig,
   ScanChannel,
   UdpStreamOutput,
@@ -293,6 +295,38 @@ function toFileOutput(g: GroupNode, path: string): FileOutput {
   if (minRxSeconds !== undefined) out.min_rx_seconds = minRxSeconds;
   const postWriteScript = optionalString(g, "post_write_script", path);
   if (postWriteScript !== undefined) out.post_write_script = postWriteScript;
+  const rdioScanner = optionalGroup(g, "rdio_scanner", path);
+  if (rdioScanner !== undefined) out.rdio_scanner = toRdioScannerConfig(rdioScanner, `${path}.rdio_scanner`);
+  return out;
+}
+
+function toRdioScannerConfig(g: GroupNode, path: string): RdioScannerConfig {
+  const out: RdioScannerConfig = {
+    server: requireString(g, "server", path),
+    port: requireNumber(g, "port", path),
+    api_key: requireString(g, "api_key", path),
+    talkgroup_id: requireNumber(g, "talkgroup_id", path),
+  };
+  const useTls = optionalBool(g, "use_tls", path);
+  if (useTls !== undefined) out.use_tls = useTls;
+  const systemId = optionalNumber(g, "system_id", path);
+  if (systemId !== undefined) out.system_id = systemId;
+  const systemLabel = optionalString(g, "system_label", path);
+  if (systemLabel !== undefined) out.system_label = systemLabel;
+  const talkgroupLabel = optionalString(g, "talkgroup_label", path);
+  if (talkgroupLabel !== undefined) out.talkgroup_label = talkgroupLabel;
+  const talkgroupTag = optionalString(g, "talkgroup_tag", path);
+  if (talkgroupTag !== undefined) out.talkgroup_tag = talkgroupTag;
+  const talkgroupGroup = optionalString(g, "talkgroup_group", path);
+  if (talkgroupGroup !== undefined) out.talkgroup_group = talkgroupGroup;
+  const sourceId = optionalNumber(g, "source_id", path);
+  if (sourceId !== undefined) out.source_id = sourceId;
+  const deleteAfterUpload = optionalBool(g, "delete_after_upload", path);
+  if (deleteAfterUpload !== undefined) out.delete_after_upload = deleteAfterUpload;
+  const timeoutMs = optionalNumber(g, "timeout_ms", path);
+  if (timeoutMs !== undefined) out.timeout_ms = timeoutMs;
+  const maxRetries = optionalNumber(g, "max_retries", path);
+  if (maxRetries !== undefined) out.max_retries = maxRetries;
   return out;
 }
 
@@ -530,6 +564,27 @@ function fileOutputToAst(output: FileOutput): GroupNode {
   appendCommonFileFields(members, output);
   if (output.min_rx_seconds !== undefined) members.push(numberSetting("min_rx_seconds", output.min_rx_seconds, "float"));
   if (output.post_write_script !== undefined) members.push(stringSetting("post_write_script", output.post_write_script));
+  if (output.rdio_scanner !== undefined) members.push(setting("rdio_scanner", rdioScannerConfigToAst(output.rdio_scanner)));
+  return group(members);
+}
+
+function rdioScannerConfigToAst(config: RdioScannerConfig): GroupNode {
+  const members = [
+    stringSetting("server", config.server),
+    numberSetting("port", config.port, "int"),
+    stringSetting("api_key", config.api_key),
+    numberSetting("talkgroup_id", config.talkgroup_id, "int"),
+  ];
+  if (config.use_tls !== undefined) members.push(boolSetting("use_tls", config.use_tls));
+  if (config.system_id !== undefined) members.push(numberSetting("system_id", config.system_id, "int"));
+  if (config.system_label !== undefined) members.push(stringSetting("system_label", config.system_label));
+  if (config.talkgroup_label !== undefined) members.push(stringSetting("talkgroup_label", config.talkgroup_label));
+  if (config.talkgroup_tag !== undefined) members.push(stringSetting("talkgroup_tag", config.talkgroup_tag));
+  if (config.talkgroup_group !== undefined) members.push(stringSetting("talkgroup_group", config.talkgroup_group));
+  if (config.source_id !== undefined) members.push(numberSetting("source_id", config.source_id, "int"));
+  if (config.delete_after_upload !== undefined) members.push(boolSetting("delete_after_upload", config.delete_after_upload));
+  if (config.timeout_ms !== undefined) members.push(numberSetting("timeout_ms", config.timeout_ms, "int"));
+  if (config.max_retries !== undefined) members.push(numberSetting("max_retries", config.max_retries, "int"));
   return group(members);
 }
 

@@ -107,6 +107,14 @@ export function requireList(group: GroupNode, name: string, path: string): ListN
   return value;
 }
 
+/** Reads an optional nested settings group, e.g. a file output's `rdio_scanner` block. */
+export function optionalGroup(group: GroupNode, name: string, path: string): GroupNode | undefined {
+  const setting = findSetting(group, name);
+  if (!setting) return undefined;
+  if (setting.value.kind !== "group") throw new DomainMappingError(`Expected '${name}' to be a group`, path);
+  return setting.value;
+}
+
 function optionalList(group: GroupNode, name: string, path: string): ListNode | undefined {
   const setting = findSetting(group, name);
   if (!setting) return undefined;

@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.0] - 2026-07-23
+
+### Added
+
+- **rdio-scanner call-upload support**, tracking the native support added in
+  the [`rdio_api`](https://github.com/jschmall/RTLSDR-Airband/tree/rdio_api)
+  fork branch. A `file` output can now carry a nested `rdio_scanner` block
+  (`server`, `port`, `use_tls`, `api_key`, `system_id`, `system_label`,
+  `talkgroup_id`, `talkgroup_label`, `talkgroup_tag`, `talkgroup_group`,
+  `source_id`, `delete_after_upload`, `timeout_ms`, `max_retries`) that
+  uploads each completed transmission to a
+  [rdio-scanner](https://github.com/chuot/rdio-scanner) instance's
+  call-upload API, in place of the old `post_write_script` + external CSV
+  workaround. Covered end to end: parser round-trip (`backend/parser`), HTTP
+  body shape validation (`backend/api`), a new semantic check enforcing that
+  `rdio_scanner` requires `split_on_transmission` on the same output
+  (matching RTLSDR-Airband's own startup validation, `backend/validate`),
+  and a collapsible editor section on file outputs with tooltips for every
+  field (`frontend`). Only takes effect against an RTLSDR-Airband binary
+  built with `-DRDIO_SCANNER=ON` from that fork branch — the panel change
+  alone has no effect on existing configs that don't set `rdio_scanner`.
+
 ## [0.3.1] - 2026-07-22
 
 ### Added
