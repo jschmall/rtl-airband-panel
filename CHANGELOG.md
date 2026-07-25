@@ -5,6 +5,34 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.1] - 2026-07-25
+
+### Added
+
+- **Collapsible devices, channels, and outputs.** Every device, channel/scan
+  channel, output, and mixer in the config editor now renders as a
+  collapsible section (chevron + one-line summary) and starts collapsed on
+  page load. Expanding a device leaves its channels collapsed; expanding a
+  channel leaves its outputs collapsed — each section tracks its own
+  open/closed state independently. Aimed at busy instances where a device
+  can carry a dozen-plus channels and the full field grid for all of them
+  used to render at once.
+
+### Changed
+
+- **`Disable` moved into the section header**, next to `Remove`, for
+  devices, channels/scan channels, outputs, and mixers — visible without
+  expanding the section, instead of buried in the settings grid.
+
+### Fixed
+
+- **rdio-scanner `Talkgroup ID` field no longer starts pre-filled.** The
+  input was bound directly to the required numeric field (seeded at `0`
+  when rdio-scanner upload is enabled) with no empty-value handling, so it
+  always showed a digit that had to be manually cleared before typing a
+  real talkgroup ID. It now renders blank when unset and only writes a
+  real value once the user types one.
+
 ## [0.4.0] - 2026-07-23
 
 ### Added

@@ -1,5 +1,6 @@
 import type { Channel, Device, MultichannelChannel, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
+import { Collapsible } from "./Collapsible.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
@@ -42,17 +43,24 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
   const isScan = device.mode === "scan";
 
   return (
-    <div className="space-y-4 rounded-lg border border-slate-700 bg-slate-900 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-100">
+    <Collapsible
+      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      titleClassName="text-lg font-semibold text-slate-100"
+      title={
+        <>
           Device — {device.type}
           {device.centerfreq !== undefined ? ` (${(device.centerfreq / 1e6).toFixed(3)} MHz)` : ""}
-        </h3>
-        <button type="button" onClick={onRemove} className={removeButtonClass}>
-          Remove device
-        </button>
-      </div>
-
+        </>
+      }
+      headerActions={
+        <div className="flex items-center gap-3">
+          <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
+          <button type="button" onClick={onRemove} className={removeButtonClass}>
+            Remove device
+          </button>
+        </div>
+      }
+    >
       <div className="grid grid-cols-3 gap-2">
         <Field label="Type" tooltip={DEVICE_TOOLTIPS.type}>
           <select className={inputClass} value={device.type} onChange={(e) => onChange(deviceForType(device, e.target.value))}>
@@ -186,8 +194,6 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             </Field>
           </>
         )}
-
-        <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
       </div>
 
       <div className="space-y-2">
@@ -219,6 +225,6 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
           ))
         )}
       </div>
-    </div>
+    </Collapsible>
   );
 }

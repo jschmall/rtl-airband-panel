@@ -9,6 +9,7 @@ import type {
   UdpStreamOutput,
 } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
+import { Collapsible } from "./Collapsible.js";
 import { inputClass, removeButtonClass } from "./styles.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { OUTPUT_TOOLTIPS } from "../lib/config-descriptions.js";
@@ -41,26 +42,38 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
 
 export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: OutputEditorProps) {
   return (
-    <div className="space-y-2 rounded border border-slate-600 bg-slate-700 p-3">
-      <div className="flex items-center justify-between">
-        <Field label="Output type">
-          <select
-            className={inputClass}
-            value={output.type}
-            onChange={(e) => onChange(OUTPUT_TYPE_DEFAULTS[e.target.value as Output["type"]]())}
-          >
-            <option value="pulse">pulse</option>
-            <option value="file">file</option>
-            <option value="rawfile">rawfile</option>
-            <option value="icecast">icecast</option>
-            <option value="udp_stream">udp_stream</option>
-            {!excludeMixerType && <option value="mixer">mixer</option>}
-          </select>
-        </Field>
-        <button type="button" onClick={onRemove} className={removeButtonClass}>
-          Remove output
-        </button>
-      </div>
+    <Collapsible
+      className="rounded border border-slate-600 bg-slate-700 p-3"
+      titleClassName="text-sm font-medium text-slate-200"
+      title={`Output — ${output.type}`}
+      headerActions={
+        <div className="flex items-center gap-3">
+          <BoolField
+            label="Disable"
+            tooltip={OUTPUT_TOOLTIPS.disable}
+            checked={output.disable}
+            onChange={(v) => onChange({ ...output, disable: v } as Output)}
+          />
+          <button type="button" onClick={onRemove} className={removeButtonClass}>
+            Remove output
+          </button>
+        </div>
+      }
+    >
+      <Field label="Output type">
+        <select
+          className={inputClass}
+          value={output.type}
+          onChange={(e) => onChange(OUTPUT_TYPE_DEFAULTS[e.target.value as Output["type"]]())}
+        >
+          <option value="pulse">pulse</option>
+          <option value="file">file</option>
+          <option value="rawfile">rawfile</option>
+          <option value="icecast">icecast</option>
+          <option value="udp_stream">udp_stream</option>
+          {!excludeMixerType && <option value="mixer">mixer</option>}
+        </select>
+      </Field>
 
       {output.type === "pulse" && <PulseFields output={output} onChange={onChange} />}
       {output.type === "file" && <FileFields output={output} onChange={onChange} />}
@@ -68,8 +81,7 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
       {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} />}
       {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
       {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
-      <BoolField label="Disable" tooltip={OUTPUT_TOOLTIPS.disable} checked={output.disable} onChange={(v) => onChange({ ...output, disable: v } as Output)} />
-    </div>
+    </Collapsible>
   );
 }
 
@@ -197,8 +209,8 @@ function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; on
         <input
           type="number"
           className={inputClass}
-          value={config.talkgroup_id}
-          onChange={(e) => onChange({ ...config, talkgroup_id: Number(e.target.value) })}
+          value={config.talkgroup_id || ""}
+          onChange={(e) => onChange({ ...config, talkgroup_id: e.target.value === "" ? 0 : Number(e.target.value) })}
         />
       </Field>
       <Field label="System ID (optional)" tooltip={OUTPUT_TOOLTIPS.rdioScannerSystemId}>

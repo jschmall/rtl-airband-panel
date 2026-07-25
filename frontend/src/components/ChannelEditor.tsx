@@ -1,5 +1,6 @@
 import type { MultichannelChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
+import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
@@ -15,14 +16,19 @@ interface ChannelEditorProps {
 
 export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProps) {
   return (
-    <div className="space-y-3 rounded border border-slate-600 bg-slate-800 p-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium text-slate-200">Channel {(channel.freq / 1e6).toFixed(4)} MHz</h4>
-        <button type="button" onClick={onRemove} className={removeButtonClass}>
-          Remove channel
-        </button>
-      </div>
-
+    <Collapsible
+      className="rounded border border-slate-600 bg-slate-800 p-3"
+      titleClassName="font-medium text-slate-200"
+      title={`Channel ${(channel.freq / 1e6).toFixed(4)} MHz`}
+      headerActions={
+        <div className="flex items-center gap-3">
+          <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+          <button type="button" onClick={onRemove} className={removeButtonClass}>
+            Remove channel
+          </button>
+        </div>
+      }
+    >
       <div className="grid grid-cols-4 gap-2">
         <Field label="Frequency (Hz)" tooltip={CHANNEL_TOOLTIPS.freq}>
           <input
@@ -142,7 +148,6 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
       </div>
 
       <div className="space-y-2">
@@ -165,6 +170,6 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
           />
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }

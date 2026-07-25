@@ -1,5 +1,6 @@
 import type { ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
+import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
@@ -28,9 +29,14 @@ interface ScanChannelEditorProps {
  */
 export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps) {
   return (
-    <div className="space-y-3 rounded border border-slate-600 bg-slate-800 p-3">
-      <h4 className="font-medium text-slate-200">Scan channel — {channel.freqs.length} frequencies</h4>
-
+    <Collapsible
+      className="rounded border border-slate-600 bg-slate-800 p-3"
+      titleClassName="font-medium text-slate-200"
+      title={`Scan channel — ${channel.freqs.length} frequencies`}
+      headerActions={
+        <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+      }
+    >
       <div className="grid grid-cols-2 gap-2">
         <Field label="Frequencies, Hz (comma-separated, one per scanned frequency)" tooltip={CHANNEL_TOOLTIPS.freqs}>
           <input
@@ -113,7 +119,6 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
             onChange={(e) => onChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
       </div>
 
       <div className="space-y-2">
@@ -136,7 +141,7 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
           />
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
