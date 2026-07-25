@@ -564,7 +564,9 @@ function fileOutputToAst(output: FileOutput): GroupNode {
   appendCommonFileFields(members, output);
   if (output.min_rx_seconds !== undefined) members.push(numberSetting("min_rx_seconds", output.min_rx_seconds, "float"));
   if (output.post_write_script !== undefined) members.push(stringSetting("post_write_script", output.post_write_script));
-  if (output.rdio_scanner !== undefined) members.push(setting("rdio_scanner", rdioScannerConfigToAst(output.rdio_scanner)));
+  if (output.rdio_scanner !== undefined && !output.rdio_scanner.disable) {
+    members.push(setting("rdio_scanner", rdioScannerConfigToAst(output.rdio_scanner)));
+  }
   return group(members);
 }
 

@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.2] - 2026-07-25
+
+### Fixed
+
+- **Unchecking "Upload to rdio-scanner" no longer discards the entered
+  `rdio_scanner` fields.** Server, API key, talkgroup ID, etc. used to be
+  wiped the instant the checkbox was unchecked, since the whole config
+  block was set to `undefined`. It's now tracked with its own panel-only
+  `disable` flag (`RdioScannerConfig.disable`, `backend/parser`): unchecking
+  keeps the entered values and only flips that flag, so re-checking restores
+  them instantly. RTLSDR-Airband itself has no concept of a "present but
+  disabled" `rdio_scanner` block (its mere presence enables uploading), so
+  the serializer omits the block from the written `.conf` whenever
+  `disable` is true — functionally disabled on disk, exactly as before,
+  just without losing the mid-edit form data. `backend/validate`'s
+  `rdio_scanner`-requires-`split_on_transmission` check now also skips
+  disabled blocks, since they won't be written and can't violate it.
+
 ## [0.4.1] - 2026-07-25
 
 ### Added

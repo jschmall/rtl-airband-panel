@@ -55,7 +55,13 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
-          <button type="button" onClick={onRemove} className={removeButtonClass}>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Remove device — ${device.type}? This also deletes all of its channels and outputs.`)) onRemove();
+            }}
+            className={removeButtonClass}
+          >
             Remove device
           </button>
         </div>

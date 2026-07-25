@@ -239,6 +239,14 @@ export interface RdioScannerConfig {
   timeout_ms?: number;
   /** RTLSDR-Airband defaults to 2 when absent. */
   max_retries?: number;
+  /**
+   * Panel-only flag; RTLSDR-Airband itself has no concept of a disabled
+   * rdio_scanner block — its mere presence enables uploading. When true,
+   * the whole block is omitted from the serialized .conf (functionally
+   * disabling it) while these field values are kept in the JSON model so
+   * re-enabling in the editor doesn't lose previously entered values.
+   */
+  disable?: boolean;
 }
 
 /** Like FileOutput but writes raw IQ (.cf32) instead of MP3, and has no min_rx_seconds/post_write_script. */

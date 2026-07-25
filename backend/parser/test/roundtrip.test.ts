@@ -217,6 +217,20 @@ describe("output types", () => {
     expect(roundTrip(output)).toEqual(output);
   });
 
+  it("omits a disabled rdio_scanner block from the serialized .conf entirely, rather than writing a disable key RTLSDR-Airband doesn't understand", () => {
+    const output: Output = {
+      type: "file",
+      directory: "/tmp/audio",
+      filename_template: "rec",
+      split_on_transmission: true,
+      rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1, disable: true },
+    };
+    const text = serializeConfigFile(minimalConfigWithOutput(output));
+    expect(text).not.toContain("rdio_scanner");
+    const result = parseConfigFile(text).devices[0]!.channels[0]!.outputs[0]!;
+    expect(result).not.toHaveProperty("rdio_scanner");
+  });
+
   it("round-trips a file output with a fully-populated rdio_scanner block", () => {
     const output: Output = {
       type: "file",

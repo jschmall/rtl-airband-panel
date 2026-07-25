@@ -160,6 +160,23 @@ describe("parseRtlAirbandConfigBody output types", () => {
     const config = parseRtlAirbandConfigBody(bodyWithOutput({ type: "pulse", disable: true }));
     expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({ type: "pulse", disable: true });
   });
+
+  it("accepts a rdio_scanner block with disable set, without requiring split_on_transmission", () => {
+    const config = parseRtlAirbandConfigBody(
+      bodyWithOutput({
+        type: "file",
+        directory: "/tmp",
+        filename_template: "x",
+        rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1, disable: true },
+      })
+    );
+    expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({
+      type: "file",
+      directory: "/tmp",
+      filename_template: "x",
+      rdio_scanner: { server: "rdio.example.com", port: 443, api_key: "secret", talkgroup_id: 1, disable: true },
+    });
+  });
 });
 
 describe("parseRtlAirbandConfigBody new channel fields", () => {

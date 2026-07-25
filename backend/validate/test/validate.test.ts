@@ -358,6 +358,15 @@ describe("checkRdioScanner", () => {
     expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-requires-split-on-transmission" });
   });
 
+  it("does not flag a disabled rdio_scanner block even without split_on_transmission", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", rdio_scanner: { ...rdioScanner, disable: true } }],
+      }),
+    ]);
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
   it("also checks outputs on top-level mixers", () => {
     const mixer: Mixer = {
       name: "mix1",

@@ -425,6 +425,8 @@ function parseRdioScannerConfig(input: unknown, path: string): RdioScannerConfig
   if (timeoutMs !== undefined) out.timeout_ms = timeoutMs;
   const maxRetries = optionalNumber(obj, "max_retries", path);
   if (maxRetries !== undefined) out.max_retries = maxRetries;
+  const disable = optionalBoolean(obj, "disable", path);
+  if (disable !== undefined) out.disable = disable;
   return out;
 }
 

@@ -12,7 +12,7 @@ export function checkRdioScanner(config: RtlAirbandConfig): ValidationIssue[] {
 
   const checkOutputs = (outputs: RtlAirbandConfig["devices"][number]["channels"][number]["outputs"], pathPrefix: string) => {
     outputs.forEach((output, oi) => {
-      if (output.type !== "file" || output.rdio_scanner === undefined) return;
+      if (output.type !== "file" || output.rdio_scanner === undefined || output.rdio_scanner.disable) return;
       if (!output.split_on_transmission) {
         issues.push({
           severity: "error",

@@ -23,7 +23,13 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
-          <button type="button" onClick={onRemove} className={removeButtonClass}>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Remove channel ${(channel.freq / 1e6).toFixed(4)} MHz? This also deletes all of its outputs.`)) onRemove();
+            }}
+            className={removeButtonClass}
+          >
             Remove channel
           </button>
         </div>

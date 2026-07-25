@@ -54,7 +54,13 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
             checked={output.disable}
             onChange={(v) => onChange({ ...output, disable: v } as Output)}
           />
-          <button type="button" onClick={onRemove} className={removeButtonClass}>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Remove ${output.type} output?`)) onRemove();
+            }}
+            className={removeButtonClass}
+          >
             Remove output
           </button>
         </div>
@@ -169,8 +175,16 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
         <BoolField
           label="Upload to rdio-scanner"
           tooltip={OUTPUT_TOOLTIPS.rdioScannerEnabled}
-          checked={output.rdio_scanner !== undefined}
-          onChange={(v) => onChange({ ...output, rdio_scanner: v ? defaultRdioScannerConfig() : undefined })}
+          checked={output.rdio_scanner !== undefined && !output.rdio_scanner.disable}
+          onChange={(v) =>
+            onChange({
+              ...output,
+              // Keep previously entered field values around (rather than discarding
+              // the whole block) when unchecked — only the disable flag changes, which
+              // omits the block from the serialized .conf without losing the form data.
+              rdio_scanner: output.rdio_scanner ? { ...output.rdio_scanner, disable: !v } : v ? defaultRdioScannerConfig() : undefined,
+            })
+          }
         />
         {output.rdio_scanner !== undefined && (
           <RdioScannerFields

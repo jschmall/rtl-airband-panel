@@ -24,7 +24,13 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
-          <button type="button" onClick={onRemove} className={removeButtonClass}>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Remove mixer '${mixer.name || "(unnamed)"}'? This also deletes all of its outputs.`)) onRemove();
+            }}
+            className={removeButtonClass}
+          >
             Remove mixer
           </button>
         </div>
