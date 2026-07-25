@@ -12,26 +12,36 @@ export function InstanceEditPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
-  const [saving, setSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [pendingRestart, setPendingRestart] = useState(false);
 
   useEffect(() => {
     if (!name) return;
+    setPendingRestart(false);
     api
       .getConfig(name)
       .then(setConfig)
       .catch((err: unknown) => setLoadError(err instanceof ApiError ? err.message : "Failed to load config"));
   }, [name]);
 
-  async function handleSave() {
+  async function handleSave(restart: boolean) {
     if (!name || !config) return;
-    setSaving(true);
+    if (restart && !window.confirm(`Restart '${name}'? This applies the saved changes but interrupts live audio for a few seconds while it restarts.`)) {
+      return;
+    }
+    setPendingAction(restart ? "restart" : "save");
     setErrors([]);
     setSavedMessage(null);
     try {
-      const result = await api.updateConfig(name, config);
+      const result = await api.updateConfig(name, config, { restart });
       setWarnings(result.warnings);
-      setSavedMessage(`Saved and restarted ${name}.service (${result.status.activeState}).`);
+      setPendingRestart(!restart);
+      setSavedMessage(
+        restart
+          ? `Saved and restarted ${name}.service (${result.status.activeState}).`
+          : `Saved ${name}.conf. Changes will take effect after a restart.`
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
         setErrors(err.body.errors);
@@ -46,7 +56,7 @@ export function InstanceEditPage() {
         ]);
       }
     } finally {
-      setSaving(false);
+      setPendingAction(null);
     }
   }
 
@@ -56,7 +66,14 @@ export function InstanceEditPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
+          {pendingRestart && (
+            <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-300">
+              Changes pending restart
+            </span>
+          )}
+        </div>
         <Link to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
           View stats →
         </Link>
@@ -69,14 +86,22 @@ export function InstanceEditPage() {
 
       <ConfigEditor config={config} onChange={setConfig} />
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
         <button
           type="button"
-          disabled={saving}
-          onClick={() => void handleSave()}
+          disabled={pendingAction !== null}
+          onClick={() => void handleSave(false)}
           className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
         >
-          {saving ? "Saving…" : "Save and restart"}
+          {pendingAction === "save" ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          disabled={pendingAction !== null}
+          onClick={() => void handleSave(true)}
+          className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+        >
+          {pendingAction === "restart" ? "Restarting…" : "Save and restart"}
         </button>
       </div>
     </div>

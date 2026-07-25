@@ -107,6 +107,19 @@ describe("updateConfig", () => {
     await expect(h.service.updateConfig("nope", minimalConfig())).rejects.toBeInstanceOf(InstanceNotFoundError);
     expect(await h.service.listInstances()).toEqual([]);
   });
+
+  it("writes the config without restarting when restart: false", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig();
+
+    const result = await h.service.updateConfig(FIXTURE_INSTANCE_NAME, config, { restart: false });
+
+    expect(result.warnings).toEqual([]);
+    expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
+
+    const written = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    expect(written).toEqual(config);
+  });
 });
 
 describe("createInstance", () => {

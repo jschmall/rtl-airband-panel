@@ -70,15 +70,22 @@ export class InstanceService {
     return this.systemd.status(unitFileName(name));
   }
 
-  /** Validates (fail closed on errors), writes, then restarts only this instance's unit. */
-  async updateConfig(name: string, config: RtlAirbandConfig): Promise<WriteResult> {
+  /**
+   * Validates (fail closed on errors), writes, then restarts only this
+   * instance's unit — unless `restart: false` is passed, in which case the
+   * conf file is written but the running process (if any) keeps running on
+   * its old, in-memory config until an explicit restart. RTLSDR-Airband has
+   * no live-reload, so a write-only save never takes effect on its own.
+   */
+  async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean } = {}): Promise<WriteResult> {
+    const restart = options.restart ?? true;
     await this.requireExists(name);
     const { errors, warnings } = validateConfig(config);
     if (errors.length > 0) throw new ValidationFailedError(errors);
 
     await this.configStore.write(name, config);
     const unit = unitFileName(name);
-    await this.systemd.restart(unit);
+    if (restart) await this.systemd.restart(unit);
     const status = await this.systemd.status(unit);
     return { warnings, status };
   }

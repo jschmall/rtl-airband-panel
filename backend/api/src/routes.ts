@@ -16,9 +16,10 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return service.getHealth(request.params.name);
   });
 
-  app.put<{ Params: { name: string } }>("/instances/:name", async (request) => {
+  app.put<{ Params: { name: string }; Querystring: { restart?: string } }>("/instances/:name", async (request) => {
     const config = parseRtlAirbandConfigBody(request.body);
-    return service.updateConfig(request.params.name, config);
+    const restart = request.query.restart !== "false";
+    return service.updateConfig(request.params.name, config, { restart });
   });
 
   app.post<{ Params: { name: string } }>("/instances/:name/restart", async (request) => {

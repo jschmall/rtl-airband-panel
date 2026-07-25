@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.3] - 2026-07-25
+
+### Added
+
+- **Split "Save" from "Save and restart".** `Save` writes the config to the
+  instance's `.conf` file without touching the running systemd unit — the
+  process keeps running on its old in-memory config until an explicit
+  restart, since RTLSDR-Airband has no live-reload. `Save and restart`
+  (styled red, since it interrupts live audio) does both, behind a
+  confirmation prompt. After a plain `Save`, a "Changes pending restart"
+  badge appears next to the page title until the instance is restarted.
+  Backend: `PUT /instances/:name` now accepts `?restart=false`
+  (`InstanceService.updateConfig` takes a `{ restart }` option, defaulting
+  to `true` to preserve existing behavior for any other caller).
+
 ## [0.4.2] - 2026-07-25
 
 ### Fixed

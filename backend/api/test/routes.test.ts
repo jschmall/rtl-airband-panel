@@ -104,6 +104,15 @@ describe("PUT /instances/:name", () => {
     expect(res.statusCode).toBe(200);
     expect(h.systemd.calls).toEqual([`restart ${FIXTURE_INSTANCE_NAME}.service`, `status ${FIXTURE_INSTANCE_NAME}.service`]);
   });
+
+  it("200s and does not restart when ?restart=false", async () => {
+    await seedFixture(h.instancesDir);
+    const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const res = await app.inject({ method: "PUT", url: `/api/instances/${FIXTURE_INSTANCE_NAME}?restart=false`, payload: config });
+    expect(res.statusCode).toBe(200);
+    expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
 });
 
 describe("POST /instances (create)", () => {

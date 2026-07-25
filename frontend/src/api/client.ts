@@ -75,8 +75,8 @@ export const api = {
 
   getHealth: (name: string): Promise<UnitStatus> => request(`/instances/${encodeURIComponent(name)}/health`),
 
-  updateConfig: (name: string, config: RtlAirbandConfig): Promise<WriteResult> =>
-    request(`/instances/${encodeURIComponent(name)}`, {
+  updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean } = {}): Promise<WriteResult> =>
+    request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {
       method: "PUT",
       body: JSON.stringify(config),
     }),
