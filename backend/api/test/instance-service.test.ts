@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "../src/instance-service.js";
+import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, InstanceService, ValidationFailedError } from "../src/instance-service.js";
+import { ConfigStore } from "../src/config-store.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
-import { buildHarness, FIXTURE_INSTANCE_NAME, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
+import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
+import { buildHarness, cleanupScratchDir, FIXTURE_INSTANCE_NAME, makeScratchDir, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
 function minimalConfig(overrides: Partial<RtlAirbandConfig> = {}): RtlAirbandConfig {
   return {
@@ -61,6 +63,47 @@ describe("listInstances / getConfig", () => {
 
   it("throws InstanceNotFoundError for a nonexistent instance", async () => {
     await expect(h.service.getConfig("does_not_exist")).rejects.toBeInstanceOf(InstanceNotFoundError);
+  });
+});
+
+describe("validateOnly", () => {
+  it("returns no errors for a valid config, and writes/touches nothing", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const result = await h.service.validateOnly(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    expect(result.errors).toEqual([]);
+    expect(h.systemd.calls).toEqual([]);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+  });
+
+  it("returns errors for an invalid config instead of throwing, and still writes/touches nothing", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const outputs = before.devices[0]!.channels[0]!.outputs;
+    const collision = {
+      ...before,
+      devices: [
+        {
+          ...before.devices[0]!,
+          channels: [
+            { freq: 151_300_000, afc: 0, modulation: "nfm" as const, outputs },
+            { freq: 151_300_100, afc: 0, modulation: "nfm" as const, outputs },
+          ],
+        },
+      ],
+    };
+
+    const result = await h.service.validateOnly(FIXTURE_INSTANCE_NAME, collision);
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(h.systemd.calls).toEqual([]);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+  });
+
+  it("throws InstanceNotFoundError for a nonexistent instance", async () => {
+    await expect(h.service.validateOnly("does_not_exist", minimalConfig())).rejects.toBeInstanceOf(InstanceNotFoundError);
   });
 });
 
@@ -214,6 +257,82 @@ describe("updateConfig secret redaction round-trip", () => {
     const afterSave = await h.configStore.read("rtl_icecast");
     expect(afterSave.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "hunter2" });
     expect(afterSave.devices[0]!.gain).toBe(40);
+  });
+});
+
+describe("exportAll / importAll", () => {
+  it("exports every instance's config unredacted (a backup is useless without real secrets)", async () => {
+    const withPassword = minimalConfig({
+      devices: [
+        {
+          type: "rtlsdr",
+          serial: "1",
+          gain: 29,
+          centerfreq: 100_000_000,
+          sample_rate: 1_400_000,
+          correction: 0,
+          channels: [
+            {
+              freq: 100_000_000,
+              afc: 0,
+              modulation: "nfm",
+              outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: "hunter2" }],
+            },
+          ],
+        },
+      ],
+    });
+    await h.service.createInstance("rtl_icecast", withPassword);
+
+    const bundle = await h.service.exportAll();
+    expect(bundle.instances["rtl_icecast"]!.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "hunter2" });
+  });
+
+  it("imports every instance in the bundle that doesn't already exist", async () => {
+    const bundle = { instances: { rtl_a: minimalConfig(), rtl_b: minimalConfig() } };
+    const results = await h.service.importAll(bundle);
+
+    expect(results).toEqual({ rtl_a: { status: "created" }, rtl_b: { status: "created" } });
+    expect((await h.service.listInstances()).map((i) => i.name).sort()).toEqual(["rtl_a", "rtl_b"]);
+  });
+
+  it("skips (doesn't overwrite) an instance whose name already exists", async () => {
+    await seedFixture(h.instancesDir); // seeds FIXTURE_INSTANCE_NAME
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const results = await h.service.importAll({ instances: { [FIXTURE_INSTANCE_NAME]: minimalConfig() } });
+
+    expect(results).toEqual({ [FIXTURE_INSTANCE_NAME]: { status: "skipped" } });
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+  });
+
+  it("reports one instance's import failure independently, without stopping the others", async () => {
+    // An invalid instance name (fails assertValidInstanceName) is a simple, deterministic
+    // way to force createInstance to fail without relying on FFT-bin-collision arithmetic.
+    const results = await h.service.importAll({ instances: { "not a valid name!": minimalConfig(), rtl_good: minimalConfig() } });
+
+    expect(results["not a valid name!"]).toMatchObject({ status: "failed" });
+    expect(results["rtl_good"]).toEqual({ status: "created" });
+    expect(await h.service.listInstances()).toEqual([expect.objectContaining({ name: "rtl_good" })]);
+  });
+
+  it("round-trips export -> import into a fresh set of instances", async () => {
+    await h.service.createInstance("rtl_original", minimalConfig());
+    const bundle = await h.service.exportAll();
+
+    const otherDir = await makeScratchDir();
+    try {
+      const otherService = new InstanceService(new ConfigStore(otherDir), new MockSystemdAdapter(), new PendingRestartStore(otherDir), {
+        instancesDir: otherDir,
+        rtlAirbandBinary: "/usr/local/bin/rtl_airband",
+      });
+
+      const results = await otherService.importAll(bundle);
+      expect(results).toEqual({ rtl_original: { status: "created" } });
+      expect(await otherService.getConfig("rtl_original")).toEqual(await h.service.getConfig("rtl_original"));
+    } finally {
+      await cleanupScratchDir(otherDir);
+    }
   });
 });
 
@@ -387,6 +506,49 @@ describe("restartInstance", () => {
     const status = await h.service.restartInstance(FIXTURE_INSTANCE_NAME);
     expect(status.activeState).toBe("active");
     expect(h.systemd.calls).toEqual([`restart ${FIXTURE_INSTANCE_NAME}.service`, `status ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
+});
+
+describe("restartAllPending", () => {
+  it("restarts every instance marked pending-restart, and none that aren't", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+    await seedFixture(h.instancesDir, "rtl_not_pending");
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+    await h.service.updateConfig("rtl_other", minimalConfig(), { restart: false });
+
+    const results = await h.service.restartAllPending();
+
+    expect(Object.keys(results).sort()).toEqual([FIXTURE_INSTANCE_NAME, "rtl_other"].sort());
+    expect(h.systemd.calls).toContain(`restart ${FIXTURE_INSTANCE_NAME}.service`);
+    expect(h.systemd.calls).toContain(`restart rtl_other.service`);
+    expect(h.systemd.calls).not.toContain(`restart rtl_not_pending.service`);
+
+    const list = await h.service.listInstances();
+    expect(list.every((i) => !i.pendingRestart)).toBe(true);
+  });
+
+  it("reports one instance's restart failure independently, without stopping the others", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+    await h.service.updateConfig("rtl_other", minimalConfig(), { restart: false });
+
+    const originalRestart = h.systemd.restart.bind(h.systemd);
+    h.systemd.restart = async (unit: string) => {
+      if (unit === `${FIXTURE_INSTANCE_NAME}.service`) throw new Error("simulated failure");
+      return originalRestart(unit);
+    };
+
+    const results = await h.service.restartAllPending();
+
+    expect(results[FIXTURE_INSTANCE_NAME]).toMatchObject({ error: "simulated failure" });
+    expect(results["rtl_other"]).toMatchObject({ status: { activeState: "active" } });
+  });
+
+  it("returns an empty result when nothing is pending", async () => {
+    await seedFixture(h.instancesDir);
+    expect(await h.service.restartAllPending()).toEqual({});
   });
 });
 

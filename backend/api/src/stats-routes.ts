@@ -15,6 +15,10 @@ export function registerStatsRoutes(app: FastifyInstance, statsService: StatsSer
     return statsService.latest(request.params.name);
   });
 
+  app.get<{ Params: { name: string } }>("/instances/:name/stats/poll-status", async (request) => {
+    return statsService.getPollStatus(request.params.name);
+  });
+
   app.get<{ Params: { name: string }; Querystring: HistoryQuerystring }>(
     "/instances/:name/stats/history",
     async (request) => {

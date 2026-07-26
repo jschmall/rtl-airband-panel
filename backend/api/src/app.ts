@@ -16,6 +16,16 @@ export function buildApp(
   const app = Fastify({ logger: options.logger ?? true });
   installErrorHandler(app);
 
+  // Every response carries the same request id Fastify's own logger already
+  // tags every log line for this request with, so a client-reported problem
+  // ("my save failed just now") can be tied back to the exact server log
+  // lines -- including the audit log line routes.ts writes for mutating
+  // actions -- without guessing by timestamp.
+  app.addHook("onSend", async (request, reply, payload) => {
+    reply.header("x-request-id", request.id);
+    return payload;
+  });
+
   // Basic security headers (clickjacking/MIME-sniffing protection, etc.). No
   // CORS plugin is registered on purpose: this app is same-origin in both
   // deployment modes (single-process serving, or Vite's dev-server proxy),
@@ -32,10 +42,26 @@ export function buildApp(
   // client and restart-storming every managed instance.
   app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
 
+  // Deliberately at the root, not under /api -- this is the path every
+  // Prometheus-compatible scraper defaults to, and a scrape target normally
+  // isn't namespaced under an app-specific prefix. Safe alongside the SPA
+  // catch-all below: that's a setNotFoundHandler, which only ever fires when
+  // no real route (like this one) matched.
+  app.get("/metrics", async (request, reply) => {
+    reply.type("text/plain; version=0.0.4; charset=utf-8");
+    return statsService.metricsText();
+  });
+
   // Namespaced under /api so it never collides with the frontend's own
   // client-side routes (e.g. /instances/:name is also a React Router page).
   app.register(
     async (scoped) => {
+      // Lives here rather than in routes.ts because it needs both services.
+      scoped.get("/health", async (request, reply) => {
+        const { ready, checks } = await statsService.checkReadiness();
+        reply.code(ready ? 200 : 503);
+        return { status: ready ? "ok" : "degraded", checks };
+      });
       registerRoutes(scoped, service);
       registerStatsRoutes(scoped, statsService);
     },

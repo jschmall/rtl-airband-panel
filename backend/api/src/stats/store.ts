@@ -176,6 +176,11 @@ export class StatsStore {
     this.db.pragma("incremental_vacuum");
   }
 
+  /** Throws if the underlying DB handle isn't usable (e.g. already closed) — used for readiness checks, not normal operation. */
+  ping(): void {
+    this.db.prepare("SELECT 1").get();
+  }
+
   close(): void {
     this.db.close();
   }

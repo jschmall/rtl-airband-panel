@@ -5,6 +5,61 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.15] - 2026-07-26
+
+### Added
+
+- **Real readiness check on `GET /health`.** Previously a static `{status:
+  "ok"}` regardless of anything; now actually checks the instances
+  directory is readable and the stats DB handle is usable, returning 503
+  with the failing check named if not. Doesn't probe systemd/sudo — no
+  unit-agnostic way to check that, and doing so on every health check
+  (which a monitor might hit every few seconds) would mean shelling out to
+  sudo that often for no benefit.
+- **Structured audit log + request correlation.** Every config-mutating
+  action (create/update/rename/delete/restart, individual or bulk) now
+  logs one greppable line tagged `audit: true`, success or failure. Every
+  response also carries an `x-request-id` header matching Fastify's own
+  per-request log tag, so a reported problem can be traced to the exact
+  action and log lines that caused it — there's still no per-user
+  identity (no auth layer yet), but "what changed and when" is answerable.
+- **Per-instance stats-poll health via the API.** `GET
+  /instances/:name/stats/poll-status` surfaces a silently-broken poll
+  pipeline for one instance among many — previously visible only in
+  server logs.
+- **Config backups before every overwrite.** Up to 10 prior versions of
+  each instance's `.conf` are kept (in `<instancesDir>/.backups/<name>/`,
+  never mistaken for an instance itself), pruned automatically. A save
+  that's valid but wrong (bad frequency, wrong Icecast target, ...)
+  previously had no way back except retyping it from memory.
+- **Dry-run validation.** `POST /instances/:name/validate` runs the same
+  checks `updateConfig` would, without writing anything or touching
+  systemd — lets a client check "would this save?" before committing to a
+  Save-and-restart, which interrupts live audio.
+- **Bulk restart.** `POST /instances/restart-pending` restarts every
+  instance currently marked pending-restart in one call, reporting each
+  instance's outcome independently, instead of one request per instance.
+- **Import/export of the whole instance set.** `GET /instances/export` /
+  `POST /instances/import`, for migrating hosts or backing up before a
+  risky change. Export is deliberately unredacted (a backup missing its
+  Icecast passwords/rdio-scanner API keys isn't a usable backup); import
+  skips (never overwrites) any name that already exists.
+- **`/metrics` Prometheus endpoint**, at the root (the path every
+  Prometheus-compatible scraper defaults to) rather than under `/api`,
+  covering every managed instance's latest stats in one scrape, tagged by
+  an `instance` label. This panel already parses Prometheus format from
+  RTLSDR-Airband; it didn't expose any itself until now.
+- `export`, `import`, and `restart-pending` are now reserved instance
+  names (alongside the existing safe-slug check), so an instance can never
+  be shadowed by — or shadow — one of these new static routes.
+
+### Note
+
+Stats retention downsampling and remote-host support were considered and
+deliberately deferred (low priority / the systemd adapter interface is
+already clean enough to add later without disruption) rather than
+implemented in this pass.
+
 ## [0.4.14] - 2026-07-26
 
 ### Added

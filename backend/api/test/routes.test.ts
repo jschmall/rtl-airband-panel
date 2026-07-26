@@ -18,10 +18,38 @@ afterEach(async () => {
 });
 
 describe("GET /health", () => {
-  it("returns ok", async () => {
+  it("returns ok with passing readiness checks when the instances dir and stats DB are both fine", async () => {
     const res = await app.inject({ method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: "ok" });
+    expect(res.json()).toEqual({ status: "ok", checks: { instancesDir: "ok", statsDb: "ok" } });
+  });
+
+  it("returns 503 with the failing check surfaced if the stats DB is unusable", async () => {
+    h.statsStore.close();
+    const res = await app.inject({ method: "GET", url: "/api/health" });
+    expect(res.statusCode).toBe(503);
+    const body = res.json();
+    expect(body.status).toBe("degraded");
+    expect(body.checks.instancesDir).toBe("ok");
+    expect(body.checks.statsDb).not.toBe("ok");
+  });
+});
+
+describe("GET /metrics", () => {
+  it("is served at the root, not under /api, and returns Prometheus text format", async () => {
+    await seedFixture(h.instancesDir);
+    h.statsStore.insertBatch(FIXTURE_INSTANCE_NAME, [{ metric: "channel_signal_level", labels: { freq: "151.160" }, value: 3.5 }], Date.now());
+
+    const res = await app.inject({ method: "GET", url: "/metrics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/plain");
+    expect(res.body).toContain(`channel_signal_level{freq="151.160",instance="${FIXTURE_INSTANCE_NAME}"} 3.5`);
+  });
+
+  it("returns an empty body when nothing has been polled yet", async () => {
+    const res = await app.inject({ method: "GET", url: "/metrics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe("");
   });
 });
 
@@ -161,6 +189,12 @@ describe("security middleware", () => {
     expect(res.headers["x-ratelimit-limit"]).toBeDefined();
     expect(res.headers["x-ratelimit-remaining"]).toBeDefined();
   });
+
+  it("sets a per-request x-request-id header, correlating a response to its server-side (audit) log lines", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/health" });
+    expect(typeof res.headers["x-request-id"]).toBe("string");
+    expect(res.headers["x-request-id"]).not.toBe("");
+  });
 });
 
 describe("PUT /instances/:name", () => {
@@ -259,6 +293,66 @@ describe("POST /instances (create)", () => {
   });
 });
 
+describe("GET /instances/export and POST /instances/import", () => {
+  const minimalConfig = {
+    multiple_demod_threads: true,
+    multiple_output_threads: true,
+    stats_filepath: "/tmp/stats.txt",
+    localtime: true,
+    devices: [
+      {
+        type: "rtlsdr",
+        serial: "1",
+        gain: 29,
+        centerfreq: 100_000_000,
+        sample_rate: 1_400_000,
+        correction: 0,
+        channels: [{ freq: 100_000_000, afc: 0, modulation: "nfm", outputs: [{ type: "pulse", server: "10.0.0.1", sink: "s", stream_name: "s", continuous: false }] }],
+      },
+    ],
+  };
+
+  it("exports every instance as a bundle", async () => {
+    await app.inject({ method: "POST", url: "/api/instances", payload: { name: "rtl_100000", config: minimalConfig } });
+
+    const res = await app.inject({ method: "GET", url: "/api/instances/export" });
+    expect(res.statusCode).toBe(200);
+    expect(Object.keys(res.json().instances)).toEqual(["rtl_100000"]);
+  });
+
+  it("imports a bundle, creating instances that don't already exist", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/instances/import",
+      payload: { instances: { rtl_imported: minimalConfig } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ rtl_imported: { status: "created" } });
+    expect(h.systemd.calls).toContain("install-unit rtl_imported.service");
+  });
+
+  it("skips an instance whose name already exists instead of overwriting it", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/instances/import",
+      payload: { instances: { [FIXTURE_INSTANCE_NAME]: minimalConfig } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ [FIXTURE_INSTANCE_NAME]: { status: "skipped" } });
+  });
+
+  it("round-trips export -> import", async () => {
+    await app.inject({ method: "POST", url: "/api/instances", payload: { name: "rtl_100000", config: minimalConfig } });
+    const exportRes = await app.inject({ method: "GET", url: "/api/instances/export" });
+
+    await app.inject({ method: "DELETE", url: "/api/instances/rtl_100000" });
+
+    const importRes = await app.inject({ method: "POST", url: "/api/instances/import", payload: exportRes.json() });
+    expect(importRes.json()).toEqual({ rtl_100000: { status: "created" } });
+  });
+});
+
 describe("DELETE /instances/:name", () => {
   it("removes an existing instance", async () => {
     await seedFixture(h.instancesDir);
@@ -290,6 +384,29 @@ describe("POST /instances/:name/restart", () => {
     const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/restart` });
     expect(res.statusCode).toBe(502);
     expect(res.json()).toMatchObject({ exitCode: 1, stderr: "Unit not found." });
+  });
+});
+
+describe("POST /instances/restart-pending", () => {
+  it("restarts every pending instance and reports per-instance results", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, await h.service.getConfig(FIXTURE_INSTANCE_NAME), { restart: false });
+    await h.service.updateConfig("rtl_other", await h.service.getConfig("rtl_other"), { restart: false });
+
+    const res = await app.inject({ method: "POST", url: "/api/instances/restart-pending" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      [FIXTURE_INSTANCE_NAME]: { status: { activeState: "active" } },
+      rtl_other: { status: { activeState: "active" } },
+    });
+  });
+
+  it("returns an empty object when nothing is pending", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "POST", url: "/api/instances/restart-pending" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({});
   });
 });
 
@@ -344,6 +461,62 @@ describe("GET /instances/:name/health", () => {
   });
 });
 
+describe("POST /instances/:name/validate", () => {
+  it("returns no errors for a valid config and doesn't write or restart anything", async () => {
+    await seedFixture(h.instancesDir);
+    const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/validate`, payload: config });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().errors).toEqual([]);
+    expect(h.systemd.calls).toEqual([]);
+  });
+
+  it("returns errors (200, not 422) for an invalid config, since nothing was actually attempted", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const outputs = before.devices[0]!.channels[0]!.outputs;
+    const collision = {
+      ...before,
+      devices: [
+        {
+          ...before.devices[0]!,
+          channels: [
+            { freq: 151_300_000, afc: 0, modulation: "nfm", outputs },
+            { freq: 151_300_100, afc: 0, modulation: "nfm", outputs },
+          ],
+        },
+      ],
+    };
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/validate`, payload: collision });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().errors.length).toBeGreaterThan(0);
+  });
+
+  it("404s for a nonexistent instance", async () => {
+    const config = {
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices: [
+        {
+          type: "rtlsdr",
+          serial: "1",
+          gain: 29,
+          centerfreq: 100_000_000,
+          sample_rate: 1_400_000,
+          correction: 0,
+          channels: [{ freq: 100_000_000, afc: 0, modulation: "nfm", outputs: [{ type: "pulse", server: "s", sink: "s", stream_name: "s", continuous: false }] }],
+        },
+      ],
+    };
+    const res = await app.inject({ method: "POST", url: "/api/instances/nope/validate", payload: config });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
 describe("GET /instances/:name/stats/latest", () => {
   it("404s for a nonexistent instance", async () => {
     const res = await app.inject({ method: "GET", url: "/api/instances/nope/stats/latest" });
@@ -367,6 +540,20 @@ describe("GET /instances/:name/stats/latest", () => {
     const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/stats/latest` });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([{ metric: "channel_signal_level", labels: { freq: "151.160" }, value: 3.5 }]);
+  });
+});
+
+describe("GET /instances/:name/stats/poll-status", () => {
+  it("404s for a nonexistent instance", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/instances/nope/stats/poll-status" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns an empty status when nothing has been polled yet", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/stats/poll-status` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({});
   });
 });
 

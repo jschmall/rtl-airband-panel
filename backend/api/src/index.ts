@@ -10,6 +10,7 @@ import { SudoSystemctlAdapter } from "./systemd/sudo-adapter.js";
 import { StatsStore } from "./stats/store.js";
 import { StatsPoller } from "./stats/poller.js";
 import { StatsService } from "./stats/stats-service.js";
+import { PollStatusTracker } from "./stats/poll-status.js";
 import { buildApp } from "./app.js";
 
 let cli;
@@ -64,7 +65,11 @@ const service = new InstanceService(configStore, systemd, pendingRestartStore, {
 });
 
 const statsStore = new StatsStore(config.statsDbPath);
-const statsService = new StatsService(configStore, statsStore);
+// Shared between the poller (which records) and StatsService (which exposes it via
+// the API), so a silently-broken poll pipeline for one instance is visible to a
+// client instead of only in server logs.
+const pollStatusTracker = new PollStatusTracker();
+const statsService = new StatsService(configStore, statsStore, pollStatusTracker);
 
 const app = buildApp(service, statsService, { frontendDistPath: config.frontendDistPath });
 
@@ -72,7 +77,8 @@ const poller = new StatsPoller(
   configStore,
   statsStore,
   { intervalMs: config.statsPollIntervalMs, retentionDays: config.statsRetentionDays },
-  (instance, err) => app.log.warn({ instance, err }, "failed to poll stats for instance")
+  (instance, err) => app.log.warn({ instance, err }, "failed to poll stats for instance"),
+  pollStatusTracker
 );
 poller.start();
 

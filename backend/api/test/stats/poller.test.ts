@@ -3,6 +3,7 @@ import { writeFile, utimes } from "node:fs/promises";
 import path from "node:path";
 import { StatsPoller } from "../../src/stats/poller.js";
 import { StatsStore } from "../../src/stats/store.js";
+import { PollStatusTracker } from "../../src/stats/poll-status.js";
 import { buildHarness, seedFixture, teardownHarness, type TestHarness } from "../helpers.js";
 
 let h: TestHarness;
@@ -122,6 +123,55 @@ describe("StatsPoller.pollOnce", () => {
 
     await expect(poller.pollOnce()).resolves.toBeUndefined();
     expect(errors.map((e) => e.instance)).toContain("<prune>");
+  });
+});
+
+describe("StatsPoller poll-status tracking", () => {
+  it("records a success for an instance that polls cleanly", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+
+    const pollStatus = new PollStatusTracker();
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 }, undefined, pollStatus);
+    await poller.pollOnce();
+
+    const status = pollStatus.get("rtl_x");
+    expect(status.lastSuccessMs).toBeTypeOf("number");
+    expect(status.lastError).toBeUndefined();
+  });
+
+  it("records an error for an instance whose poll throws, surfacing it the same way onError does", async () => {
+    // rtl_bad has a stats_filepath pointing at a directory, which throws on readFile after stat succeeds as a dir
+    await writeConfWithStatsPath(h.instancesDir, "rtl_bad", h.instancesDir);
+
+    const pollStatus = new PollStatusTracker();
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 }, undefined, pollStatus);
+    await poller.pollOnce();
+
+    const status = pollStatus.get("rtl_bad");
+    expect(status.lastError).toBeDefined();
+    expect(status.lastErrorMs).toBeTypeOf("number");
+  });
+
+  it("clears the error once a broken instance starts polling cleanly again", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    // Points at a directory -- throws on readFile after stat succeeds as a dir.
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", h.instancesDir);
+
+    const pollStatus = new PollStatusTracker();
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 }, undefined, pollStatus);
+    await poller.pollOnce();
+    expect(pollStatus.get("rtl_x").lastError).toBeDefined();
+
+    // Fix the config to point at a real stats file.
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+    await poller.pollOnce();
+
+    const status = pollStatus.get("rtl_x");
+    expect(status.lastError).toBeUndefined();
+    expect(status.lastSuccessMs).toBeTypeOf("number");
   });
 });
 

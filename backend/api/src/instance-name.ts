@@ -9,15 +9,26 @@ import path from "node:path";
  */
 const SAFE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
+/**
+ * Static sibling routes registered alongside `/instances/:name` (e.g.
+ * `/instances/export`, `/instances/restart-pending`) — Fastify's router
+ * always prefers a literal match over a param route at the same depth, so
+ * these are already unambiguous today, but an instance actually named one of
+ * these would become permanently unreachable through `/instances/:name`
+ * (shadowed by the static route) the moment such a route existed. Reserved
+ * outright so that can never happen, regardless of what routes get added later.
+ */
+const RESERVED_NAMES = new Set(["export", "import", "restart-pending"]);
+
 export class InvalidInstanceNameError extends Error {
   constructor(name: string) {
-    super(`Invalid instance name '${name}': must match ${SAFE_NAME}`);
+    super(`Invalid instance name '${name}': must match ${SAFE_NAME} and not be a reserved name (${[...RESERVED_NAMES].join(", ")})`);
     this.name = "InvalidInstanceNameError";
   }
 }
 
 export function assertValidInstanceName(name: string): void {
-  if (!SAFE_NAME.test(name)) {
+  if (!SAFE_NAME.test(name) || RESERVED_NAMES.has(name)) {
     throw new InvalidInstanceNameError(name);
   }
 }

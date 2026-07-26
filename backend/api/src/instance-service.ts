@@ -1,5 +1,5 @@
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import { validateConfig, type ValidationIssue } from "@rtl-airband-panel/validate";
+import { validateConfig, type ValidationIssue, type ValidationResult } from "@rtl-airband-panel/validate";
 import type { ConfigStore } from "./config-store.js";
 import type { PendingRestartStore } from "./pending-restart-store.js";
 import type { SystemdAdapter, UnitStatus } from "./systemd/types.js";
@@ -98,6 +98,20 @@ export class InstanceService {
   }
 
   /**
+   * Runs the same validation updateConfig would, without writing anything or
+   * touching systemd — lets a client check "would this save?" (e.g. before
+   * committing to a Save-and-restart, which interrupts live audio) without
+   * the side effects. Never throws on validation failure; the caller reads
+   * `errors`/`warnings` directly, same shape as updateConfig's ValidationFailedError.errors.
+   */
+  async validateOnly(name: string, config: RtlAirbandConfig): Promise<ValidationResult> {
+    await this.requireExists(name);
+    const { config: existing } = await this.configStore.readWithVersion(name);
+    const restored = restoreSecrets(config, existing);
+    return validateConfig(restored);
+  }
+
+  /**
    * Validates (fail closed on errors), writes, then restarts only this
    * instance's unit — unless `restart: false` is passed, in which case the
    * conf file is written but the running process (if any) keeps running on
@@ -143,6 +157,63 @@ export class InstanceService {
     await this.systemd.restart(unit);
     await this.pendingRestartStore.clear(name);
     return this.systemd.status(unit);
+  }
+
+  /**
+   * Restarts every instance currently marked pending-restart, so an operator
+   * who saved several instances with `restart: false` doesn't have to click
+   * restart on each one individually. One instance's restart failing doesn't
+   * stop the rest — each result is reported independently.
+   */
+  async restartAllPending(): Promise<Record<string, { status: UnitStatus } | { error: string }>> {
+    const summaries = await this.listInstances();
+    const results: Record<string, { status: UnitStatus } | { error: string }> = {};
+    for (const { name, pendingRestart } of summaries) {
+      if (!pendingRestart) continue;
+      try {
+        results[name] = { status: await this.restartInstance(name) };
+      } catch (err) {
+        results[name] = { error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+    return results;
+  }
+
+  /**
+   * A faithful backup of every instance's config, meant for migrating hosts
+   * or backing up before a risky change — deliberately unredacted (unlike
+   * getConfig), since a backup that's missing its Icecast passwords/
+   * rdio-scanner API keys on restore isn't a usable backup.
+   */
+  async exportAll(): Promise<{ instances: Record<string, RtlAirbandConfig> }> {
+    const summaries = await this.listInstances();
+    const instances: Record<string, RtlAirbandConfig> = {};
+    for (const { name } of summaries) {
+      instances[name] = await this.configStore.read(name);
+    }
+    return { instances };
+  }
+
+  /**
+   * Creates every instance in the bundle that doesn't already exist. An
+   * instance whose name collides with an existing one is skipped, not
+   * overwritten — importing is for standing up new instances (e.g. on a new
+   * host), not for bulk-editing existing ones. Each instance's outcome is
+   * independent, same as restartAllPending.
+   */
+  async importAll(
+    bundle: { instances: Record<string, RtlAirbandConfig> }
+  ): Promise<Record<string, { status: "created" } | { status: "skipped" } | { status: "failed"; error: string }>> {
+    const results: Record<string, { status: "created" } | { status: "skipped" } | { status: "failed"; error: string }> = {};
+    for (const [name, config] of Object.entries(bundle.instances)) {
+      try {
+        await this.createInstance(name, config);
+        results[name] = { status: "created" };
+      } catch (err) {
+        results[name] = err instanceof InstanceAlreadyExistsError ? { status: "skipped" } : { status: "failed", error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+    return results;
   }
 
   /** Writes the conf file, installs+enables+starts a new unit. Rolls back the conf file on any systemd failure. */

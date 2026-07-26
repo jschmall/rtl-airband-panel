@@ -18,6 +18,16 @@ export function hashConfigText(raw: string): string {
   return createHash("sha256").update(raw).digest("hex").slice(0, 16);
 }
 
+/**
+ * Backups live in a dot-prefixed subdirectory so `list()` (which only looks
+ * at top-level `*.conf` files) never mistakes one for an instance, and a
+ * backup's own name can never collide with a real instance name.
+ */
+const BACKUP_DIR_NAME = ".backups";
+
+/** How many prior versions of a single instance's .conf to keep before pruning the oldest. */
+const MAX_BACKUPS_PER_INSTANCE = 10;
+
 /** File I/O over the .conf directory. No systemd concerns live here. */
 export class ConfigStore {
   constructor(private readonly instancesDir: string) {}
@@ -63,8 +73,15 @@ export class ConfigStore {
     return { config: parseConfigFile(raw), version: hashConfigText(raw) };
   }
 
-  /** Writes via a temp file + rename so a crash mid-write can never leave a truncated/corrupt .conf. Returns the new version identifier. */
+  /**
+   * Writes via a temp file + rename so a crash mid-write can never leave a
+   * truncated/corrupt .conf. Backs up whatever was there before overwriting
+   * it — a save that's valid but wrong (bad frequency, wrong Icecast target,
+   * ...) otherwise has no way back except retyping it from memory. Returns
+   * the new version identifier.
+   */
   async write(name: string, config: RtlAirbandConfig): Promise<string> {
+    await this.backupBeforeOverwrite(name);
     const target = confFilePath(this.instancesDir, name);
     const text = serializeConfigFile(config);
     const tmp = `${target}.tmp-${process.pid}-${Date.now()}`;
@@ -75,5 +92,24 @@ export class ConfigStore {
 
   async remove(name: string): Promise<void> {
     await fs.rm(confFilePath(this.instancesDir, name), { force: true });
+  }
+
+  private async backupBeforeOverwrite(name: string): Promise<void> {
+    let existing: string;
+    try {
+      existing = await this.readRaw(name);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return; // new instance, nothing to back up
+      throw err;
+    }
+
+    const backupDir = path.join(this.instancesDir, BACKUP_DIR_NAME, name);
+    await fs.mkdir(backupDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await fs.writeFile(path.join(backupDir, `${stamp}-${process.pid}-${Date.now()}.conf`), existing, "utf8");
+
+    const entries = (await fs.readdir(backupDir)).filter((f) => f.endsWith(".conf")).sort();
+    const excess = entries.slice(0, Math.max(0, entries.length - MAX_BACKUPS_PER_INSTANCE));
+    await Promise.all(excess.map((f) => fs.rm(path.join(backupDir, f), { force: true })));
   }
 }

@@ -154,8 +154,7 @@ function requireStringOrNumberAsString(obj: Record<string, unknown>, key: string
   throw new ShapeValidationError(`Expected '${key}' to be a string or number`, path);
 }
 
-export function parseRtlAirbandConfigBody(input: unknown): RtlAirbandConfig {
-  const path = "$";
+export function parseRtlAirbandConfigBody(input: unknown, path = "$"): RtlAirbandConfig {
   const obj = requireRecord(input, path);
 
   const config: RtlAirbandConfig = {
@@ -505,4 +504,21 @@ function parseMixerOutput(obj: Record<string, unknown>, path: string): MixerOutp
   if (balance !== undefined) out.balance = balance;
   parseOutputDisable(obj, path, out);
   return out;
+}
+
+/** The shape GET /instances/export returns and POST /instances/import expects. */
+export interface ImportBundle {
+  instances: Record<string, RtlAirbandConfig>;
+}
+
+/** Instance-name validity (safe-slug, etc.) isn't checked here -- createInstance already does, and reports it per-instance rather than failing the whole import. */
+export function parseImportBundle(input: unknown): ImportBundle {
+  const path = "$";
+  const obj = requireRecord(input, path);
+  const instancesObj = requireRecord(obj["instances"], `${path}.instances`);
+  const instances: Record<string, RtlAirbandConfig> = {};
+  for (const [name, rawConfig] of Object.entries(instancesObj)) {
+    instances[name] = parseRtlAirbandConfigBody(rawConfig, `${path}.instances.${name}`);
+  }
+  return { instances };
 }

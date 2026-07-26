@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import type { ConfigStore } from "../config-store.js";
 import { parsePrometheusText } from "./prometheus-parser.js";
+import { PollStatusTracker } from "./poll-status.js";
 import type { StatsStore } from "./store.js";
 
 export interface PollerOptions {
@@ -54,7 +55,9 @@ export class StatsPoller {
     private readonly configStore: ConfigStore,
     private readonly statsStore: StatsStore,
     private readonly options: PollerOptions,
-    private readonly onError: (instance: string, err: unknown) => void = () => undefined
+    private readonly onError: (instance: string, err: unknown) => void = () => undefined,
+    /** Shared with StatsService so a client can see per-instance poll health, not just server logs. Defaults to a private instance for callers (mostly tests) that don't need to share it. */
+    private readonly pollStatus: PollStatusTracker = new PollStatusTracker()
   ) {}
 
   start(): void {
@@ -78,7 +81,9 @@ export class StatsPoller {
     for (const info of instances) {
       try {
         await this.pollInstance(info.name);
+        this.pollStatus.recordSuccess(info.name, Date.now());
       } catch (err) {
+        this.pollStatus.recordError(info.name, Date.now(), err instanceof Error ? err.message : String(err));
         this.onError(info.name, err);
       }
     }
