@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 /**
@@ -63,9 +64,15 @@ export class PendingRestartStore {
     await this.persist();
   }
 
-  /** Writes via a temp file + rename so a crash mid-write can never leave a truncated/corrupt state file. */
+  /**
+   * Writes via a temp file + rename so a crash mid-write can never leave a
+   * truncated/corrupt state file. randomUUID (not just pid+timestamp) so two
+   * overlapping persist() calls (e.g. concurrent saves to different
+   * instances sharing this same store) can never generate the same temp
+   * filename and have one rename fail with ENOENT after the other consumes it.
+   */
   private async persist(): Promise<void> {
-    const tmp = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
+    const tmp = `${this.filePath}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
     await fs.writeFile(tmp, JSON.stringify([...this.pending].sort((a, b) => a.localeCompare(b))), "utf8");
     await fs.rename(tmp, this.filePath);
   }

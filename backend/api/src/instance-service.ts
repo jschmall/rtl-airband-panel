@@ -6,6 +6,7 @@ import type { SystemdAdapter, UnitStatus } from "./systemd/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
 import { redactSecrets, restoreSecrets } from "./secrets.js";
+import { KeyedMutex } from "./keyed-mutex.js";
 
 export class InstanceNotFoundError extends Error {
   constructor(name: string) {
@@ -62,6 +63,16 @@ export interface InstanceServiceOptions {
  * written or any unit is touched.
  */
 export class InstanceService {
+  // Serializes create/update/restart/rename/delete per instance name, so two
+  // overlapping requests for the same instance (two browser tabs, a retry
+  // racing the original) can't both slip through a check-then-act window --
+  // e.g. both seeing an instance "doesn't exist yet" and both creating it, or
+  // both seeing an ifMatch version as current and both writing. Reads
+  // (getConfig, validateOnly, ...) don't participate: ConfigStore.write's
+  // temp-file+rename is already atomic, so a concurrent read only ever sees
+  // a fully-old or fully-new file, never a partial one.
+  private readonly mutex = new KeyedMutex();
+
   constructor(
     private readonly configStore: ConfigStore,
     private readonly systemd: SystemdAdapter,
@@ -126,37 +137,41 @@ export class InstanceService {
    * unaffected until they opt in.
    */
   async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> {
-    const restart = options.restart ?? true;
-    await this.requireExists(name);
-    const { config: existing, version } = await this.configStore.readWithVersion(name);
-    if (options.ifMatch !== undefined && options.ifMatch !== version) {
-      throw new ConfigConflictError(name);
-    }
-    const restored = restoreSecrets(config, existing);
-    const { errors, warnings } = validateConfig(restored);
-    if (errors.length > 0) throw new ValidationFailedError(errors);
+    return this.mutex.run(name, async () => {
+      const restart = options.restart ?? true;
+      await this.requireExists(name);
+      const { config: existing, version } = await this.configStore.readWithVersion(name);
+      if (options.ifMatch !== undefined && options.ifMatch !== version) {
+        throw new ConfigConflictError(name);
+      }
+      const restored = restoreSecrets(config, existing);
+      const { errors, warnings } = validateConfig(restored);
+      if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    const newVersion = await this.configStore.write(name, restored);
-    const unit = unitFileName(name);
-    // Marked as pending the moment the file is written, regardless of whether the
-    // restart below succeeds — a failed restart still leaves the on-disk config
-    // ahead of whatever the running process has loaded, so "pending" must already
-    // be true before we find out whether restart() throws, not only if it doesn't.
-    await this.pendingRestartStore.mark(name);
-    if (restart) {
-      await this.systemd.restart(unit);
-      await this.pendingRestartStore.clear(name);
-    }
-    const status = await this.systemd.status(unit);
-    return { warnings, status, version: newVersion };
+      const newVersion = await this.configStore.write(name, restored);
+      const unit = unitFileName(name);
+      // Marked as pending the moment the file is written, regardless of whether the
+      // restart below succeeds — a failed restart still leaves the on-disk config
+      // ahead of whatever the running process has loaded, so "pending" must already
+      // be true before we find out whether restart() throws, not only if it doesn't.
+      await this.pendingRestartStore.mark(name);
+      if (restart) {
+        await this.systemd.restart(unit);
+        await this.pendingRestartStore.clear(name);
+      }
+      const status = await this.systemd.status(unit);
+      return { warnings, status, version: newVersion };
+    });
   }
 
   async restartInstance(name: string): Promise<UnitStatus> {
-    await this.requireExists(name);
-    const unit = unitFileName(name);
-    await this.systemd.restart(unit);
-    await this.pendingRestartStore.clear(name);
-    return this.systemd.status(unit);
+    return this.mutex.run(name, async () => {
+      await this.requireExists(name);
+      const unit = unitFileName(name);
+      await this.systemd.restart(unit);
+      await this.pendingRestartStore.clear(name);
+      return this.systemd.status(unit);
+    });
   }
 
   /**
@@ -219,38 +234,40 @@ export class InstanceService {
   /** Writes the conf file, installs+enables+starts a new unit. Rolls back the conf file on any systemd failure. */
   async createInstance(name: string, config: RtlAirbandConfig): Promise<WriteResult> {
     assertValidInstanceName(name);
-    if (await this.configStore.exists(name)) throw new InstanceAlreadyExistsError(name);
+    return this.mutex.run(name, async () => {
+      if (await this.configStore.exists(name)) throw new InstanceAlreadyExistsError(name);
 
-    const restored = restoreSecrets(config, undefined);
-    const { errors, warnings } = validateConfig(restored);
-    if (errors.length > 0) throw new ValidationFailedError(errors);
+      const restored = restoreSecrets(config, undefined);
+      const { errors, warnings } = validateConfig(restored);
+      if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    const version = await this.configStore.write(name, restored);
-    const unit = unitFileName(name);
-    const unitContents = renderUnitFile({
-      description: `RTLSDR-Airband instance: ${name}`,
-      binaryPath: this.options.rtlAirbandBinary,
-      confPath: confFilePath(this.options.instancesDir, name),
+      const version = await this.configStore.write(name, restored);
+      const unit = unitFileName(name);
+      const unitContents = renderUnitFile({
+        description: `RTLSDR-Airband instance: ${name}`,
+        binaryPath: this.options.rtlAirbandBinary,
+        confPath: confFilePath(this.options.instancesDir, name),
+      });
+
+      try {
+        await this.systemd.installUnitFile(unit, unitContents);
+        await this.systemd.daemonReload();
+        await this.systemd.enable(unit);
+        await this.systemd.start(unit);
+      } catch (err) {
+        // Mirrors renameInstance's rollback: undo whichever of the steps above
+        // actually happened, not just the conf file — a failure after
+        // installUnitFile succeeds (daemonReload/enable/start) used to leave an
+        // orphaned unit file on disk referencing a .conf that was just deleted.
+        await this.configStore.remove(name).catch(() => undefined);
+        await this.systemd.removeUnitFile(unit).catch(() => undefined);
+        await this.systemd.daemonReload().catch(() => undefined);
+        throw err;
+      }
+
+      const status = await this.systemd.status(unit);
+      return { warnings, status, version };
     });
-
-    try {
-      await this.systemd.installUnitFile(unit, unitContents);
-      await this.systemd.daemonReload();
-      await this.systemd.enable(unit);
-      await this.systemd.start(unit);
-    } catch (err) {
-      // Mirrors renameInstance's rollback: undo whichever of the steps above
-      // actually happened, not just the conf file — a failure after
-      // installUnitFile succeeds (daemonReload/enable/start) used to leave an
-      // orphaned unit file on disk referencing a .conf that was just deleted.
-      await this.configStore.remove(name).catch(() => undefined);
-      await this.systemd.removeUnitFile(unit).catch(() => undefined);
-      await this.systemd.daemonReload().catch(() => undefined);
-      throw err;
-    }
-
-    const status = await this.systemd.status(unit);
-    return { warnings, status, version };
   }
 
   /**
@@ -262,6 +279,15 @@ export class InstanceService {
    */
   async renameInstance(oldName: string, newName: string): Promise<WriteResult> {
     assertValidInstanceName(newName);
+    // Locks both names (sorted, so any two renames always acquire in the same
+    // order and can't deadlock each other) -- prevents e.g. a concurrent
+    // createInstance(newName) or updateConfig(oldName) from racing the rename.
+    const keys = [...new Set([oldName, newName])].sort();
+    const run = () => this.renameInstanceLocked(oldName, newName);
+    return keys.length === 1 ? this.mutex.run(keys[0]!, run) : this.mutex.run(keys[0]!, () => this.mutex.run(keys[1]!, run));
+  }
+
+  private async renameInstanceLocked(oldName: string, newName: string): Promise<WriteResult> {
     await this.requireExists(oldName);
 
     if (newName === oldName) {
@@ -310,14 +336,16 @@ export class InstanceService {
 
   /** Stops, disables, and removes both the unit file and the conf file. */
   async deleteInstance(name: string): Promise<void> {
-    await this.requireExists(name);
-    const unit = unitFileName(name);
-    await this.systemd.stop(unit);
-    await this.systemd.disable(unit);
-    await this.systemd.removeUnitFile(unit);
-    await this.systemd.daemonReload();
-    await this.configStore.remove(name);
-    await this.pendingRestartStore.clear(name);
+    await this.mutex.run(name, async () => {
+      await this.requireExists(name);
+      const unit = unitFileName(name);
+      await this.systemd.stop(unit);
+      await this.systemd.disable(unit);
+      await this.systemd.removeUnitFile(unit);
+      await this.systemd.daemonReload();
+      await this.configStore.remove(name);
+      await this.pendingRestartStore.clear(name);
+    });
   }
 
   private async requireExists(name: string): Promise<void> {

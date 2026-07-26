@@ -12,6 +12,7 @@ import { StatsPoller } from "./stats/poller.js";
 import { StatsService } from "./stats/stats-service.js";
 import { PollStatusTracker } from "./stats/poll-status.js";
 import { buildApp } from "./app.js";
+import { gracefulShutdown } from "./shutdown.js";
 
 let cli;
 try {
@@ -99,12 +100,6 @@ app.listen({ port: config.port, host: config.host }).catch((err) => {
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
-    void (async () => {
-      // Wait for any in-flight poll to finish before closing the DB it writes to.
-      await poller.stop();
-      statsStore.close();
-      await app.close();
-      process.exit(0);
-    })();
+    void gracefulShutdown({ poller, statsStore, app, exit: process.exit.bind(process) });
   });
 }

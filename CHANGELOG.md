@@ -5,6 +5,59 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.17] - 2026-07-26
+
+### Fixed
+
+- **Two real race conditions found and fixed while adding concurrency
+  tests.** Both were genuine check-then-act windows, not just missing
+  coverage:
+  - `ConfigStore.write()` and `PendingRestartStore.persist()` generated
+    temp filenames from `pid + Date.now()` only — two overlapping writes
+    to the *same* instance within the same millisecond could generate the
+    identical temp filename, so the loser's rename-into-place threw ENOENT
+    after the winner's rename already consumed it. Now includes a
+    `randomUUID()` component, making a collision impossible regardless of
+    timing.
+  - `createInstance` and `updateConfig`'s `ifMatch` check both read
+    current state, then acted on it, with an await in between — two
+    genuinely concurrent requests (not just close-in-sequence ones) could
+    both pass the check before either wrote, so two overlapping creates
+    for the same name could both succeed, and two overlapping saves
+    against the same starting version could both go through instead of
+    the second one getting `ConfigConflictError` as designed. Fixed with a
+    new `KeyedMutex` that serializes create/update/restart/rename/delete
+    per instance name (this app is a single process managing one systemd
+    unit per instance, so an in-process mutex is a complete fix, not a
+    partial one) — operations on different instances still run fully
+    concurrently.
+
+### Added
+
+- Comprehensive unit tests for `instance-name.ts` (the path-traversal/
+  shell-injection safety boundary: length limits, reserved names, path
+  separators, shell metacharacters, unicode, null bytes) and
+  `unit-template.ts`.
+- A regression test that round-trips the real fixture, plus a hand-built
+  config covering icecast/rdio_scanner/mixers/scan-mode, through
+  `parseRtlAirbandConfigBody` and confirms nothing is dropped or altered —
+  guards against `config-shape.ts` (the HTTP body validator) silently
+  drifting from `mapper.ts`/`domain.ts` as fields get added, without the
+  risk of unifying the two into one schema-driven implementation.
+- `gracefulShutdown` extracted from `index.ts` into its own tested
+  function, directly proving the exact ordering the earlier shutdown-race
+  fix depends on (poller fully stopped before the stats DB closes).
+
+### Note
+
+A shared saga/rollback helper for `InstanceService` (`createInstance`/
+`renameInstance`'s hand-rolled rollback logic) was considered and
+deliberately skipped — the bug that originally motivated it (their
+rollback thoroughness had diverged) is already fixed, and the current
+code is simple, direct, and now covered by real concurrency tests; a
+generic abstraction for two call sites isn't justified by anything
+currently broken.
+
 ## [0.4.16] - 2026-07-26
 
 ### Changed

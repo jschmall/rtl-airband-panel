@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { parseConfigFile, serializeConfigFile, type RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { confFilePath, instanceNameFromConfFilename } from "./instance-name.js";
@@ -84,7 +84,11 @@ export class ConfigStore {
     await this.backupBeforeOverwrite(name);
     const target = confFilePath(this.instancesDir, name);
     const text = serializeConfigFile(config);
-    const tmp = `${target}.tmp-${process.pid}-${Date.now()}`;
+    // randomUUID (not just pid+timestamp) so two overlapping writes to the same
+    // instance from the same process can never generate the same temp filename --
+    // they used to be able to, within the same millisecond, and the loser's rename
+    // would then throw ENOENT because the winner's rename had already consumed it.
+    const tmp = `${target}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
     await fs.writeFile(tmp, text, "utf8");
     await fs.rename(tmp, target);
     return hashConfigText(text);
@@ -106,7 +110,10 @@ export class ConfigStore {
     const backupDir = path.join(this.instancesDir, BACKUP_DIR_NAME, name);
     await fs.mkdir(backupDir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    await fs.writeFile(path.join(backupDir, `${stamp}-${process.pid}-${Date.now()}.conf`), existing, "utf8");
+    // randomUUID for the same reason as write()'s temp file: two concurrent saves of the
+    // same instance could otherwise compute an identical backup filename and silently
+    // overwrite one snapshot with the other instead of keeping both.
+    await fs.writeFile(path.join(backupDir, `${stamp}-${process.pid}-${randomUUID()}.conf`), existing, "utf8");
 
     const entries = (await fs.readdir(backupDir)).filter((f) => f.endsWith(".conf")).sort();
     const excess = entries.slice(0, Math.max(0, entries.length - MAX_BACKUPS_PER_INSTANCE));
