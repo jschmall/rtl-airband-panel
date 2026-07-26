@@ -36,7 +36,12 @@ describe("GET /instances", () => {
     const res = await app.inject({ method: "GET", url: "/api/instances" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+      {
+        name: FIXTURE_INSTANCE_NAME,
+        confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME),
+        unit: `${FIXTURE_INSTANCE_NAME}.service`,
+        pendingRestart: false,
+      },
     ]);
   });
 });
@@ -192,7 +197,7 @@ describe("POST /instances/:name/rename", () => {
     expect(res.statusCode).toBe(200);
     expect(h.systemd.calls).toContain("start rtl_renamed.service");
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service" },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false },
     ]);
   });
 

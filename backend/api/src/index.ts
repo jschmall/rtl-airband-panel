@@ -4,6 +4,7 @@ import { loadConfig } from "./config.js";
 import { parseCliArgs, HELP_TEXT } from "./cli.js";
 import { ConfigStore } from "./config-store.js";
 import { InstanceService } from "./instance-service.js";
+import { PendingRestartStore } from "./pending-restart-store.js";
 import { MockSystemdAdapter } from "./systemd/mock-adapter.js";
 import { SudoSystemctlAdapter } from "./systemd/sudo-adapter.js";
 import { StatsStore } from "./stats/store.js";
@@ -56,7 +57,8 @@ try {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 }
-const service = new InstanceService(configStore, systemd, {
+const pendingRestartStore = new PendingRestartStore(config.instancesDir);
+const service = new InstanceService(configStore, systemd, pendingRestartStore, {
   instancesDir: config.instancesDir,
   rtlAirbandBinary: config.rtlAirbandBinary,
 });

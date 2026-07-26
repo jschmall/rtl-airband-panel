@@ -5,6 +5,8 @@ export interface InstanceSummary {
   name: string;
   confPath: string;
   unit: string;
+  /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
+  pendingRestart: boolean;
 }
 
 export type UnitActiveState = "active" | "inactive" | "activating" | "deactivating" | "failed" | "unknown";

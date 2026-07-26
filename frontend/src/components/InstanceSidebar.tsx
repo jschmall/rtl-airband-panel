@@ -1,50 +1,46 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { api, ApiError, type InstanceSummary, type UnitStatus } from "../api/client.js";
+import { api, ApiError, type UnitStatus } from "../api/client.js";
+import { useInstanceList } from "../state/InstanceListContext.js";
 import { HealthBadge } from "./HealthBadge.js";
 
 export function InstanceSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { instances, error: listError, refresh } = useInstanceList();
 
-  const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [health, setHealth] = useState<Record<string, UnitStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const list = await api.listInstances();
-      setInstances(list);
-      const entries = await Promise.all(
-        list.map(async (instance) => {
-          try {
-            return [instance.name, await api.getHealth(instance.name)] as const;
-          } catch {
-            return [instance.name, { unit: instance.unit, activeState: "unknown", subState: "unknown" } as UnitStatus] as const;
-          }
-        })
-      );
-      setHealth(Object.fromEntries(entries));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load instances");
-    }
-  }, []);
-
-  // Re-fetch on every navigation so creates/deletes/renames triggered from
-  // anywhere (e.g. the create form) keep this always-visible list in sync.
+  // Re-fetch health whenever the shared instance list changes (navigation,
+  // create/delete/rename/restart, or a save on the edit page).
   useEffect(() => {
-    void load();
-  }, [load, location.pathname]);
+    if (!instances) return;
+    let cancelled = false;
+    void Promise.all(
+      instances.map(async (instance) => {
+        try {
+          return [instance.name, await api.getHealth(instance.name)] as const;
+        } catch {
+          return [instance.name, { unit: instance.unit, activeState: "unknown", subState: "unknown" } as UnitStatus] as const;
+        }
+      })
+    ).then((entries) => {
+      if (!cancelled) setHealth(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [instances]);
 
   async function handleRestart(name: string) {
     setBusy(name);
     try {
       await api.restartInstance(name);
-      await load();
+      await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Restart failed");
     } finally {
@@ -71,7 +67,7 @@ export function InstanceSidebar() {
       setRenaming(null);
       if (wasOpen) navigate(`/instances/${encodeURIComponent(renameValue)}`);
       setRenameValue("");
-      await load();
+      await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Rename failed");
     } finally {
@@ -85,7 +81,7 @@ export function InstanceSidebar() {
     try {
       await api.deleteInstance(name);
       if (location.pathname === `/instances/${encodeURIComponent(name)}`) navigate("/");
-      await load();
+      await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Delete failed");
     } finally {
@@ -104,7 +100,9 @@ export function InstanceSidebar() {
         </NavLink>
       </div>
 
-      {error && <div className="flex-shrink-0 border-b border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">{error}</div>}
+      {(error || listError) && (
+        <div className="flex-shrink-0 border-b border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">{error ?? listError}</div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {instances === null ? (
@@ -140,7 +138,15 @@ export function InstanceSidebar() {
                       }`
                     }
                   >
-                    <span className="min-w-0 flex-shrink truncate">{instance.name}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {instance.pendingRestart && (
+                        <span
+                          title="Saved but not yet restarted -- this instance is still running its previous config"
+                          className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500"
+                        />
+                      )}
+                      <span className="min-w-0 flex-shrink truncate">{instance.name}</span>
+                    </span>
                     {status && <span className="flex-shrink-0"><HealthBadge state={status.activeState} subState={status.subState} /></span>}
                   </NavLink>
                 )}

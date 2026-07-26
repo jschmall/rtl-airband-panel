@@ -5,20 +5,20 @@ import type { ValidationIssue } from "@rtl-airband-panel/validate";
 import { api, ApiError } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
+import { useInstanceList } from "../state/InstanceListContext.js";
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
+  const { refresh: refreshInstanceList } = useInstanceList();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
-  const [pendingRestart, setPendingRestart] = useState(false);
 
   useEffect(() => {
     if (!name) return;
-    setPendingRestart(false);
     api
       .getConfig(name)
       .then(setConfig)
@@ -36,12 +36,12 @@ export function InstanceEditPage() {
     try {
       const result = await api.updateConfig(name, config, { restart });
       setWarnings(result.warnings);
-      setPendingRestart(!restart);
       setSavedMessage(
         restart
           ? `Saved and restarted ${name}.service (${result.status.activeState}).`
           : `Saved ${name}.conf. Changes will take effect after a restart.`
       );
+      await refreshInstanceList();
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
         setErrors(err.body.errors);
@@ -66,14 +66,7 @@ export function InstanceEditPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
-          {pendingRestart && (
-            <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-300">
-              Changes pending restart
-            </span>
-          )}
-        </div>
+        <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
         <Link to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
           View stats →
         </Link>

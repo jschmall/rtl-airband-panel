@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "../src/instance-service.js";
+import { PendingRestartStore } from "../src/pending-restart-store.js";
 import { buildHarness, FIXTURE_INSTANCE_NAME, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
 function minimalConfig(overrides: Partial<RtlAirbandConfig> = {}): RtlAirbandConfig {
@@ -50,7 +51,7 @@ describe("listInstances / getConfig", () => {
     await seedFixture(h.instancesDir);
     const list = await h.service.listInstances();
     expect(list).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
     ]);
 
     const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
@@ -206,7 +207,7 @@ describe("renameInstance", () => {
     expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("Description=RTLSDR-Airband instance: rtl_renamed");
 
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service" },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false },
     ]);
     const renamed = await h.service.getConfig("rtl_renamed");
     expect(renamed).toEqual(before);
@@ -219,7 +220,7 @@ describe("renameInstance", () => {
     expect(result.status).toBeDefined();
     expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
     ]);
   });
 
@@ -248,7 +249,7 @@ describe("renameInstance", () => {
 
     // old conf untouched, new conf rolled back, old unit restarted
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service` },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
     ]);
     expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
     expect(h.systemd.unitFiles.has("rtl_renamed.service")).toBe(false);
@@ -281,5 +282,70 @@ describe("restartInstance", () => {
     const status = await h.service.restartInstance(FIXTURE_INSTANCE_NAME);
     expect(status.activeState).toBe("active");
     expect(h.systemd.calls).toEqual([`restart ${FIXTURE_INSTANCE_NAME}.service`, `status ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
+});
+
+describe("pending restart tracking", () => {
+  it("marks pending on a restart:false save, and it shows up in listInstances", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+
+    const list = await h.service.listInstances();
+    expect(list).toEqual([expect.objectContaining({ name: FIXTURE_INSTANCE_NAME, pendingRestart: true })]);
+  });
+
+  it("clears pending once the same instance is saved with restart: true", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: true });
+
+    const list = await h.service.listInstances();
+    expect(list).toEqual([expect.objectContaining({ name: FIXTURE_INSTANCE_NAME, pendingRestart: false })]);
+  });
+
+  it("clears pending via an explicit restart, without touching other instances", async () => {
+    await seedFixture(h.instancesDir);
+    await seedFixture(h.instancesDir, "rtl_other");
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+    await h.service.updateConfig("rtl_other", minimalConfig(), { restart: false });
+
+    await h.service.restartInstance(FIXTURE_INSTANCE_NAME);
+
+    const list = await h.service.listInstances();
+    expect(list).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: FIXTURE_INSTANCE_NAME, pendingRestart: false }),
+        expect.objectContaining({ name: "rtl_other", pendingRestart: true }),
+      ])
+    );
+  });
+
+  it("does not carry a pending flag onto the new name after a rename", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+
+    await h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_renamed");
+
+    const list = await h.service.listInstances();
+    expect(list).toEqual([expect.objectContaining({ name: "rtl_renamed", pendingRestart: false })]);
+  });
+
+  it("drops the pending flag when the instance is deleted", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+
+    await h.service.deleteInstance(FIXTURE_INSTANCE_NAME);
+    await seedFixture(h.instancesDir);
+
+    const list = await h.service.listInstances();
+    expect(list).toEqual([expect.objectContaining({ name: FIXTURE_INSTANCE_NAME, pendingRestart: false })]);
+  });
+
+  it("persists across a fresh PendingRestartStore reading the same directory", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { restart: false });
+
+    const reloaded = new PendingRestartStore(h.instancesDir);
+    expect(await reloaded.has(FIXTURE_INSTANCE_NAME)).toBe(true);
   });
 });

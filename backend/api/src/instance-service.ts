@@ -1,6 +1,7 @@
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { validateConfig, type ValidationIssue } from "@rtl-airband-panel/validate";
 import type { ConfigStore } from "./config-store.js";
+import type { PendingRestartStore } from "./pending-restart-store.js";
 import type { SystemdAdapter, UnitStatus } from "./systemd/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
@@ -30,6 +31,8 @@ export interface InstanceSummary {
   name: string;
   confPath: string;
   unit: string;
+  /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
+  pendingRestart: boolean;
 }
 
 export interface WriteResult {
@@ -52,12 +55,20 @@ export class InstanceService {
   constructor(
     private readonly configStore: ConfigStore,
     private readonly systemd: SystemdAdapter,
+    private readonly pendingRestartStore: PendingRestartStore,
     private readonly options: InstanceServiceOptions
   ) {}
 
   async listInstances(): Promise<InstanceSummary[]> {
     const infos = await this.configStore.list();
-    return infos.map((info) => ({ name: info.name, confPath: info.confPath, unit: unitFileName(info.name) }));
+    return Promise.all(
+      infos.map(async (info) => ({
+        name: info.name,
+        confPath: info.confPath,
+        unit: unitFileName(info.name),
+        pendingRestart: await this.pendingRestartStore.has(info.name),
+      }))
+    );
   }
 
   async getConfig(name: string): Promise<RtlAirbandConfig> {
@@ -85,7 +96,12 @@ export class InstanceService {
 
     await this.configStore.write(name, config);
     const unit = unitFileName(name);
-    if (restart) await this.systemd.restart(unit);
+    if (restart) {
+      await this.systemd.restart(unit);
+      await this.pendingRestartStore.clear(name);
+    } else {
+      await this.pendingRestartStore.mark(name);
+    }
     const status = await this.systemd.status(unit);
     return { warnings, status };
   }
@@ -94,6 +110,7 @@ export class InstanceService {
     await this.requireExists(name);
     const unit = unitFileName(name);
     await this.systemd.restart(unit);
+    await this.pendingRestartStore.clear(name);
     return this.systemd.status(unit);
   }
 
@@ -172,6 +189,9 @@ export class InstanceService {
     await this.systemd.removeUnitFile(oldUnit);
     await this.systemd.daemonReload();
     await this.configStore.remove(oldName);
+    // newUnit just started fresh against the current .conf contents, so
+    // whatever was pending under oldName is now applied; nothing carries over.
+    await this.pendingRestartStore.clear(oldName);
 
     const status = await this.systemd.status(newUnit);
     return { warnings: [], status };
@@ -186,6 +206,7 @@ export class InstanceService {
     await this.systemd.removeUnitFile(unit);
     await this.systemd.daemonReload();
     await this.configStore.remove(name);
+    await this.pendingRestartStore.clear(name);
   }
 
   private async requireExists(name: string): Promise<void> {
