@@ -39,3 +39,8 @@ systemd unit — there is no live-reload in RTLSDR-Airband itself.
   server/mountpoint credentials) before committing.
 - Every parser change needs a fixture-based round-trip test before
   it's considered done.
+- Every version bump requires a matching CHANGELOG.md entry in the same
+  commit — never bump package.json versions (root + all workspaces)
+  without adding an entry above the previous one, following the existing
+  format (## [X.Y.Z] - date, Added/Changed/Fixed subsections). A version
+  bump with no changelog entry is an incomplete change, not a shortcut.
