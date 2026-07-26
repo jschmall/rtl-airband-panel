@@ -5,6 +5,53 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.23] - 2026-07-26
+
+Ninth and final batch from the full-system design review: docs & project
+hygiene (Section I).
+
+### Added
+
+- **LICENSE** (GPLv2) and a matching `"license"` field in all 5
+  `package.json` files. The panel doesn't embed or link against
+  RTLSDR-Airband's own GPLv2 code, so this wasn't a legal requirement,
+  but it's the license the project's author chose.
+- **CONTRIBUTING.md**: setup, architecture constraints, testing/versioning
+  expectations, and how to submit a change, distilled from CLAUDE.md into
+  something meant for a human contributor rather than an agent.
+- **Minimal CI** (`.github/workflows/ci.yml`): build + full test suite
+  (all 4 packages, now including frontend) on every push/PR against
+  `master`.
+- **Frontend test suite**: Vitest + React Testing Library + jsdom
+  (`frontend/test/`, mirroring the `frontend/src/` structure it covers).
+  Starting coverage: `OutputEditor`/`DeviceEditor`'s type/mode
+  value-memory caches, including a regression test for the v0.4.19
+  remount bug (switching type used to tear down and remount the editor,
+  silently resetting the Collapsible's open state and wiping the very
+  cache under test).
+- **README**: documented log rotation (journald owns it under the
+  documented systemd unit; nothing rotates it if you run the panel
+  directly/backgrounded instead) and stats-DB backup guidance (it's a
+  regenerable rolling window, not authoritative state -- back it up if
+  you want longer-lived history than your retention setting keeps).
+
+### Fixed
+
+- README's "Current scope" section still said scan-mode devices, the
+  top-level `mixers:` list, and several per-channel options weren't
+  modeled yet -- all of that shipped 12+ versions ago. Rewritten to
+  describe what's actually covered today.
+
+### Deferred
+
+- Self-update/"you're behind" notice, broader fixture coverage beyond
+  the one real sanitized `.conf`, and a real end-to-end test against
+  actual systemd remain out of scope for this pass, per this item's own
+  "lower priority" framing.
+
+This closes out every section opened by the full-system design review
+(issue #1) -- Sections A through I are all shipped as of this version.
+
 ## [0.4.22] - 2026-07-26
 
 Eighth batch from the full-system design review: responsive / loading

@@ -198,6 +198,12 @@ RTLSDR-Airband writes each instance's `stats_filepath` in real Prometheus text-e
 
 `backend/api` polls each running instance's stats file on that same cadence and records every sample into a local SQLite database (`RTL_PANEL_STATS_DB_PATH`), skipping a read if the file's modification time hasn't changed (a stopped instance doesn't get repeated identical rows). The Stats page charts signal-vs-squelch-threshold per channel over a selectable time window, plus per-channel and per-device counters as tiles. Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days; pruned on every poll cycle).
 
+### Logs & backups
+
+**Panel logs.** The panel's own process writes structured JSON log lines to stdout — it has no log file or rotation of its own. Running it via the [systemd unit](#running-the-panel-as-a-systemd-service) above means journald owns storage and rotation for you (`journalctl -u rtl-airband-panel`, subject to your system's normal journald retention config, e.g. `SystemMaxUse=` in `/etc/systemd/journald.conf`). If you instead run the panel directly in a terminal or backgrounded with `nohup`/`&` — the "quick look" path in [Run](#run) above, not recommended for anything long-running — nothing rotates or caps that output for you; redirect it through your own log rotation (e.g. `logrotate`, or pipe through `svlogd`/`multilog`) if you go that route.
+
+**Stats database.** `RTL_PANEL_STATS_DB_PATH` (default `~/.rtl-airband-panel/stats.db`) is regenerable, not authoritative: it's a rolling window of samples re-derived by polling each instance's stats file, capped at `RTL_PANEL_STATS_RETENTION_DAYS`, not a record of anything RTLSDR-Airband itself persists. Losing it costs you historical charts back to your retention window, not any operational state — the panel starts a fresh one automatically if the file is missing. If you want longer-lived history than your retention setting keeps, back the file up on whatever schedule matches how much history you'd tolerate losing (a plain file copy is safe to take live; SQLite's WAL mode, which this file uses, tolerates being copied while the panel is running, though you may catch a write mid-flight — prefer `sqlite3 stats.db ".backup backup.db"` over `cp` if that matters to you). There's no built-in backup/export for this file today.
+
 ## How it's built
 
 The repo is an npm workspace monorepo with four packages, each one layer of the pipeline described in [CLAUDE.md](./CLAUDE.md):
@@ -231,4 +237,4 @@ npm test --workspace=backend/api
 
 ## Current scope
 
-The JSON model covers `multichannel`-mode devices with all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`). RTLSDR-Airband also supports `scan`-mode devices (a `freqs` list with hardware retuning), top-level mixer *definitions* (a channel can route into a mixer by name, but the `mixers: (...)` list itself isn't modeled yet), and several per-channel options (`highpass`/`lowpass`/`tau`/`labels`) that aren't modeled yet.
+The JSON model covers both `multichannel`- and `scan`-mode devices, top-level mixer *definitions* (the `mixers: (...)` list itself, not just a channel routing into one by name), all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the rdio-scanner call-upload block, and per-channel options like `highpass`/`lowpass`/`tau`/`label`/`labels`.
