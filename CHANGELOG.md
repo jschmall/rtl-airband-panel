@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.11] - 2026-07-26
+
+### Added
+
+- **Output type switching no longer discards unsaved field values.**
+  Changing an output's type dropdown used to reset it to that type's
+  blank defaults, so switching from `pulse` to `file` and back to
+  `pulse` lost whatever had been typed into the pulse fields. `OutputEditor`
+  now remembers the last-edited values for every output type visited
+  during the current editing session (in a component-local ref, not
+  part of the saved config) and restores them when the type is switched
+  back, instead of re-creating defaults. Purely a browser-session
+  convenience — nothing here is written to the .conf, and it doesn't
+  survive a page reload.
+
 ## [0.4.10] - 2026-07-26
 
 ### Fixed

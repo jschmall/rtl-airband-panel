@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type {
   FileOutput,
   IcecastOutput,
@@ -41,6 +42,19 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
 };
 
 export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: OutputEditorProps) {
+  // Remembers the last-edited values for each output type the user has visited in this
+  // editing session, so switching the type dropdown away and back restores what was there
+  // instead of resetting to defaults. Session-only (a ref, not part of the saved config) —
+  // it doesn't survive a page reload, and nothing here is written to the .conf.
+  const lastByType = useRef<Partial<Record<Output["type"], Output>>>({});
+  useEffect(() => {
+    lastByType.current[output.type] = output;
+  }, [output]);
+
+  const handleTypeChange = (nextType: Output["type"]) => {
+    onChange(lastByType.current[nextType] ?? OUTPUT_TYPE_DEFAULTS[nextType]());
+  };
+
   return (
     <Collapsible
       className="rounded border border-slate-600 bg-slate-700 p-3"
@@ -68,11 +82,7 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
     >
       <div className="grid grid-cols-2 gap-2">
         <Field label="Output type">
-          <select
-            className={inputClass}
-            value={output.type}
-            onChange={(e) => onChange(OUTPUT_TYPE_DEFAULTS[e.target.value as Output["type"]]())}
-          >
+          <select className={inputClass} value={output.type} onChange={(e) => handleTypeChange(e.target.value as Output["type"])}>
             <option value="pulse">pulse</option>
             <option value="file">file</option>
             <option value="rawfile">rawfile</option>
