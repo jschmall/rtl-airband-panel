@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
@@ -9,8 +9,7 @@ import { CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_
 import { humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
-
-const AUTO_REFRESH_MS = 20_000;
+import { AUTO_REFRESH_MS } from "../lib/polling.js";
 
 interface ChannelOption {
   key: string;
@@ -92,16 +91,7 @@ export function StatsPage() {
     }
   }, [selectedInstanceName]);
 
-  useEffect(() => {
-    setLatest(null);
-    setSelectedChannelKey(null);
-    if (!selectedInstanceName) return;
-    void loadLatest();
-    const interval = setInterval(() => void loadLatest(), AUTO_REFRESH_MS);
-    return () => clearInterval(interval);
-  }, [loadLatest, selectedInstanceName]);
-
-  useEffect(() => {
+  const loadHistory = useCallback(async () => {
     if (!selectedInstanceName || !selectedChannel) {
       setSnrSeries([]);
       return;
@@ -109,22 +99,62 @@ export function StatsPage() {
     const sinceMs = Date.now() - rangeMs;
     const { labels } = selectedChannel;
 
-    void Promise.all([
+    const [dbfsSignal, rawSignal, rawSquelch] = await Promise.all([
       api.getStatsHistory(selectedInstanceName, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
       api.getStatsHistory(selectedInstanceName, { metric: "channel_signal_level", labels, sinceMs }),
       api.getStatsHistory(selectedInstanceName, { metric: "channel_squelch_level", labels, sinceMs }),
-    ]).then(([dbfsSignal, rawSignal, rawSquelch]) => {
-      setSnrSeries([
-        { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
-        {
-          key: "squelchThreshold",
-          label: "Squelch threshold (dBFS)",
-          color: CATEGORICAL[1],
-          points: deriveSquelchThresholdSeries(dbfsSignal, rawSignal, rawSquelch),
-        },
-      ]);
-    });
+    ]);
+    setSnrSeries([
+      { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
+      {
+        key: "squelchThreshold",
+        label: "Squelch threshold (dBFS)",
+        color: CATEGORICAL[1],
+        points: deriveSquelchThresholdSeries(dbfsSignal, rawSignal, rawSquelch),
+      },
+    ]);
   }, [selectedInstanceName, selectedChannel, rangeMs]);
+
+  // `loadHistory`'s identity changes on every poll tick (it closes over
+  // `selectedChannel`, which is a fresh object from a fresh `channels` array
+  // every time `latest` updates) -- keeping it out of the interval-effect's own
+  // deps via a ref means the interval's lifecycle stays tied to the instance
+  // selection only, not to every tick's side effects. Putting `loadHistory`
+  // directly in that effect's deps previously caused it to tear down and
+  // recreate the interval (and re-fire loadLatest) on every single tick.
+  const loadHistoryRef = useRef(loadHistory);
+  useEffect(() => {
+    loadHistoryRef.current = loadHistory;
+  }, [loadHistory]);
+
+  useEffect(() => {
+    setLatest(null);
+    setSelectedChannelKey(null);
+    if (!selectedInstanceName) return;
+    void loadLatest();
+    // Same interval drives both the stat tiles and the history chart below them, so
+    // they never drift out of sync the way they used to (tiles moving on every poll,
+    // chart only reloading when the user changed instance/channel/range).
+    const interval = setInterval(() => {
+      void loadLatest();
+      void loadHistoryRef.current();
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [loadLatest, selectedInstanceName]);
+
+  // Fires on an actual selection change (instance/channel/range), not on every poll
+  // tick. Depends on `selectedChannel?.key` (a plain string) rather than the
+  // `selectedChannel` object itself or the `selectedChannelKey` state -- the object
+  // is a fresh reference every time `latest` updates even when it's still "the same"
+  // channel (which is what caused the tight loop above), while `selectedChannelKey`
+  // stays null until the user makes an explicit choice and so never reacts to the
+  // initial auto-selected-first-channel transition. The key string changes exactly
+  // when the actually-selected channel changes, no more and no less. Calls through
+  // the ref so it always runs the version of loadHistory closing over the current
+  // selectedChannel object.
+  useEffect(() => {
+    void loadHistoryRef.current();
+  }, [selectedInstanceName, selectedChannel?.key, rangeMs]);
 
   if (error) return <div className="text-red-300">{error}</div>;
   if (instances === null) return <p className="text-slate-400">Loading…</p>;

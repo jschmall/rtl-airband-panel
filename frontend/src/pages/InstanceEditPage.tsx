@@ -13,7 +13,7 @@ import { getValueAtPath } from "../lib/validation-path.js";
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
-  const { refresh: refreshInstanceList } = useInstanceList();
+  const { refresh: refreshInstanceList, pollBriefly } = useInstanceList();
   const { setDirty } = useUnsavedChanges();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
   // The last-loaded-or-saved config, compared against the live-edited `config`
@@ -115,6 +115,10 @@ export function InstanceEditPage() {
           : `Saved ${name}.conf. Changes will take effect after a restart.`
       );
       await refreshInstanceList();
+      // The unit may still be settling (activating -> active/failed) -- keep the
+      // sidebar's health badge for this instance updating for a few more seconds
+      // instead of freezing on whatever snapshot the request above happened to catch.
+      if (restart) pollBriefly();
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
         setErrors(err.body.errors);

@@ -1,12 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceSummary } from "../api/client.js";
+import { AUTO_REFRESH_MS } from "../lib/polling.js";
 
 interface InstanceListContextValue {
   instances: InstanceSummary[] | null;
   error: string | null;
   /** Re-fetches the instance list (including each instance's pendingRestart flag) from the server. */
   refresh: () => Promise<void>;
+  /**
+   * Refreshes a handful of times over the next few seconds instead of once --
+   * call this right after triggering a restart so the sidebar's health badges
+   * (which re-fetch whenever `instances` changes identity) show the real
+   * activating -> active/failed transition instead of freezing until the next
+   * background poll up to `AUTO_REFRESH_MS` later. Callers can await it (e.g.
+   * to clear a "Restarting..." label once it's done) or not, as needed.
+   */
+  pollBriefly: () => Promise<void>;
 }
 
 const InstanceListContext = createContext<InstanceListContextValue | null>(null);
@@ -33,12 +43,24 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Re-fetch on every navigation so creates/deletes/renames/saves triggered
-  // from anywhere keep this always-visible state in sync.
+  // from anywhere keep this always-visible state in sync, and also poll in the
+  // background (matching the stats page's cadence) so a unit that dies, or a
+  // pending-restart flag set by another tab/session, shows up without the user
+  // having to click around to trigger a route change.
   useEffect(() => {
     void refresh();
+    const interval = setInterval(() => void refresh(), AUTO_REFRESH_MS);
+    return () => clearInterval(interval);
   }, [refresh, location.pathname]);
 
-  const value = useMemo(() => ({ instances, error, refresh }), [instances, error, refresh]);
+  const pollBriefly = useCallback(async () => {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await refresh();
+    }
+  }, [refresh]);
+
+  const value = useMemo(() => ({ instances, error, refresh, pollBriefly }), [instances, error, refresh, pollBriefly]);
 
   return <InstanceListContext.Provider value={value}>{children}</InstanceListContext.Provider>;
 }

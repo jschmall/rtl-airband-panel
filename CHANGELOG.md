@@ -5,6 +5,59 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.20] - 2026-07-26
+
+Sixth batch from the full-system design review: real-time feedback
+(Section F).
+
+### Fixed
+
+- **Stats history no longer gets orphaned when a channel's label is
+  added, changed, or removed.** RTLSDR-Airband's own Prometheus output
+  only includes `label` once a channel has one set (`print_channel_metric`
+  in output.cpp) -- its metric labels are just `freq` and, optionally,
+  `label`. Editing a channel's label therefore changes its exact label
+  set even though it's the same channel, and the stats store previously
+  keyed history by that exact set, silently orphaning the old series.
+  `StatsStore` now recognizes this as a continuation and carries the old
+  series' history forward, but only when there's exactly one same-
+  frequency series not reporting in the same poll batch -- more than one
+  candidate means two channels share that frequency (RTLSDR-Airband
+  doesn't put CTCSS or anything else in the metric labels to tell them
+  apart), and guessing which one changed risks silently merging two
+  different channels' history, so that case is deliberately left alone.
+  Frequency changes are not tracked this way either, for the same reason:
+  frequency is this fix's matching key, not a stable identity on its own.
+
+### Added
+
+- Instance list (sidebar dots, header pending-restart count) and each
+  instance's health badge now poll in the background every 20s, matching
+  the stats page's existing cadence, instead of only refreshing on
+  in-app navigation.
+- The stats history chart now refreshes on that same interval as the
+  stat tiles above it, instead of only reloading when the selected
+  instance/channel/time-range changed. (Found and fixed a real infinite-
+  loop bug while wiring this up -- see below.)
+- Restarting an instance (from the sidebar, or Save-and-restart on the
+  edit page) now keeps polling health for a few seconds after the
+  restart command returns, so the health badge shows the real
+  activating -> active/failed transition instead of freezing on
+  whatever snapshot the initial request happened to catch. The sidebar's
+  Restart button also now reads "Restarting…" for the duration.
+
+### Fixed (found while implementing the above)
+
+- The stats chart's refresh effect closed over `selectedChannel`, a
+  fresh object every time the stat tiles' data reloaded (even when it
+  was still "the same" channel) -- making that effect depend on it
+  directly, as the chart-refresh work above initially did, tore down and
+  recreated the polling interval on every single tick, which re-fired
+  the tile fetch, which changed `selectedChannel` again, in a tight loop
+  (~130 requests/sec in local testing). Fixed by keeping the interval's
+  own lifecycle keyed only on the selected instance, and reaching the
+  current history-loader through a ref instead of a dependency.
+
 ## [0.4.19] - 2026-07-26
 
 Two fixes from prod testing of v0.4.18's Section E changes.

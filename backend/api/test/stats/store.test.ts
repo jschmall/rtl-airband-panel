@@ -68,6 +68,109 @@ describe("StatsStore.history", () => {
   });
 });
 
+describe("StatsStore label-change migration", () => {
+  it("preserves history when a channel's label is added (freq unambiguous)", () => {
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16" }, value: 1 }], 1000);
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16" }, value: 2 }], 2000);
+    // Restart: the channel now has a label, so its metric label set changed.
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16", label: "Fire Dispatch" }, value: 3 }], 3000);
+
+    const points = store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16", label: "Fire Dispatch" } });
+    expect(points).toEqual([
+      { ts: 1000, value: 1 },
+      { ts: 2000, value: 2 },
+      { ts: 3000, value: 3 },
+    ]);
+    // The old label set no longer resolves to anything -- it was migrated, not duplicated.
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16" } })).toEqual([]);
+  });
+
+  it("preserves history when a channel's label is changed", () => {
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16", label: "Old Name" }, value: 1 }], 1000);
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16", label: "New Name" }, value: 2 }], 2000);
+
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16", label: "New Name" } })).toEqual([
+      { ts: 1000, value: 1 },
+      { ts: 2000, value: 2 },
+    ]);
+  });
+
+  it("preserves history when a channel's label is removed", () => {
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16", label: "Temp Label" }, value: 1 }], 1000);
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16" }, value: 2 }], 2000);
+
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16" } })).toEqual([
+      { ts: 1000, value: 1 },
+      { ts: 2000, value: 2 },
+    ]);
+  });
+
+  it("migrates the one identifiable channel when its label is dropped alongside another, still-labeled channel at the same freq", () => {
+    // Two channels at the same freq, distinguished only by label -- both active for a while.
+    store.insertBatch(
+      "rtl_1",
+      [
+        { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel A" }, value: 1 },
+        { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel B" }, value: 2 },
+      ],
+      1000
+    );
+    // "Channel A"'s label is blanked; "Channel B" keeps reporting under its own unchanged
+    // label, so it's never a migration candidate -- "Channel A" is the only series left
+    // unaccounted for, so this is unambiguous and should migrate.
+    store.insertBatch(
+      "rtl_1",
+      [
+        { metric: "channel_signal_level", labels: { freq: "151.16" }, value: 3 },
+        { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel B" }, value: 4 },
+      ],
+      2000
+    );
+
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16" } })).toEqual([
+      { ts: 1000, value: 1 },
+      { ts: 2000, value: 3 },
+    ]);
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel B" } })).toEqual([
+      { ts: 1000, value: 2 },
+      { ts: 2000, value: 4 },
+    ]);
+  });
+
+  it("does not migrate (or merge) when two same-freq channels both go unlabeled in the same poll -- genuinely ambiguous", () => {
+    store.insertBatch(
+      "rtl_1",
+      [
+        { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel A" }, value: 1 },
+        { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel B" }, value: 2 },
+      ],
+      1000
+    );
+    // Both channels lose their labels at once -- RTLSDR-Airband itself can no longer tell
+    // them apart (it emits one freq-only line, not two), so there are two equally-plausible
+    // migration candidates. Neither should be picked; both old series stay as they are.
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16" }, value: 3 }], 2000);
+
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel A" } })).toEqual([
+      { ts: 1000, value: 1 },
+    ]);
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16", label: "Channel B" } })).toEqual([
+      { ts: 1000, value: 2 },
+    ]);
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16" } })).toEqual([{ ts: 2000, value: 3 }]);
+  });
+
+  it("does not migrate across different instances", () => {
+    store.insertBatch("rtl_1", [{ metric: "channel_signal_level", labels: { freq: "151.16" }, value: 1 }], 1000);
+    store.insertBatch("rtl_2", [{ metric: "channel_signal_level", labels: { freq: "151.16", label: "Other Instance" }, value: 2 }], 2000);
+
+    expect(store.history("rtl_1", { metric: "channel_signal_level", labels: { freq: "151.16" } })).toEqual([{ ts: 1000, value: 1 }]);
+    expect(store.history("rtl_2", { metric: "channel_signal_level", labels: { freq: "151.16", label: "Other Instance" } })).toEqual([
+      { ts: 2000, value: 2 },
+    ]);
+  });
+});
+
 describe("StatsStore.prune", () => {
   it("deletes samples older than the retention window", () => {
     const now = Date.now();

@@ -8,11 +8,16 @@ import { GuardedNavLink } from "./GuardedLink.js";
 export function InstanceSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { instances, error: listError, refresh } = useInstanceList();
+  const { instances, error: listError, refresh, pollBriefly } = useInstanceList();
 
   const [health, setHealth] = useState<Record<string, UnitStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Separate from `busy`: covers the pollBriefly() window after the restart
+  // request itself has resolved, so the button keeps saying "Restarting…"
+  // while the health badge above is still catching up to the real state,
+  // without also mislabeling a concurrent rename/delete on the same row.
+  const [restarting, setRestarting] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -39,6 +44,7 @@ export function InstanceSidebar() {
 
   async function handleRestart(name: string) {
     setBusy(name);
+    setRestarting(name);
     try {
       await api.restartInstance(name);
       await refresh();
@@ -47,6 +53,12 @@ export function InstanceSidebar() {
     } finally {
       setBusy(null);
     }
+    // The restart command has been issued, but the unit may still be settling
+    // (activating -> active/failed) -- keep refreshing for a few more seconds so
+    // the health badge above shows the real transition instead of whatever
+    // snapshot the awaits above happened to catch, then clear the button label.
+    await pollBriefly();
+    setRestarting(null);
   }
 
   function startRename(name: string) {
@@ -176,11 +188,11 @@ export function InstanceSidebar() {
                     <>
                       <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isBusy || restarting === instance.name}
                         onClick={() => void handleRestart(instance.name)}
                         className="text-sky-400 hover:text-sky-300 disabled:opacity-50"
                       >
-                        Restart
+                        {restarting === instance.name ? "Restarting…" : "Restart"}
                       </button>
                       <button
                         type="button"
