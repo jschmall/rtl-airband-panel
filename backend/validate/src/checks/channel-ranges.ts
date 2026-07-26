@@ -80,6 +80,33 @@ export function checkSquelchSnrThreshold(config: RtlAirbandConfig): ValidationIs
   );
 }
 
+/**
+ * RTLSDR-Airband's own startup check (config.cpp) only warns when both
+ * squelch_threshold and squelch_snr_threshold are set on the same channel
+ * ("may conflict") and keeps running with whichever one its code picks. The
+ * panel treats it as a hard error instead: a saved config that leaves it
+ * ambiguous which threshold actually governs squelch is never what someone
+ * intended, so fail closed rather than silently pick one on their behalf.
+ */
+export function checkSquelchMutualExclusion(config: RtlAirbandConfig): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  config.devices.forEach((device, di) => {
+    device.channels.forEach((channel, ci) => {
+      if (channel.squelch_threshold !== undefined && channel.squelch_snr_threshold !== undefined) {
+        issues.push({
+          severity: "error",
+          code: "squelch-threshold-and-snr-threshold-both-set",
+          path: `$.devices[${di}].channels[${ci}]`,
+          message: "squelch_threshold and squelch_snr_threshold can't both be set on the same channel",
+        });
+      }
+    });
+  });
+
+  return issues;
+}
+
 /** Mirrors RTLSDR-Airband's own startup check (config.cpp): notch_q must be greater than 0.0, or config parsing calls error() (_Exit(1)). */
 export function checkNotchQ(config: RtlAirbandConfig): ValidationIssue[] {
   return checkScalarOrList(

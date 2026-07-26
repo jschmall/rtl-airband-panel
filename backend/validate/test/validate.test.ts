@@ -22,6 +22,7 @@ import {
   checkRdioScanner,
   checkScanMode,
   checkShoutMetadataDelay,
+  checkSquelchMutualExclusion,
   checkSquelchSnrThreshold,
   checkSquelchThreshold,
   computeBin,
@@ -676,6 +677,35 @@ describe("checkSquelchSnrThreshold", () => {
     const issues = checkSquelchSnrThreshold(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ code: "squelch-snr-threshold-invalid", path: expect.stringContaining("squelch_snr_threshold[2]") });
+  });
+});
+
+describe("checkSquelchMutualExclusion", () => {
+  it("does not flag a channel with only squelch_threshold set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_threshold: -30 })]);
+    expect(checkSquelchMutualExclusion(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a channel with only squelch_snr_threshold set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_snr_threshold: 10 })]);
+    expect(checkSquelchMutualExclusion(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when both are set on the same channel", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_threshold: -30, squelch_snr_threshold: 10 })]);
+    const issues = checkSquelchMutualExclusion(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "squelch-threshold-and-snr-threshold-both-set" });
+  });
+
+  it("errors when both are set on a scan-mode channel, even as per-frequency lists", () => {
+    const device = makeDevice(
+      [makeScanChannel([100_000_000, 101_000_000], { squelch_threshold: [-30, -25], squelch_snr_threshold: [10, 12] })],
+      { mode: "scan", centerfreq: undefined }
+    );
+    const issues = checkSquelchMutualExclusion(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "squelch-threshold-and-snr-threshold-both-set" });
   });
 });
 

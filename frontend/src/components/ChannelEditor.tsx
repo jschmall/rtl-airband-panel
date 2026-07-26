@@ -107,7 +107,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Squelch threshold, dBFS (optional; mutually exclusive with SNR threshold in practice)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
+        <Field label="Squelch threshold, dBFS (optional)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
           <input
             type="number"
             max="0"
@@ -133,7 +133,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, notch_q: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Highpass Hz (optional, default 100; 0 disables)" tooltip={CHANNEL_TOOLTIPS.highpass}>
+        <Field label="Highpass (optional, default 100; 0 disables)" tooltip={CHANNEL_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
@@ -141,7 +141,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Lowpass Hz (optional, default 2500; 0 disables)" tooltip={CHANNEL_TOOLTIPS.lowpass}>
+        <Field label="Lowpass (optional, default 2500; 0 disables)" tooltip={CHANNEL_TOOLTIPS.lowpass}>
           <input
             type="number"
             className={inputClass}
@@ -149,7 +149,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Tau, µs (optional; NFM deemphasis, falls back to device/global)" tooltip={CHANNEL_TOOLTIPS.tauChannel}>
+        <Field label="Tau, µs (optional)" tooltip={CHANNEL_TOOLTIPS.tauChannel}>
           <input
             type="number"
             className={inputClass}

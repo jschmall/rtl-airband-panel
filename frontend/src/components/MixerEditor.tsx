@@ -40,7 +40,7 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
         <Field label="Name (referenced by channel outputs of type 'mixer')" tooltip={MIXER_TOOLTIPS.name}>
           <input className={inputClass} value={mixer.name} onChange={(e) => onChange({ ...mixer, name: e.target.value })} />
         </Field>
-        <Field label="Highpass Hz (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.highpass}>
+        <Field label="Highpass (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
@@ -48,7 +48,7 @@ export function MixerEditor({ mixer, onChange, onRemove }: MixerEditorProps) {
             onChange={(e) => onChange({ ...mixer, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Lowpass Hz (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.lowpass}>
+        <Field label="Lowpass (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.lowpass}>
           <input
             type="number"
             className={inputClass}

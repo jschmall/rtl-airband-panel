@@ -12,7 +12,7 @@ import { checkFftSize } from "./checks/fft-size.js";
 import { checkShoutMetadataDelay } from "./checks/shout-metadata-delay.js";
 import { checkFilterCutoffs } from "./checks/filter-cutoffs.js";
 import { checkModulation } from "./checks/modulation.js";
-import { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkNotchQ } from "./checks/channel-ranges.js";
+import { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
 import { checkFileOutputFlags } from "./checks/output-flags.js";
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 
@@ -33,6 +33,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkAmpfactor(config),
     ...checkSquelchThreshold(config),
     ...checkSquelchSnrThreshold(config),
+    ...checkSquelchMutualExclusion(config),
     ...checkNotchQ(config),
     ...checkFileOutputFlags(config),
     ...checkMixerNestedOutputs(config),
@@ -61,6 +62,6 @@ export { checkFftSize } from "./checks/fft-size.js";
 export { checkShoutMetadataDelay } from "./checks/shout-metadata-delay.js";
 export { checkFilterCutoffs } from "./checks/filter-cutoffs.js";
 export { checkModulation } from "./checks/modulation.js";
-export { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkNotchQ } from "./checks/channel-ranges.js";
+export { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
 export { checkFileOutputFlags } from "./checks/output-flags.js";
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";

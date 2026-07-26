@@ -5,6 +5,37 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.8] - 2026-07-26
+
+### Added
+
+- **Squelch threshold / SNR threshold mutual-exclusion check.** Upstream
+  RTLSDR-Airband only warns when both `squelch_threshold` and
+  `squelch_snr_threshold` are set on the same channel and silently picks
+  one; the panel now fails validation instead, since a saved config that
+  leaves it ambiguous which threshold governs squelch is never what was
+  intended. Both fields' tooltips now call out the conflict.
+
+### Changed
+
+- **Config editor layout cleanup**, based on prod feedback after v0.4.7:
+  - The four top-level checkboxes (multiple demod/output threads,
+    localtime, log scan activity) are now grouped together to the right
+    of the global fields column instead of interleaved into the same
+    2-column grid, so they read as one cluster next to Tau.
+  - Trimmed several field labels down to just their essential
+    "(optional...)" qualifier, moving the trimmed detail into the
+    existing tooltip: channel/scan-channel Tau no longer repeats
+    "falls back to device/global" in the label, and channel Squelch
+    threshold no longer repeats the SNR mutual-exclusion note (both now
+    live only in the tooltip).
+  - Dropped the redundant "Hz" from Highpass/Lowpass labels (channel,
+    scan-channel, and mixer) — the unit is still documented in each
+    field's tooltip.
+  - The output "Output type" `<select>` no longer stretches across the
+    full panel width; it's now sized like the text fields in the same
+    section.
+
 ## [0.4.7] - 2026-07-26
 
 ### Fixed

@@ -17,65 +17,69 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-        <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
-          <input
-            className={inputClass}
-            value={config.stats_filepath}
-            onChange={(e) => onChange({ ...config, stats_filepath: e.target.value })}
+        <div className="space-y-3">
+          <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
+            <input
+              className={inputClass}
+              value={config.stats_filepath}
+              onChange={(e) => onChange({ ...config, stats_filepath: e.target.value })}
+            />
+          </Field>
+          <Field label="FFT size (optional, power of two 256-8192)" tooltip={GLOBAL_TOOLTIPS.fftSize}>
+            <input
+              type="number"
+              className={inputClass}
+              value={config.fft_size ?? ""}
+              onChange={(e) => onChange({ ...config, fft_size: e.target.value === "" ? undefined : Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="PID file (optional, default /run/rtl_airband.pid)" tooltip={GLOBAL_TOOLTIPS.pidfile}>
+            <input
+              className={inputClass}
+              value={config.pidfile ?? ""}
+              onChange={(e) => onChange({ ...config, pidfile: e.target.value || undefined })}
+            />
+          </Field>
+          <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)" tooltip={GLOBAL_TOOLTIPS.shoutMetadataDelay}>
+            <input
+              type="number"
+              min="0"
+              max="32"
+              className={inputClass}
+              value={config.shout_metadata_delay ?? ""}
+              onChange={(e) => onChange({ ...config, shout_metadata_delay: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+          <Field label="Tau, µs (optional; global NFM deemphasis, default 200)" tooltip={GLOBAL_TOOLTIPS.tau}>
+            <input
+              type="number"
+              className={inputClass}
+              value={config.tau ?? ""}
+              onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        </div>
+        <div className="flex flex-col justify-end gap-2">
+          <BoolField
+            label="Multiple demod threads"
+            tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
+            checked={config.multiple_demod_threads}
+            onChange={(v) => onChange({ ...config, multiple_demod_threads: v })}
           />
-        </Field>
-        <Field label="FFT size (optional, power of two 256-8192)" tooltip={GLOBAL_TOOLTIPS.fftSize}>
-          <input
-            type="number"
-            className={inputClass}
-            value={config.fft_size ?? ""}
-            onChange={(e) => onChange({ ...config, fft_size: e.target.value === "" ? undefined : Number(e.target.value) })}
+          <BoolField
+            label="Multiple output threads"
+            tooltip={GLOBAL_TOOLTIPS.multipleOutputThreads}
+            checked={config.multiple_output_threads}
+            onChange={(v) => onChange({ ...config, multiple_output_threads: v })}
           />
-        </Field>
-        <Field label="PID file (optional, default /run/rtl_airband.pid)" tooltip={GLOBAL_TOOLTIPS.pidfile}>
-          <input
-            className={inputClass}
-            value={config.pidfile ?? ""}
-            onChange={(e) => onChange({ ...config, pidfile: e.target.value || undefined })}
+          <BoolField label="Localtime" tooltip={GLOBAL_TOOLTIPS.localtime} checked={config.localtime} onChange={(v) => onChange({ ...config, localtime: v })} />
+          <BoolField
+            label="Log scan activity"
+            tooltip={GLOBAL_TOOLTIPS.logScanActivity}
+            checked={config.log_scan_activity ?? false}
+            onChange={(v) => onChange({ ...config, log_scan_activity: v })}
           />
-        </Field>
-        <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)" tooltip={GLOBAL_TOOLTIPS.shoutMetadataDelay}>
-          <input
-            type="number"
-            min="0"
-            max="32"
-            className={inputClass}
-            value={config.shout_metadata_delay ?? ""}
-            onChange={(e) => onChange({ ...config, shout_metadata_delay: numberOrUndefined(e.target.value) })}
-          />
-        </Field>
-        <Field label="Tau, µs (optional; global NFM deemphasis, default 200)" tooltip={GLOBAL_TOOLTIPS.tau}>
-          <input
-            type="number"
-            className={inputClass}
-            value={config.tau ?? ""}
-            onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
-          />
-        </Field>
-        <BoolField
-          label="Multiple demod threads"
-          tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
-          checked={config.multiple_demod_threads}
-          onChange={(v) => onChange({ ...config, multiple_demod_threads: v })}
-        />
-        <BoolField
-          label="Multiple output threads"
-          tooltip={GLOBAL_TOOLTIPS.multipleOutputThreads}
-          checked={config.multiple_output_threads}
-          onChange={(v) => onChange({ ...config, multiple_output_threads: v })}
-        />
-        <BoolField label="Localtime" tooltip={GLOBAL_TOOLTIPS.localtime} checked={config.localtime} onChange={(v) => onChange({ ...config, localtime: v })} />
-        <BoolField
-          label="Log scan activity"
-          tooltip={GLOBAL_TOOLTIPS.logScanActivity}
-          checked={config.log_scan_activity ?? false}
-          onChange={(v) => onChange({ ...config, log_scan_activity: v })}
-        />
+        </div>
       </div>
 
       <div className="space-y-3">

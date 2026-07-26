@@ -66,20 +66,22 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
         </div>
       }
     >
-      <Field label="Output type">
-        <select
-          className={inputClass}
-          value={output.type}
-          onChange={(e) => onChange(OUTPUT_TYPE_DEFAULTS[e.target.value as Output["type"]]())}
-        >
-          <option value="pulse">pulse</option>
-          <option value="file">file</option>
-          <option value="rawfile">rawfile</option>
-          <option value="icecast">icecast</option>
-          <option value="udp_stream">udp_stream</option>
-          {!excludeMixerType && <option value="mixer">mixer</option>}
-        </select>
-      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Output type">
+          <select
+            className={inputClass}
+            value={output.type}
+            onChange={(e) => onChange(OUTPUT_TYPE_DEFAULTS[e.target.value as Output["type"]]())}
+          >
+            <option value="pulse">pulse</option>
+            <option value="file">file</option>
+            <option value="rawfile">rawfile</option>
+            <option value="icecast">icecast</option>
+            <option value="udp_stream">udp_stream</option>
+            {!excludeMixerType && <option value="mixer">mixer</option>}
+          </select>
+        </Field>
+      </div>
 
       {output.type === "pulse" && <PulseFields output={output} onChange={onChange} />}
       {output.type === "file" && <FileFields output={output} onChange={onChange} />}

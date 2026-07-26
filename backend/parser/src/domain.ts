@@ -100,7 +100,7 @@ export interface MultichannelChannel {
   lowpass?: number;
   /** Per-channel NFM deemphasis override in microseconds; falls back to device/global tau when absent. */
   tau?: number;
-  /** dBFS, <= 0. Mutually exclusive in practice with squelch_snr_threshold. */
+  /** dBFS, <= 0. Mutually exclusive with squelch_snr_threshold (backend/validate rejects both being set). */
   squelch_threshold?: number;
   squelch_snr_threshold?: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this channel entirely, as if it weren't configured. */
@@ -143,8 +143,8 @@ export interface ScanChannel {
   tau?: number;
   /**
    * dBFS, <= 0, single value or one per freqs entry. In list form, a value
-   * of 0 means auto squelch for that frequency. Mutually exclusive in
-   * practice with squelch_snr_threshold.
+   * of 0 means auto squelch for that frequency. Mutually exclusive with
+   * squelch_snr_threshold (backend/validate rejects both being set).
    */
   squelch_threshold?: number | number[];
   /**
