@@ -5,6 +5,48 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.22] - 2026-07-26
+
+Eighth batch from the full-system design review: responsive / loading
+states / code quality (Section H).
+
+### Added
+
+- **Retry after a failed fetch, instead of a dead end.** The instance
+  edit page and the stats page both used to permanently replace their
+  entire UI with a bare error line on a failed load, with no way back
+  except navigating away and back. Both now show a Retry button (except
+  where retrying can't help -- see below) plus a link back to the
+  instance list.
+- The instance edit page now distinguishes "this instance doesn't exist"
+  (404 -- deleted or renamed elsewhere; no Retry button, since retrying
+  the same request can't fix that) from every other failure (network
+  error, 500, ...), which does get a Retry button.
+- The stats page's background polling (added in Section F) could fail
+  transiently -- e.g. a momentary network blip -- and, sharing the same
+  error state as the page's initial load, this used to tear down the
+  *entire* page, hiding the instance selector along with everything
+  else, on every such blip. It now shows a small non-blocking warning
+  banner above the still-usable page instead, and clears itself on the
+  next successful poll (every 20s). Also fixed `loadHistory` having no
+  error handling at all -- a failed history fetch was an unhandled
+  promise rejection with no user-visible effect beyond a stale chart.
+
+### Changed
+
+- Deduplicated `OutputEditor`'s `file`/`rawfile` field sets, which were
+  ~30 lines of near-identical JSX apart from `min_rx_seconds`,
+  `post_write_script`, and the rdio-scanner block (only `file` has
+  those) -- extracted into a shared `FileLikeFields` generic component
+  used by both.
+
+### Deferred
+
+- Real mobile/responsive layout remains out of scope for this pass, per
+  the design review's own "large, lower priority" framing -- the app is
+  effectively desktop-only today (fixed sidebar, dense multi-column
+  editor grids with no responsive variants).
+
 ## [0.4.21] - 2026-07-26
 
 Seventh batch from the full-system design review: accessibility

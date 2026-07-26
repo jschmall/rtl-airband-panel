@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
@@ -11,6 +11,14 @@ import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep } from "../lib/keys.js";
 import { getValueAtPath } from "../lib/validation-path.js";
 
+interface LoadError {
+  /** "not-found" gets its own messaging (nothing to retry -- the instance is gone);
+   *  everything else (network failure, 500, ...) gets a Retry button, since those
+   *  are plausibly transient. */
+  kind: "not-found" | "other";
+  message: string;
+}
+
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
   const { refresh: refreshInstanceList, pollBriefly } = useInstanceList();
@@ -20,7 +28,7 @@ export function InstanceEditPage() {
   // to decide whether there's anything unsaved -- see the `isDirty` effect below.
   const [savedConfig, setSavedConfig] = useState<RtlAirbandConfig | null>(null);
   const [version, setVersion] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
@@ -31,8 +39,9 @@ export function InstanceEditPage() {
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
 
-  useEffect(() => {
+  const loadConfig = useCallback(() => {
     if (!name) return;
+    setLoadError(null);
     api
       .getConfig(name)
       .then(({ config, version }) => {
@@ -45,8 +54,20 @@ export function InstanceEditPage() {
         setSavedConfig(keyed);
         setVersion(version);
       })
-      .catch((err: unknown) => setLoadError(err instanceof ApiError ? err.message : "Failed to load config"));
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 404) {
+          setLoadError({ kind: "not-found", message: `Instance '${name}' wasn't found -- it may have been deleted or renamed.` });
+        } else if (err instanceof ApiError) {
+          setLoadError({ kind: "other", message: err.message });
+        } else {
+          setLoadError({ kind: "other", message: "Couldn't reach the server. Check your connection and try again." });
+        }
+      });
   }, [name]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
 
   const isDirty = config !== null && savedConfig !== null && JSON.stringify(config) !== JSON.stringify(savedConfig);
 
@@ -146,7 +167,23 @@ export function InstanceEditPage() {
     }
   }
 
-  if (loadError) return <div className="text-red-300">{loadError}</div>;
+  if (loadError) {
+    return (
+      <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
+        <p className="text-red-300">{loadError.message}</p>
+        <div className="flex gap-3 text-sm">
+          {loadError.kind === "other" && (
+            <button type="button" onClick={loadConfig} className="text-sky-400 hover:text-sky-300">
+              Retry
+            </button>
+          )}
+          <GuardedLink to="/" className="text-sky-400 hover:text-sky-300">
+            Back to instances
+          </GuardedLink>
+        </div>
+      </div>
+    );
+  }
   if (!config) return <p className="text-slate-400">Loading…</p>;
 
   return (

@@ -49,22 +49,30 @@ export function StatsPage() {
   const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(initialInstanceName ?? null);
   const [latest, setLatest] = useState<StatSample[] | null>(null);
+  // Blocking: nothing on this page can render without the instance list.
   const [error, setError] = useState<string | null>(null);
+  // Non-blocking: a stats/history poll failing (e.g. a transient network blip)
+  // shouldn't tear down the whole page -- it self-heals on the next poll tick,
+  // so this just shows a small inline warning above the still-working UI.
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
   const [rangeMs, setRangeMs] = useState<number>(60 * 60 * 1000);
   const [snrSeries, setSnrSeries] = useState<Series[]>([]);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const list = await api.listInstances();
-        setInstances(list);
-        setSelectedInstanceName((current) => (current && list.some((i) => i.name === current) ? current : (list[0]?.name ?? null)));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Failed to load instances");
-      }
-    })();
+  const loadInstances = useCallback(async () => {
+    setError(null);
+    try {
+      const list = await api.listInstances();
+      setInstances(list);
+      setSelectedInstanceName((current) => (current && list.some((i) => i.name === current) ? current : (list[0]?.name ?? null)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadInstances();
+  }, [loadInstances]);
 
   const channels = useMemo(() => (latest ? discoverChannels(latest) : []), [latest]);
   const deviceSamples = useMemo(() => (latest ? latest.filter((s) => !s.metric.startsWith("channel_")) : []), [latest]);
@@ -85,9 +93,9 @@ export function StatsPage() {
     try {
       const samples = await api.getLatestStats(selectedInstanceName);
       setLatest(samples);
-      setError(null);
+      setStatsError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load stats");
+      setStatsError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
     }
   }, [selectedInstanceName]);
 
@@ -99,20 +107,25 @@ export function StatsPage() {
     const sinceMs = Date.now() - rangeMs;
     const { labels } = selectedChannel;
 
-    const [dbfsSignal, rawSignal, rawSquelch] = await Promise.all([
-      api.getStatsHistory(selectedInstanceName, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
-      api.getStatsHistory(selectedInstanceName, { metric: "channel_signal_level", labels, sinceMs }),
-      api.getStatsHistory(selectedInstanceName, { metric: "channel_squelch_level", labels, sinceMs }),
-    ]);
-    setSnrSeries([
-      { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
-      {
-        key: "squelchThreshold",
-        label: "Squelch threshold (dBFS)",
-        color: CATEGORICAL[1],
-        points: deriveSquelchThresholdSeries(dbfsSignal, rawSignal, rawSquelch),
-      },
-    ]);
+    try {
+      const [dbfsSignal, rawSignal, rawSquelch] = await Promise.all([
+        api.getStatsHistory(selectedInstanceName, { metric: "channel_dbfs_signal_level", labels, sinceMs }),
+        api.getStatsHistory(selectedInstanceName, { metric: "channel_signal_level", labels, sinceMs }),
+        api.getStatsHistory(selectedInstanceName, { metric: "channel_squelch_level", labels, sinceMs }),
+      ]);
+      setSnrSeries([
+        { key: "signal", label: "Signal (dBFS)", color: CATEGORICAL[0], points: dbfsSignal },
+        {
+          key: "squelchThreshold",
+          label: "Squelch threshold (dBFS)",
+          color: CATEGORICAL[1],
+          points: deriveSquelchThresholdSeries(dbfsSignal, rawSignal, rawSquelch),
+        },
+      ]);
+      setStatsError(null);
+    } catch (err) {
+      setStatsError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
+    }
   }, [selectedInstanceName, selectedChannel, rangeMs]);
 
   // `loadHistory`'s identity changes on every poll tick (it closes over
@@ -156,13 +169,28 @@ export function StatsPage() {
     void loadHistoryRef.current();
   }, [selectedInstanceName, selectedChannel?.key, rangeMs]);
 
-  if (error) return <div className="text-red-300">{error}</div>;
+  if (error) {
+    return (
+      <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
+        <p className="text-red-300">{error}</p>
+        <button type="button" onClick={() => void loadInstances()} className="text-sm text-sky-400 hover:text-sky-300">
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (instances === null) return <p className="text-slate-400">Loading…</p>;
   if (instances.length === 0) return <p className="text-slate-400">No instances yet. Create one first.</p>;
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-slate-100">Stats</h1>
+
+      {statsError && (
+        <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {statsError} (retrying automatically every {AUTO_REFRESH_MS / 1000}s)
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm text-slate-300">
         Device

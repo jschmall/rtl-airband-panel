@@ -157,17 +157,21 @@ function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: 
   );
 }
 
-function FileFields({
-  output,
-  onChange,
-  onRevealApiKey,
-}: {
-  output: FileOutput;
-  onChange: (o: Output) => void;
-  onRevealApiKey?: () => Promise<string>;
-}) {
+/** Fields shared by FileOutput and RawFileOutput, which are identical apart from
+ *  min_rx_seconds/post_write_script/rdio_scanner, which only FileOutput has. */
+interface FileLikeOutput {
+  directory: string;
+  filename_template: string;
+  continuous?: boolean;
+  split_on_transmission?: boolean;
+  include_freq?: boolean;
+  append?: boolean;
+  dated_subdirectories?: boolean;
+}
+
+function FileLikeFields<T extends FileLikeOutput>({ output, onChange }: { output: T; onChange: (o: T) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <>
       <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
         <input className={inputClass} value={output.directory} onChange={(e) => onChange({ ...output, directory: e.target.value })} />
       </Field>
@@ -176,22 +180,6 @@ function FileFields({
           className={inputClass}
           value={output.filename_template}
           onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
-        />
-      </Field>
-      <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
-        <input
-          type="number"
-          step="0.1"
-          className={inputClass}
-          value={output.min_rx_seconds ?? ""}
-          onChange={(e) => onChange({ ...output, min_rx_seconds: numberOrUndefined(e.target.value) })}
-        />
-      </Field>
-      <Field label="Post-write script (optional)" tooltip={OUTPUT_TOOLTIPS.postWriteScript}>
-        <input
-          className={inputClass}
-          value={output.post_write_script ?? ""}
-          onChange={(e) => onChange({ ...output, post_write_script: e.target.value || undefined })}
         />
       </Field>
       <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
@@ -209,6 +197,38 @@ function FileFields({
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
       />
+    </>
+  );
+}
+
+function FileFields({
+  output,
+  onChange,
+  onRevealApiKey,
+}: {
+  output: FileOutput;
+  onChange: (o: Output) => void;
+  onRevealApiKey?: () => Promise<string>;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <FileLikeFields output={output} onChange={onChange} />
+      <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
+        <input
+          type="number"
+          step="0.1"
+          className={inputClass}
+          value={output.min_rx_seconds ?? ""}
+          onChange={(e) => onChange({ ...output, min_rx_seconds: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+      <Field label="Post-write script (optional)" tooltip={OUTPUT_TOOLTIPS.postWriteScript}>
+        <input
+          className={inputClass}
+          value={output.post_write_script ?? ""}
+          onChange={(e) => onChange({ ...output, post_write_script: e.target.value || undefined })}
+        />
+      </Field>
       <div className="col-span-2 space-y-2 rounded border border-slate-600 bg-slate-800 p-3">
         <BoolField
           label="Upload to rdio-scanner"
@@ -348,31 +368,7 @@ function RdioScannerFields({
 function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
-        <input className={inputClass} value={output.directory} onChange={(e) => onChange({ ...output, directory: e.target.value })} />
-      </Field>
-      <Field label="Filename template" tooltip={OUTPUT_TOOLTIPS.filenameTemplate}>
-        <input
-          className={inputClass}
-          value={output.filename_template}
-          onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
-        />
-      </Field>
-      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
-      <BoolField
-        label="Split on transmission"
-        tooltip={OUTPUT_TOOLTIPS.splitOnTransmission}
-        checked={output.split_on_transmission}
-        onChange={(v) => onChange({ ...output, split_on_transmission: v })}
-      />
-      <BoolField label="Include freq" tooltip={OUTPUT_TOOLTIPS.includeFreq} checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
-      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
-      <BoolField
-        label="Dated subdirectories"
-        tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
-        checked={output.dated_subdirectories}
-        onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
-      />
+      <FileLikeFields output={output} onChange={onChange} />
     </div>
   );
 }
