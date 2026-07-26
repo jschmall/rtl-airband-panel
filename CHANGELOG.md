@@ -5,6 +5,63 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.6] - 2026-07-26
+
+### Fixed
+
+- **Config editor grid alignment.** Several small visual misalignments in
+  the config editor forms: `<select>` dropdowns rendered at a different
+  height than text inputs (no explicit height on either, so browsers sized
+  them slightly differently); fields whose label wrapped onto a second
+  line pushed their own input lower than same-row siblings with a shorter
+  label; and checkboxes (`BoolField`) sharing a grid row with a taller
+  label+input `Field` sat higher than that row's input. Fixed by giving
+  every input/select a fixed height, reserving a consistent two-line-tall
+  label area on every `Field`, and giving `BoolField` an opt-in
+  `alignWithField` prop that reserves the same label-height space when it's
+  used inside a field grid (left off for its other use as a standalone
+  "Disable" toggle in a section header, where the reserved space would
+  look wrong). Also shortened the one channel label long enough to wrap to
+  three lines instead of two (`Squelch threshold, dBFS`), moving the
+  trimmed detail into its existing tooltip.
+
+## [0.4.5] - 2026-07-26
+
+### Added
+
+- **Validate config values that would crash RTLSDR-Airband at startup.**
+  RTLSDR-Airband parses its config once at process start and hard-exits on
+  many invalid values (non-power-of-two `fft_size`, negative `ampfactor`,
+  `lowpass` below `highpass`, an unrecognized `modulation`, out-of-range
+  `shout_metadata_delay`/`squelch_threshold`/`squelch_snr_threshold`/
+  `notch_q`, mixer-nested output rules, etc.), which fails the systemd unit
+  this panel manages. `backend/validate` only caught a subset of these;
+  every remaining gap is now checked, each verified against the actual
+  upstream C++ source (`config.cpp`, `rtl_airband.cpp`, `input-*.cpp`)
+  rather than just the wiki, so every new check traces to a real fatal
+  check upstream. Also adds HTML5 `min`/`max`/`step` hints on the
+  frontend's plain numeric inputs for immediate feedback, backstopped by
+  the same backend checks.
+
+## [0.4.4] - 2026-07-26
+
+### Fixed
+
+- **Pending-restart tracking moved to the server.** Previously tracked as
+  React state on the edit page, so restarting a *different* instance would
+  clear the "changes pending restart" notice for the one actually still
+  pending. Now persisted server-side in a small JSON file next to each
+  instance's `.conf` (survives page refresh, browser close, and API
+  process restarts), scoped correctly per instance.
+
+### Added
+
+- **Sidebar green dot + header pending-restart count.** Any instance with
+  an unapplied save shows a green dot (with tooltip) next to its name in
+  the sidebar; the header shows a click-to-expand count of how many
+  instances are pending, backed by a shared `InstanceListContext` so the
+  two never drift out of sync.
+
 ## [0.4.3] - 2026-07-25
 
 ### Added

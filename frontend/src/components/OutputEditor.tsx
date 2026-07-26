@@ -122,7 +122,7 @@ function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: 
           onChange={(e) => onChange({ ...output, stream_name: e.target.value || undefined })}
         />
       </Field>
-      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} alignWithField />
     </div>
   );
 }
@@ -156,20 +156,28 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
           onChange={(e) => onChange({ ...output, post_write_script: e.target.value || undefined })}
         />
       </Field>
-      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} alignWithField />
       <BoolField
         label="Split on transmission"
         tooltip={OUTPUT_TOOLTIPS.splitOnTransmission}
         checked={output.split_on_transmission}
         onChange={(v) => onChange({ ...output, split_on_transmission: v })}
+        alignWithField
       />
-      <BoolField label="Include freq" tooltip={OUTPUT_TOOLTIPS.includeFreq} checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
-      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
+      <BoolField
+        label="Include freq"
+        tooltip={OUTPUT_TOOLTIPS.includeFreq}
+        checked={output.include_freq}
+        onChange={(v) => onChange({ ...output, include_freq: v })}
+        alignWithField
+      />
+      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} alignWithField />
       <BoolField
         label="Dated subdirectories"
         tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
+        alignWithField
       />
       <div className="col-span-2 space-y-2 rounded border border-slate-600 bg-slate-800 p-3">
         <BoolField
@@ -292,12 +300,14 @@ function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; on
         tooltip={OUTPUT_TOOLTIPS.rdioScannerUseTls}
         checked={config.use_tls}
         onChange={(v) => onChange({ ...config, use_tls: v })}
+        alignWithField
       />
       <BoolField
         label="Delete local file after upload"
         tooltip={OUTPUT_TOOLTIPS.rdioScannerDeleteAfterUpload}
         checked={config.delete_after_upload}
         onChange={(v) => onChange({ ...config, delete_after_upload: v })}
+        alignWithField
       />
     </div>
   );
@@ -316,20 +326,28 @@ function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: 
           onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
         />
       </Field>
-      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} alignWithField />
       <BoolField
         label="Split on transmission"
         tooltip={OUTPUT_TOOLTIPS.splitOnTransmission}
         checked={output.split_on_transmission}
         onChange={(v) => onChange({ ...output, split_on_transmission: v })}
+        alignWithField
       />
-      <BoolField label="Include freq" tooltip={OUTPUT_TOOLTIPS.includeFreq} checked={output.include_freq} onChange={(v) => onChange({ ...output, include_freq: v })} />
-      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} />
+      <BoolField
+        label="Include freq"
+        tooltip={OUTPUT_TOOLTIPS.includeFreq}
+        checked={output.include_freq}
+        onChange={(v) => onChange({ ...output, include_freq: v })}
+        alignWithField
+      />
+      <BoolField label="Append" tooltip={OUTPUT_TOOLTIPS.append} checked={output.append} onChange={(v) => onChange({ ...output, append: v })} alignWithField />
       <BoolField
         label="Dated subdirectories"
         tooltip={OUTPUT_TOOLTIPS.datedSubdirectories}
         checked={output.dated_subdirectories}
         onChange={(v) => onChange({ ...output, dated_subdirectories: v })}
+        alignWithField
       />
     </div>
   );
@@ -410,6 +428,7 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
         tooltip={OUTPUT_TOOLTIPS.sendScanFreqTags}
         checked={output.send_scan_freq_tags}
         onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
+        alignWithField
       />
     </div>
   );
@@ -432,7 +451,7 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
           onChange={(e) => onChange({ ...output, dest_port: e.target.value })}
         />
       </Field>
-      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
+      <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} alignWithField />
     </div>
   );
 }

@@ -107,7 +107,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
             onChange={(e) => onChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Squelch threshold, dBFS (optional; mutually exclusive with SNR threshold in practice)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
+        <Field label="Squelch threshold, dBFS (optional)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
           <input
             type="number"
             max="0"
