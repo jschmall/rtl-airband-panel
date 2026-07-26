@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.16] - 2026-07-26
+
+### Changed
+
+- **rdio-scanner output defaults**: port now defaults to 3000 (was 443) and
+  "Use TLS" now defaults unchecked (was checked), matching a typical
+  rdio-scanner server's actual defaults. Only affects the initial values
+  shown when enabling "Upload to rdio-scanner" on a new output — doesn't
+  touch any already-saved config.
+
 ## [0.4.15] - 2026-07-26
 
 ### Added

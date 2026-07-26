@@ -33,7 +33,7 @@ export function defaultFileOutput(): FileOutput {
 }
 
 export function defaultRdioScannerConfig(): RdioScannerConfig {
-  return { server: "", port: 443, use_tls: true, api_key: "", talkgroup_id: 0 };
+  return { server: "", port: 3000, use_tls: false, api_key: "", talkgroup_id: 0 };
 }
 
 export function defaultRawFileOutput(): RawFileOutput {
