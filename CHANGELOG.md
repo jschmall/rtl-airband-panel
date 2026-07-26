@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.10] - 2026-07-26
+
+### Fixed
+
+- **Top-level checkboxes in a 2x2 grid, not a single column.** The
+  bottom-right cell from v0.4.9 stacked all four checkboxes vertically,
+  which made that cell (and the whole top-level section) taller than it
+  needed to be. Switched it to a 2x2 grid, shrinking the section back
+  down to two rows with no wasted space.
+
 ## [0.4.9] - 2026-07-26
 
 ### Fixed

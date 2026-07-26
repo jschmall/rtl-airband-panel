@@ -57,7 +57,7 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
             onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <div className="flex flex-col justify-end gap-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 self-end">
           <BoolField
             label="Multiple demod threads"
             tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
