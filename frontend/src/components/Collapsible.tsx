@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 interface CollapsibleProps {
   title: ReactNode;
@@ -20,6 +20,7 @@ interface CollapsibleProps {
 export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
+  const contentId = useId();
 
   useEffect(() => {
     if (!openSignal) return;
@@ -35,6 +36,7 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
           onClick={() => setOpen((o) => !o)}
           className="flex flex-1 items-center gap-2 text-left"
           aria-expanded={open}
+          aria-controls={contentId}
         >
           <span className={`inline-block text-slate-500 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
             ▶
@@ -43,7 +45,11 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
         </button>
         {headerActions}
       </div>
-      {open && <div className="mt-3 space-y-3">{children}</div>}
+      {open && (
+        <div id={contentId} className="mt-3 space-y-3">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

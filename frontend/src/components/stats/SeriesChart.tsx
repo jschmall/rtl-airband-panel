@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { HistoryPoint } from "../../api/client.js";
 import { CHART_CHROME } from "../../lib/stats-palette.js";
+import { Tooltip as InfoTooltip } from "../Tooltip.js";
 
 export interface Series {
   key: string;
@@ -50,11 +51,14 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3
-          className={tooltip ? "cursor-help font-medium text-slate-200 underline decoration-dotted decoration-slate-600 underline-offset-2" : "font-medium text-slate-200"}
-          title={tooltip}
-        >
-          {title}
+        <h3 className="font-medium text-slate-200">
+          {tooltip ? (
+            <InfoTooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
+              {title}
+            </InfoTooltip>
+          ) : (
+            title
+          )}
         </h3>
         {hasData && (
           <button type="button" onClick={() => setShowTable((v) => !v)} className="text-xs text-sky-400 hover:text-sky-300">
@@ -64,7 +68,7 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
       </div>
 
       {!hasData ? (
-        <p className="py-8 text-center text-sm text-slate-500">{emptyMessage}</p>
+        <p className="py-8 text-center text-sm text-slate-400">{emptyMessage}</p>
       ) : showTable ? (
         <div className="max-h-72 overflow-auto">
           <table className="w-full text-left text-xs">

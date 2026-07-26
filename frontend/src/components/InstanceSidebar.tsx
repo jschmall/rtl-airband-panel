@@ -153,10 +153,17 @@ export function InstanceSidebar() {
                   >
                     <span className="flex min-w-0 items-center gap-1.5">
                       {instance.pendingRestart && (
+                        // Nesting a focusable Tooltip trigger inside this link would create a
+                        // focusable element inside a focusable element, so this keeps the native
+                        // `title` for mouse hover and adds visually-hidden text (the dot has no
+                        // text content otherwise) for screen readers, which announce it as part
+                        // of the link itself.
                         <span
                           title="Saved but not yet restarted -- this instance is still running its previous config"
                           className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500"
-                        />
+                        >
+                          <span className="sr-only">Saved but not yet restarted -- this instance is still running its previous config</span>
+                        </span>
                       )}
                       <span className="min-w-0 flex-shrink truncate">{instance.name}</span>
                     </span>

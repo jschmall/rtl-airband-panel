@@ -294,7 +294,7 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
         ) : (
           <>
             {channelFilter.trim() !== "" && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Showing {visibleChannels.length} of {indexedChannels.length} channels.
               </p>
             )}

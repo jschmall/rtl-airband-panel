@@ -5,6 +5,38 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.21] - 2026-07-26
+
+Seventh batch from the full-system design review: accessibility
+(Section G).
+
+### Added
+
+- `Collapsible` (used for nearly every device/channel/output/mixer)
+  gained `aria-controls`, alongside the `aria-expanded` it already had.
+- Every text/number/select input now has a visible focus ring, not just
+  a subtle border-color change (which was the only indicator once
+  `focus:outline-none` had removed the browser default).
+- New `Tooltip` component replaces bare `title=` attributes throughout
+  the app (field labels, checkbox labels, stat tiles, chart titles):
+  shows on keyboard focus as well as mouse hover, is dismissible with
+  Escape, and associates its text via `aria-describedby` + `role="tooltip"`
+  so it's actually announced by a screen reader instead of silently
+  skipped, the way a native `title` usually is.
+- The pending-restart popover now sets `aria-haspopup`/`aria-expanded`
+  on its trigger and `role="dialog"` on the panel, closes on Escape, and
+  returns focus to the trigger when it does (previously: click-outside
+  only, and closing lost your keyboard focus position entirely).
+
+### Changed
+
+- Raised low-contrast helper text to meet WCAG AA (4.5:1): field/checkbox
+  labels (`text-slate-400` → `text-slate-300`, needed since some of those
+  labels sit on the lighter `bg-slate-700` output-card background, where
+  `slate-400` only reached ~4.0:1) and a handful of `text-slate-500`
+  instances (stat tile sublabels, the channel-list filter count, the
+  empty-chart message) bumped to `text-slate-400`.
+
 ## [0.4.20] - 2026-07-26
 
 Sixth batch from the full-system design review: real-time feedback
