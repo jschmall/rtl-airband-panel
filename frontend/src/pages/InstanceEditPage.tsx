@@ -1,36 +1,91 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
 import { api, ApiError } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
+import { GuardedLink } from "../components/GuardedLink.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
+import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
+import { assignUiKeysDeep } from "../lib/keys.js";
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
   const { refresh: refreshInstanceList } = useInstanceList();
+  const { setDirty } = useUnsavedChanges();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
+  // The last-loaded-or-saved config, compared against the live-edited `config`
+  // to decide whether there's anything unsaved -- see the `isDirty` effect below.
+  const [savedConfig, setSavedConfig] = useState<RtlAirbandConfig | null>(null);
   const [version, setVersion] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  // Set when the user clicks a validation issue in the banner -- nonce is bumped
+  // (not just the path) so clicking the same issue twice still re-triggers the
+  // scroll/expand even though the path string didn't change. See Collapsible's
+  // openSignal prop.
+  const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
 
   useEffect(() => {
     if (!name) return;
     api
       .getConfig(name)
       .then(({ config, version }) => {
-        setConfig(config);
+        // Nothing server-side knows about these keys -- assign them once, here,
+        // so every device/channel/output/mixer keeps its own UI state (open/
+        // closed, remembered type-cache) even as items before it in a list are
+        // added or removed. See lib/keys.ts.
+        const keyed = assignUiKeysDeep(config);
+        setConfig(keyed);
+        setSavedConfig(keyed);
         setVersion(version);
       })
       .catch((err: unknown) => setLoadError(err instanceof ApiError ? err.message : "Failed to load config"));
   }, [name]);
 
+  const isDirty = config !== null && savedConfig !== null && JSON.stringify(config) !== JSON.stringify(savedConfig);
+
+  // Covers an actual tab close/refresh/navigating to a URL outside the SPA.
+  // In-app navigation (sidebar, header logo, "View stats") goes through
+  // GuardedLink/GuardedNavLink instead, which reads the same shared flag.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
+    setDirty(isDirty);
+  }, [isDirty, setDirty]);
+
+  // Don't leave the flag set for the next page this component happens to render for.
+  useEffect(() => () => setDirty(false), [setDirty]);
+
+  // Ctrl/Cmd+S saves without restarting -- the less disruptive of the two
+  // actions, matching the "just save my work" intent of the shortcut.
+  // Save-and-restart stays a deliberate button click, since it interrupts
+  // live audio and already has its own confirm dialog.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        void handleSave(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
   async function handleSave(restart: boolean) {
-    if (!name || !config) return;
+    if (!name || !config || pendingAction) return;
     if (restart && !window.confirm(`Restart '${name}'? This applies the saved changes but interrupts live audio for a few seconds while it restarts.`)) {
       return;
     }
@@ -41,6 +96,7 @@ export function InstanceEditPage() {
       const result = await api.updateConfig(name, config, { restart, ifMatch: version ?? undefined });
       setWarnings(result.warnings);
       setVersion(result.version);
+      setSavedConfig(config);
       setSavedMessage(
         restart
           ? `Saved and restarted ${name}.service (${result.status.activeState}).`
@@ -81,17 +137,22 @@ export function InstanceEditPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
-        <Link to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
+        <GuardedLink to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
           View stats →
-        </Link>
+        </GuardedLink>
       </div>
 
-      <ValidationBanner errors={errors} warnings={warnings} />
+      <ValidationBanner
+        errors={errors}
+        warnings={warnings}
+        config={config}
+        onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })}
+      />
       {savedMessage && (
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>
       )}
 
-      <ConfigEditor config={config} onChange={setConfig} />
+      <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} />
 
       <div className="flex justify-end gap-3">
         <button

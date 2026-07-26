@@ -13,13 +13,14 @@ import type {
   ScanChannel,
   UdpStreamOutput,
 } from "@rtl-airband-panel/parser";
+import { withUiKey } from "./keys.js";
 
 export function defaultPulseOutput(): PulseOutput {
-  return { type: "pulse", server: "", sink: "", stream_name: "", continuous: false };
+  return withUiKey({ type: "pulse", server: "", sink: "", stream_name: "", continuous: false });
 }
 
 export function defaultFileOutput(): FileOutput {
-  return {
+  return withUiKey({
     type: "file",
     directory: "",
     filename_template: "",
@@ -29,7 +30,7 @@ export function defaultFileOutput(): FileOutput {
     include_freq: true,
     append: true,
     dated_subdirectories: true,
-  };
+  });
 }
 
 export function defaultRdioScannerConfig(): RdioScannerConfig {
@@ -37,7 +38,7 @@ export function defaultRdioScannerConfig(): RdioScannerConfig {
 }
 
 export function defaultRawFileOutput(): RawFileOutput {
-  return {
+  return withUiKey({
     type: "rawfile",
     directory: "",
     filename_template: "",
@@ -46,27 +47,27 @@ export function defaultRawFileOutput(): RawFileOutput {
     include_freq: true,
     append: true,
     dated_subdirectories: true,
-  };
+  });
 }
 
 export function defaultIcecastOutput(): IcecastOutput {
-  return { type: "icecast", server: "", port: 8000, mountpoint: "", username: "source", password: "" };
+  return withUiKey({ type: "icecast", server: "", port: 8000, mountpoint: "", username: "source", password: "" });
 }
 
 export function defaultUdpStreamOutput(): UdpStreamOutput {
-  return { type: "udp_stream", dest_address: "", dest_port: "" };
+  return withUiKey({ type: "udp_stream", dest_address: "", dest_port: "" });
 }
 
 export function defaultMixerOutput(): MixerOutput {
-  return { type: "mixer", name: "" };
+  return withUiKey({ type: "mixer", name: "" });
 }
 
 export function defaultChannel(): MultichannelChannel {
-  return { freq: 0, afc: 0, modulation: "nfm", outputs: [defaultPulseOutput()] };
+  return withUiKey({ freq: 0, afc: 0, modulation: "nfm", outputs: [defaultPulseOutput()] });
 }
 
 export function defaultScanChannel(): ScanChannel {
-  return { freqs: [0], outputs: [defaultPulseOutput()] };
+  return withUiKey({ freqs: [0], outputs: [defaultPulseOutput()] });
 }
 
 /** Rebuilds a device's channels array to match its mode when the mode toggle changes. */
@@ -140,7 +141,7 @@ export function restoreModeFields(device: Device, cached: Device | undefined, ne
 }
 
 export function defaultDevice(): Device {
-  return {
+  return withUiKey({
     type: "rtlsdr",
     serial: "",
     gain: 0,
@@ -148,11 +149,11 @@ export function defaultDevice(): Device {
     sample_rate: 0,
     correction: 0,
     channels: [defaultChannel()],
-  };
+  });
 }
 
 export function defaultMixer(): Mixer {
-  return { name: "", outputs: [] };
+  return withUiKey({ name: "", outputs: [] });
 }
 
 export function defaultConfig(): RtlAirbandConfig {

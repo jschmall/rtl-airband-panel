@@ -5,6 +5,51 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.18] - 2026-07-26
+
+Fifth batch from the full-system design review: frontend UX / creature
+comforts (Section E).
+
+### Added
+
+- **Unsaved-changes warning.** Editing a config now sets a shared dirty
+  flag; navigating away via the sidebar, header logo, or the "View stats"
+  link asks for confirmation before discarding edits, and closing/
+  refreshing the tab triggers the browser's own native prompt. Doesn't
+  cover browser back/forward, which would need a bigger react-router
+  data-router migration.
+- **Duplicate/clone buttons** for devices, channels, outputs, and mixers.
+  Mixer duplication blanks the copy's name (mixer names are referenced by
+  exact match from channel outputs, so a raw clone would create an
+  ambiguous duplicate).
+- **Password show/hide toggle** for the Icecast password and rdio-scanner
+  API key fields.
+- **Ctrl/Cmd+S** saves without restarting (the less disruptive of the two
+  actions). Save-and-restart stays a deliberate button click, since it
+  interrupts live audio and already has its own confirm dialog.
+- **Validation errors/warnings now show a human-readable path** (e.g.
+  "Device 1 (rtlsdr, 151.780 MHz) → Channel 151.1750 MHz → Output 1
+  (file) → post_write_script" instead of the raw JSON path) and are
+  clickable: clicking one auto-expands exactly the Device/Channel/Output
+  section it points at (leaving sibling sections collapsed) and scrolls
+  it into view.
+- **Channel search/filter.** Devices with more than 5 channels get a
+  filter box (matches frequency or label) above the channel list, with a
+  "Showing N of M channels" indicator. Filtering never renumbers edits —
+  each rendered channel keeps its real index into the device's channel
+  array. Clicking a validation-error jump-to-field link clears an active
+  filter if it would otherwise hide the target channel.
+
+### Fixed
+
+- **Index-key bug**: device/mixer/channel/output lists were keyed by
+  array index (`key={i}`). Deleting a middle item could make the next
+  item inherit the previous one's `Collapsible` open/closed state and
+  its type-dropdown remembered-value cache (from the last two versions'
+  data-loss fixes), since both are scoped by position, not identity.
+  Fixed with a symbol-keyed synthetic UI id (`lib/keys.ts`) assigned once
+  per item on load and preserved through object-spread edits.
+
 ## [0.4.17] - 2026-07-26
 
 ### Fixed

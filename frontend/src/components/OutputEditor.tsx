@@ -11,7 +11,8 @@ import type {
 } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
-import { inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { PasswordInput } from "./PasswordInput.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { OUTPUT_TOOLTIPS } from "../lib/config-descriptions.js";
 import {
@@ -23,13 +24,17 @@ import {
   defaultRdioScannerConfig,
   defaultUdpStreamOutput,
 } from "../lib/defaults.js";
+import { pathStartsWith } from "../lib/validation-path.js";
 
 interface OutputEditorProps {
   output: Output;
   onChange: (output: Output) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
   /** A mixer's own outputs cannot themselves be of type "mixer" (RTLSDR-Airband disallows nesting). */
   excludeMixerType?: boolean;
+  pathPrefix: string;
+  jumpTarget?: { path: string; nonce: number } | null;
 }
 
 const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
@@ -41,7 +46,8 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   mixer: defaultMixerOutput,
 };
 
-export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: OutputEditorProps) {
+export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeMixerType, pathPrefix, jumpTarget }: OutputEditorProps) {
+  const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   // Remembers the last-edited values for each output type the user has visited in this
   // editing session, so switching the type dropdown away and back restores what was there
   // instead of resetting to defaults. Session-only (a ref, not part of the saved config) —
@@ -57,6 +63,7 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
 
   return (
     <Collapsible
+      openSignal={openSignal}
       className="rounded border border-slate-600 bg-slate-700 p-3"
       titleClassName="text-sm font-medium text-slate-200"
       title={`Output — ${output.type}`}
@@ -68,6 +75,9 @@ export function OutputEditor({ output, onChange, onRemove, excludeMixerType }: O
             checked={output.disable}
             onChange={(v) => onChange({ ...output, disable: v } as Output)}
           />
+          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+            Duplicate output
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -224,12 +234,7 @@ function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; on
         />
       </Field>
       <Field label="API key" tooltip={OUTPUT_TOOLTIPS.rdioScannerApiKey}>
-        <input
-          type="password"
-          className={inputClass}
-          value={config.api_key}
-          onChange={(e) => onChange({ ...config, api_key: e.target.value })}
-        />
+        <PasswordInput value={config.api_key} onChange={(v) => onChange({ ...config, api_key: v })} />
       </Field>
       <Field label="Talkgroup ID" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupId}>
         <input
@@ -374,12 +379,7 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
         <input className={inputClass} value={output.username} onChange={(e) => onChange({ ...output, username: e.target.value })} />
       </Field>
       <Field label="Password" tooltip={OUTPUT_TOOLTIPS.password}>
-        <input
-          type="password"
-          className={inputClass}
-          value={output.password}
-          onChange={(e) => onChange({ ...output, password: e.target.value })}
-        />
+        <PasswordInput value={output.password} onChange={(v) => onChange({ ...output, password: v })} />
       </Field>
       <Field label="Name (optional)" tooltip={OUTPUT_TOOLTIPS.icecastName}>
         <input

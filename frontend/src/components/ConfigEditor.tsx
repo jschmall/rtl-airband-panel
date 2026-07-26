@@ -3,17 +3,20 @@ import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
 import { addButtonClass, inputClass } from "./styles.js";
-import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
+import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultDevice, defaultMixer } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { GLOBAL_TOOLTIPS } from "../lib/config-descriptions.js";
+import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 
 interface ConfigEditorProps {
   config: RtlAirbandConfig;
   onChange: (config: RtlAirbandConfig) => void;
+  /** A validation issue the user clicked, to auto-expand and scroll to. See InstanceEditPage. */
+  jumpTarget?: { path: string; nonce: number } | null;
 }
 
-export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
+export function ConfigEditor({ config, onChange, jumpTarget }: ConfigEditorProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
@@ -93,10 +96,13 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
         </div>
         {config.devices.map((device, i) => (
           <DeviceEditor
-            key={i}
+            key={uiKeyOf(device, i)}
             device={device}
             onChange={(next) => onChange({ ...config, devices: updateAt(config.devices, i, next) })}
             onRemove={() => onChange({ ...config, devices: removeAt(config.devices, i) })}
+            onDuplicate={() => onChange({ ...config, devices: duplicateAt(config.devices, i, cloneWithNewUiKeys) })}
+            pathPrefix={`$.devices[${i}]`}
+            jumpTarget={jumpTarget}
           />
         ))}
       </div>
@@ -114,10 +120,16 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
         </div>
         {(config.mixers ?? []).map((mixer, i) => (
           <MixerEditor
-            key={i}
+            key={uiKeyOf(mixer, i)}
             mixer={mixer}
             onChange={(next) => onChange({ ...config, mixers: updateAt(config.mixers ?? [], i, next) })}
             onRemove={() => onChange({ ...config, mixers: removeAt(config.mixers ?? [], i) })}
+            // A mixer's name is how channel outputs of type "mixer" reference it -- a raw clone
+            // would create two mixers answering to the same name, so blank it on the copy and
+            // let the "Add mixer" empty-name convention prompt the user to pick a new one.
+            onDuplicate={() => onChange({ ...config, mixers: duplicateAt(config.mixers ?? [], i, (m) => ({ ...cloneWithNewUiKeys(m), name: "" })) })}
+            pathPrefix={`$.mixers[${i}]`}
+            jumpTarget={jumpTarget}
           />
         ))}
       </div>

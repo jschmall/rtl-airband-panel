@@ -3,7 +3,7 @@ import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
-import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
+import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import {
   formatNumberList,
@@ -15,10 +15,14 @@ import {
   parseStringListOrUndefined,
 } from "../lib/number-utils.js";
 import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
+import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
+import { pathStartsWith } from "../lib/validation-path.js";
 
 interface ScanChannelEditorProps {
   channel: ScanChannel;
   onChange: (channel: ScanChannel) => void;
+  pathPrefix: string;
+  jumpTarget?: { path: string; nonce: number } | null;
 }
 
 /**
@@ -27,9 +31,11 @@ interface ScanChannelEditorProps {
  * with one entry per frequency, matching RTLSDR-Airband's own config
  * grammar (e.g. `squelch_threshold = ( -30, -25, 0, -35 );`).
  */
-export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps) {
+export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget }: ScanChannelEditorProps) {
+  const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   return (
     <Collapsible
+      openSignal={openSignal}
       className="rounded border border-slate-600 bg-slate-800 p-3"
       titleClassName="font-medium text-slate-200"
       title={`Scan channel — ${channel.freqs.length} frequencies`}
@@ -134,10 +140,13 @@ export function ScanChannelEditor({ channel, onChange }: ScanChannelEditorProps)
         </div>
         {channel.outputs.map((output, i) => (
           <OutputEditor
-            key={i}
+            key={uiKeyOf(output, i)}
             output={output}
             onChange={(next) => onChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
             onRemove={() => onChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
+            onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
+            pathPrefix={`${pathPrefix}.outputs[${i}]`}
+            jumpTarget={jumpTarget}
           />
         ))}
       </div>

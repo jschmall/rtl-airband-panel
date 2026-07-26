@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface CollapsibleProps {
   title: ReactNode;
@@ -8,15 +8,34 @@ interface CollapsibleProps {
   className?: string;
   titleClassName?: string;
   children: ReactNode;
+  /**
+   * Bump (to a new, non-zero value) to force this section open and scroll it
+   * into view -- used by the validation-error "jump to field" feature. A
+   * changing value re-triggers the scroll even if the section is already
+   * open, so clicking the same error twice still re-locates it.
+   */
+  openSignal?: number;
 }
 
-export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children }: CollapsibleProps) {
+export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openSignal) return;
+    setOpen(true);
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [openSignal]);
 
   return (
-    <div className={className}>
+    <div ref={rootRef} className={className}>
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => setOpen((o) => !o)} className="flex flex-1 items-center gap-2 text-left">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex flex-1 items-center gap-2 text-left"
+          aria-expanded={open}
+        >
           <span className={`inline-block text-slate-500 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
             ▶
           </span>

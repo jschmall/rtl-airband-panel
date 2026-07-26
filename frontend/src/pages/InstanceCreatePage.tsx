@@ -17,6 +17,7 @@ export function InstanceCreatePage() {
   const [config, setConfig] = useState<RtlAirbandConfig>(defaultConfig());
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
+  const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
 
   const nameValid = SAFE_NAME.test(name);
 
@@ -57,9 +58,9 @@ export function InstanceCreatePage() {
         )}
       </div>
 
-      <ValidationBanner errors={errors} />
+      <ValidationBanner errors={errors} config={config} onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })} />
 
-      <ConfigEditor config={config} onChange={setConfig} />
+      <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} />
 
       <div className="flex justify-end">
         <button

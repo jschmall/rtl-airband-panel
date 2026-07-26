@@ -3,26 +3,36 @@ import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
-import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
+import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
+import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
+import { pathStartsWith } from "../lib/validation-path.js";
 
 interface ChannelEditorProps {
   channel: MultichannelChannel;
   onChange: (channel: MultichannelChannel) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
+  pathPrefix: string;
+  jumpTarget?: { path: string; nonce: number } | null;
 }
 
-export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProps) {
+export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget }: ChannelEditorProps) {
+  const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   return (
     <Collapsible
+      openSignal={openSignal}
       className="rounded border border-slate-600 bg-slate-800 p-3"
       titleClassName="font-medium text-slate-200"
       title={`Channel ${(channel.freq / 1e6).toFixed(4)} MHz`}
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+            Duplicate channel
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -172,10 +182,13 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
         </div>
         {channel.outputs.map((output, i) => (
           <OutputEditor
-            key={i}
+            key={uiKeyOf(output, i)}
             output={output}
             onChange={(next) => onChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
             onRemove={() => onChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
+            onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
+            pathPrefix={`${pathPrefix}.outputs[${i}]`}
+            jumpTarget={jumpTarget}
           />
         ))}
       </div>

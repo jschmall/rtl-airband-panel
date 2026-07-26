@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, type UnitStatus } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { HealthBadge } from "./HealthBadge.js";
+import { GuardedNavLink } from "./GuardedLink.js";
 
 export function InstanceSidebar() {
   const location = useLocation();
@@ -92,12 +93,12 @@ export function InstanceSidebar() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-shrink-0 border-b border-slate-800 p-3">
-        <NavLink
+        <GuardedNavLink
           to="/instances/new"
           className="block rounded bg-sky-600 px-3 py-1.5 text-center text-sm font-medium text-white hover:bg-sky-500"
         >
           + New instance
-        </NavLink>
+        </GuardedNavLink>
       </div>
 
       {(error || listError) && (
@@ -130,7 +131,7 @@ export function InstanceSidebar() {
                     className="w-full rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-sm text-slate-100"
                   />
                 ) : (
-                  <NavLink
+                  <GuardedNavLink
                     to={`/instances/${encodeURIComponent(instance.name)}`}
                     className={({ isActive }) =>
                       `flex items-center justify-between gap-2 rounded px-1 py-0.5 text-sm ${
@@ -148,7 +149,7 @@ export function InstanceSidebar() {
                       <span className="min-w-0 flex-shrink truncate">{instance.name}</span>
                     </span>
                     {status && <span className="flex-shrink-0"><HealthBadge state={status.activeState} subState={status.subState} /></span>}
-                  </NavLink>
+                  </GuardedNavLink>
                 )}
 
                 <div className="ml-4 mt-1 flex gap-3 text-xs">
@@ -207,14 +208,14 @@ export function InstanceSidebar() {
       </div>
 
       <div className="flex-shrink-0 border-t border-slate-800 p-3">
-        <NavLink
+        <GuardedNavLink
           to="/stats"
           className={({ isActive }) =>
             `block text-center text-sm font-medium ${isActive ? "text-sky-400" : "text-slate-300 hover:text-sky-400"}`
           }
         >
           Stats
-        </NavLink>
+        </GuardedNavLink>
       </div>
     </div>
   );

@@ -9,3 +9,9 @@ export function removeAt<T>(arr: T[], index: number): T[] {
 export function appendItem<T>(arr: T[], item: T): T[] {
   return [...arr, item];
 }
+
+/** Inserts `clone(arr[index])` immediately after `index` -- used for "Duplicate" buttons. */
+export function duplicateAt<T>(arr: T[], index: number, clone: (item: T) => T): T[] {
+  const copy = clone(arr[index]!);
+  return [...arr.slice(0, index + 1), copy, ...arr.slice(index + 1)];
+}

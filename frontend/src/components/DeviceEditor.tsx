@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Channel, Device, MultichannelChannel, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
-import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
+import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
+import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
+import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 
 function isMultichannelChannel(channel: Channel): channel is MultichannelChannel {
@@ -18,10 +20,25 @@ function isScanChannel(channel: Channel): channel is ScanChannel {
   return "freqs" in channel;
 }
 
+/** Matches a channel search filter against frequency (MHz or raw Hz), label, and modulation. */
+function channelMatchesFilter(channel: MultichannelChannel, filter: string): boolean {
+  const f = filter.trim().toLowerCase();
+  if (f === "") return true;
+  return (
+    (channel.freq / 1e6).toFixed(4).includes(f) ||
+    String(channel.freq).includes(f) ||
+    (channel.label?.toLowerCase().includes(f) ?? false) ||
+    (channel.modulation?.toLowerCase().includes(f) ?? false)
+  );
+}
+
 interface DeviceEditorProps {
   device: Device;
   onChange: (device: Device) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
+  pathPrefix: string;
+  jumpTarget?: { path: string; nonce: number } | null;
 }
 
 const DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"] as const;
@@ -37,7 +54,8 @@ function parseGain(text: string): number | string | undefined {
   return Number.isFinite(n) && text.trim() !== "" ? n : text;
 }
 
-export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) {
+export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget }: DeviceEditorProps) {
+  const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
   const isRtl = device.type === "rtlsdr";
@@ -53,8 +71,22 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
     lastByMode.current[device.mode === "scan" ? "scan" : "multichannel"] = device;
   }, [device]);
 
+  // Keeps each channel's real index in device.channels (needed by onChange/onRemove/
+  // onDuplicate below) alongside the filtered view, so filtering never renumbers edits.
+  const [channelFilter, setChannelFilter] = useState("");
+  // A jump-to-field click should win over an active filter -- otherwise clicking a
+  // validation error for a channel the filter currently hides would silently do nothing.
+  useEffect(() => {
+    if (openSignal) setChannelFilter("");
+  }, [openSignal]);
+  const indexedChannels = device.channels
+    .map((channel, i) => ({ channel, i }))
+    .filter((entry): entry is { channel: MultichannelChannel; i: number } => isMultichannelChannel(entry.channel));
+  const visibleChannels = indexedChannels.filter(({ channel }) => channelMatchesFilter(channel, channelFilter));
+
   return (
     <Collapsible
+      openSignal={openSignal}
       className="rounded-lg border border-slate-700 bg-slate-900 p-4"
       titleClassName="text-lg font-semibold text-slate-100"
       title={
@@ -66,6 +98,9 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
+          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+            Duplicate device
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -224,32 +259,55 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h4 className="font-medium text-slate-300">Channels</h4>
-          {!isScan && (
-            <button
-              type="button"
-              className={addButtonClass}
-              onClick={() => onChange({ ...device, channels: appendItem(device.channels, defaultChannel()) })}
-            >
-              + Add channel
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {!isScan && device.channels.length > 5 && (
+              <input
+                type="search"
+                className={`${inputClass} w-56`}
+                placeholder="Filter by frequency or label…"
+                value={channelFilter}
+                onChange={(e) => setChannelFilter(e.target.value)}
+              />
+            )}
+            {!isScan && (
+              <button
+                type="button"
+                className={addButtonClass}
+                onClick={() => onChange({ ...device, channels: appendItem(device.channels, defaultChannel()) })}
+              >
+                + Add channel
+              </button>
+            )}
+          </div>
         </div>
         {isScan ? (
           <ScanChannelEditor
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}
             onChange={(next) => onChange({ ...device, channels: [next] })}
+            pathPrefix={`${pathPrefix}.channels[0]`}
+            jumpTarget={jumpTarget}
           />
         ) : (
-          device.channels.filter(isMultichannelChannel).map((channel, i) => (
-            <ChannelEditor
-              key={i}
-              channel={channel}
-              onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
-              onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
-            />
-          ))
+          <>
+            {channelFilter.trim() !== "" && (
+              <p className="text-xs text-slate-500">
+                Showing {visibleChannels.length} of {indexedChannels.length} channels.
+              </p>
+            )}
+            {visibleChannels.map(({ channel, i }) => (
+              <ChannelEditor
+                key={uiKeyOf(channel, i)}
+                channel={channel}
+                onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
+                onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
+                onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
+                pathPrefix={`${pathPrefix}.channels[${i}]`}
+                jumpTarget={jumpTarget}
+              />
+            ))}
+          </>
         )}
       </div>
     </Collapsible>
