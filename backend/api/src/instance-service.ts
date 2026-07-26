@@ -103,6 +103,19 @@ export class InstanceService {
     return { config: redactSecrets(config), version };
   }
 
+  /**
+   * Unredacted config, for the "reveal" action on a password/API-key field the
+   * frontend is currently showing as `REDACTED_SECRET`. Deliberately a separate,
+   * explicitly-opted-into call rather than a flag on `getConfigWithVersion` — the
+   * whole point of redacting by default is that a plain GET never carries a real
+   * secret, so revealing one has to be a distinct action, not an easy-to-flip option
+   * on the common path.
+   */
+  async getSecrets(name: string): Promise<RtlAirbandConfig> {
+    await this.requireExists(name);
+    return this.configStore.read(name);
+  }
+
   async getHealth(name: string): Promise<UnitStatus> {
     assertValidInstanceName(name);
     return this.systemd.status(unitFileName(name));

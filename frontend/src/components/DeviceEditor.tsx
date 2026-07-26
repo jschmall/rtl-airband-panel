@@ -39,6 +39,7 @@ interface DeviceEditorProps {
   onDuplicate: () => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
+  onRevealSecret?: (fieldPath: string) => Promise<string>;
 }
 
 const DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"] as const;
@@ -54,7 +55,7 @@ function parseGain(text: string): number | string | undefined {
   return Number.isFinite(n) && text.trim() !== "" ? n : text;
 }
 
-export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget }: DeviceEditorProps) {
+export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: DeviceEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
@@ -262,7 +263,7 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
         <div className="flex items-center justify-between gap-3">
           <h4 className="font-medium text-slate-300">Channels</h4>
           <div className="flex items-center gap-3">
-            {!isScan && device.channels.length > 5 && (
+            {!isScan && (
               <input
                 type="search"
                 className={`${inputClass} w-56`}
@@ -288,6 +289,7 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
             onChange={(next) => onChange({ ...device, channels: [next] })}
             pathPrefix={`${pathPrefix}.channels[0]`}
             jumpTarget={jumpTarget}
+            onRevealSecret={onRevealSecret}
           />
         ) : (
           <>
@@ -305,6 +307,7 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
                 onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
                 pathPrefix={`${pathPrefix}.channels[${i}]`}
                 jumpTarget={jumpTarget}
+                onRevealSecret={onRevealSecret}
               />
             ))}
           </>

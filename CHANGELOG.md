@@ -5,6 +5,43 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.19] - 2026-07-26
+
+Two fixes from prod testing of v0.4.18's Section E changes.
+
+### Added
+
+- **Reveal-real-secret on "Show".** Clicking "Show" on the Icecast password
+  or rdio-scanner API key now fetches and loads the *real* value from a new
+  `GET /instances/:name/secrets` endpoint, instead of just toggling the
+  input type on the server's fixed-length redaction placeholder (which
+  made the masked view always show exactly 8 dots regardless of the real
+  secret's length, and "revealed" view show the literal placeholder
+  string). The new endpoint is deliberately separate from the main GET
+  (which still always redacts) and only ever called on an explicit click;
+  it's audit-logged like the other config-mutating actions. If the field
+  hasn't been revealed, Show/Hide is unaffected and stays a plain,
+  no-fetch toggle.
+
+### Changed
+
+- The channel search/filter box (added in v0.4.18) now always shows,
+  instead of only once a device passed 5 channels.
+
+### Fixed
+
+- **Output type-switch remount bug**, found while testing the above:
+  switching an output's type to one not yet visited this session called a
+  `default*Output()` constructor, which mints a fresh identity key. That
+  changed the key React sees for that list slot, so it tore the
+  `OutputEditor` down and remounted it -- silently resetting the
+  Collapsible's open state and, more importantly, wiping the very
+  `lastByType` "remember values per type" cache this component depends on
+  (the fix shipped several versions ago for the original data-loss
+  report). Fixed by carrying the slot's existing identity key over onto
+  the replacement value (`withSameUiKey` in `lib/keys.ts`) so a type
+  switch never changes which list item React thinks it's looking at.
+
 ## [0.4.18] - 2026-07-26
 
 Fifth batch from the full-system design review: frontend UX / creature

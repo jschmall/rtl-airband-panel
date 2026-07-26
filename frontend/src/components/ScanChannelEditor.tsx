@@ -23,6 +23,7 @@ interface ScanChannelEditorProps {
   onChange: (channel: ScanChannel) => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
+  onRevealSecret?: (fieldPath: string) => Promise<string>;
 }
 
 /**
@@ -31,7 +32,7 @@ interface ScanChannelEditorProps {
  * with one entry per frequency, matching RTLSDR-Airband's own config
  * grammar (e.g. `squelch_threshold = ( -30, -25, 0, -35 );`).
  */
-export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget }: ScanChannelEditorProps) {
+export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget, onRevealSecret }: ScanChannelEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   return (
     <Collapsible
@@ -147,6 +148,7 @@ export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget }:
             onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
+            onRevealSecret={onRevealSecret}
           />
         ))}
       </div>

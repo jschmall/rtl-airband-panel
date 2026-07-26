@@ -93,6 +93,9 @@ export const api = {
 
   getHealth: (name: string): Promise<UnitStatus> => request(`/instances/${encodeURIComponent(name)}/health`),
 
+  /** Unredacted config -- only ever called when the user clicks "Show" on a field still holding the redaction sentinel. */
+  getSecrets: (name: string): Promise<RtlAirbandConfig> => request(`/instances/${encodeURIComponent(name)}/secrets`),
+
   updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {
       method: "PUT",

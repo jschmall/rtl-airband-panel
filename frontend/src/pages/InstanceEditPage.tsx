@@ -9,6 +9,7 @@ import { GuardedLink } from "../components/GuardedLink.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep } from "../lib/keys.js";
+import { getValueAtPath } from "../lib/validation-path.js";
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
@@ -84,6 +85,17 @@ export function InstanceEditPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
+  // Only ever called from a PasswordInput's "Show" click on a field still holding
+  // the server's redaction placeholder -- fetches the unredacted config fresh
+  // each time rather than caching it, since revealing a secret should stay a
+  // deliberate, infrequent action (see backend `getSecrets`/`/secrets` route).
+  async function revealSecret(fieldPath: string): Promise<string> {
+    if (!name) return "";
+    const raw = await api.getSecrets(name);
+    const value = getValueAtPath(raw, fieldPath);
+    return typeof value === "string" ? value : "";
+  }
+
   async function handleSave(restart: boolean) {
     if (!name || !config || pendingAction) return;
     if (restart && !window.confirm(`Restart '${name}'? This applies the saved changes but interrupts live audio for a few seconds while it restarts.`)) {
@@ -152,7 +164,7 @@ export function InstanceEditPage() {
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>
       )}
 
-      <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} />
+      <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} onRevealSecret={revealSecret} />
 
       <div className="flex justify-end gap-3">
         <button

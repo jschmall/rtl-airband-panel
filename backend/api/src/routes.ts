@@ -48,6 +48,16 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return config;
   });
 
+  // Deliberately separate from GET /instances/:name (which always redacts) -- the
+  // frontend calls this only when the user clicks "Show" on a field still holding the
+  // redaction sentinel, so an explicit reveal stays a rare, auditable action rather
+  // than something a routine config fetch could leak.
+  app.get<{ Params: { name: string } }>("/instances/:name/secrets", async (request) => {
+    const config = await service.getSecrets(request.params.name);
+    auditLog(request, "reveal-secrets", request.params.name, "success");
+    return config;
+  });
+
   app.get<{ Params: { name: string } }>("/instances/:name/health", async (request) => {
     return service.getHealth(request.params.name);
   });

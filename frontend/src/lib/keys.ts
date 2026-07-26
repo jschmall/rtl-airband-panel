@@ -35,6 +35,22 @@ export function uiKeyOf(item: object, fallbackIndex: number): string | number {
   return (item as Record<symbol, unknown>)[UI_KEY] as string | undefined ?? fallbackIndex;
 }
 
+/**
+ * Carries a slot's identity key over onto a differently-shaped replacement
+ * value -- for a field whose editor swaps its whole value in place (e.g.
+ * OutputEditor's type dropdown, switching between a `default*Output()` or a
+ * remembered same-session value of the new type: both are fresh objects with
+ * their own, different identity key). Without this, the surrounding list's
+ * `key={uiKeyOf(...)}` would change too, and React would tear down and
+ * remount that slot's component -- silently resetting its own local state,
+ * including any "remember values per type" cache living inside it, which is
+ * exactly the feature this is usually called to protect.
+ */
+export function withSameUiKey<T extends object>(next: T, previousSlotValue: object): T {
+  (next as Record<symbol, unknown>)[UI_KEY] = (previousSlotValue as Record<symbol, unknown>)[UI_KEY] ?? `k${++counter}`;
+  return next;
+}
+
 /** Walks a value assigning identity keys to every plain object it finds (arrays and nested objects alike) that doesn't already have one -- used once, right after a config is fetched from the API, since nothing server-side knows about these keys. */
 export function assignUiKeysDeep<T>(value: T): T {
   if (Array.isArray(value)) {

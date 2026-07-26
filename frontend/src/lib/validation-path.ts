@@ -52,6 +52,28 @@ export function describeValidationPath(path: string, config: RtlAirbandConfig): 
   return parts.join(" → ");
 }
 
+/**
+ * Walks the same "$.devices[0].channels[3].outputs[0].password"-style path used
+ * elsewhere in this file, but returns the raw value at that path instead of a
+ * label -- used to pull a single revealed secret out of an unredacted config
+ * fetched on demand (see PasswordInput/OutputEditor).
+ */
+export function getValueAtPath(config: RtlAirbandConfig, path: string): unknown {
+  const body = path.replace(/^\$\.?/, "");
+  if (!body) return config;
+
+  let cursor: unknown = config;
+  for (const segment of body.split(".")) {
+    const match = /^([a-zA-Z_][a-zA-Z0-9_]*)(?:\[(\d+)\])?$/.exec(segment);
+    if (!match || cursor == null) return undefined;
+    const key = match[1]!;
+    const index = match[2] !== undefined ? Number(match[2]) : undefined;
+    const next = (cursor as Record<string, unknown>)[key];
+    cursor = index !== undefined ? (Array.isArray(next) ? next[index] : undefined) : next;
+  }
+  return cursor;
+}
+
 function describeItem(collectionKey: string, item: unknown, index: number): string {
   const obj = item as Record<string, unknown> | undefined;
   if (!obj) return `${collectionKey}[${index}]`;

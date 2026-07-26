@@ -25,6 +25,7 @@ import {
   defaultUdpStreamOutput,
 } from "../lib/defaults.js";
 import { pathStartsWith } from "../lib/validation-path.js";
+import { withSameUiKey } from "../lib/keys.js";
 
 interface OutputEditorProps {
   output: Output;
@@ -35,6 +36,8 @@ interface OutputEditorProps {
   excludeMixerType?: boolean;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
+  /** Resolves a "$.devices[0]....password"-style path to its real value -- see PasswordInput. */
+  onRevealSecret?: (fieldPath: string) => Promise<string>;
 }
 
 const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
@@ -46,8 +49,9 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   mixer: defaultMixerOutput,
 };
 
-export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeMixerType, pathPrefix, jumpTarget }: OutputEditorProps) {
+export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeMixerType, pathPrefix, jumpTarget, onRevealSecret }: OutputEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
+  const revealField = onRevealSecret ? (suffix: string) => () => onRevealSecret(`${pathPrefix}.${suffix}`) : undefined;
   // Remembers the last-edited values for each output type the user has visited in this
   // editing session, so switching the type dropdown away and back restores what was there
   // instead of resetting to defaults. Session-only (a ref, not part of the saved config) —
@@ -58,7 +62,11 @@ export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeM
   }, [output]);
 
   const handleTypeChange = (nextType: Output["type"]) => {
-    onChange(lastByType.current[nextType] ?? OUTPUT_TYPE_DEFAULTS[nextType]());
+    const next = lastByType.current[nextType] ?? OUTPUT_TYPE_DEFAULTS[nextType]();
+    // Keep this slot's own identity key -- otherwise the list above re-keys it to
+    // whatever key `next` happens to carry, React remounts this component fresh,
+    // and the very `lastByType` cache this line reads from resets to empty.
+    onChange(withSameUiKey(next, output));
   };
 
   return (
@@ -104,9 +112,9 @@ export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeM
       </div>
 
       {output.type === "pulse" && <PulseFields output={output} onChange={onChange} />}
-      {output.type === "file" && <FileFields output={output} onChange={onChange} />}
+      {output.type === "file" && <FileFields output={output} onChange={onChange} onRevealApiKey={revealField?.("rdio_scanner.api_key")} />}
       {output.type === "rawfile" && <RawFileFields output={output} onChange={onChange} />}
-      {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} />}
+      {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} onRevealPassword={revealField?.("password")} />}
       {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
       {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
     </Collapsible>
@@ -149,7 +157,15 @@ function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: 
   );
 }
 
-function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Output) => void }) {
+function FileFields({
+  output,
+  onChange,
+  onRevealApiKey,
+}: {
+  output: FileOutput;
+  onChange: (o: Output) => void;
+  onRevealApiKey?: () => Promise<string>;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
@@ -212,6 +228,7 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
           <RdioScannerFields
             config={output.rdio_scanner}
             onChange={(rdio_scanner) => onChange({ ...output, rdio_scanner })}
+            onRevealApiKey={onRevealApiKey}
           />
         )}
       </div>
@@ -219,7 +236,15 @@ function FileFields({ output, onChange }: { output: FileOutput; onChange: (o: Ou
   );
 }
 
-function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; onChange: (c: RdioScannerConfig) => void }) {
+function RdioScannerFields({
+  config,
+  onChange,
+  onRevealApiKey,
+}: {
+  config: RdioScannerConfig;
+  onChange: (c: RdioScannerConfig) => void;
+  onRevealApiKey?: () => Promise<string>;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <Field label="Server" tooltip={OUTPUT_TOOLTIPS.rdioScannerServer}>
@@ -234,7 +259,7 @@ function RdioScannerFields({ config, onChange }: { config: RdioScannerConfig; on
         />
       </Field>
       <Field label="API key" tooltip={OUTPUT_TOOLTIPS.rdioScannerApiKey}>
-        <PasswordInput value={config.api_key} onChange={(v) => onChange({ ...config, api_key: v })} />
+        <PasswordInput value={config.api_key} onChange={(v) => onChange({ ...config, api_key: v })} onReveal={onRevealApiKey} />
       </Field>
       <Field label="Talkgroup ID" tooltip={OUTPUT_TOOLTIPS.rdioScannerTalkgroupId}>
         <input
@@ -354,7 +379,15 @@ function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: 
 
 const TLS_OPTIONS = ["", "auto", "auto_no_plain", "transport", "upgrade", "disabled"] as const;
 
-function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: (o: Output) => void }) {
+function IcecastFields({
+  output,
+  onChange,
+  onRevealPassword,
+}: {
+  output: IcecastOutput;
+  onChange: (o: Output) => void;
+  onRevealPassword?: () => Promise<string>;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <Field label="Server" tooltip={OUTPUT_TOOLTIPS.icecastServer}>
@@ -379,7 +412,7 @@ function IcecastFields({ output, onChange }: { output: IcecastOutput; onChange: 
         <input className={inputClass} value={output.username} onChange={(e) => onChange({ ...output, username: e.target.value })} />
       </Field>
       <Field label="Password" tooltip={OUTPUT_TOOLTIPS.password}>
-        <PasswordInput value={output.password} onChange={(v) => onChange({ ...output, password: v })} />
+        <PasswordInput value={output.password} onChange={(v) => onChange({ ...output, password: v })} onReveal={onRevealPassword} />
       </Field>
       <Field label="Name (optional)" tooltip={OUTPUT_TOOLTIPS.icecastName}>
         <input

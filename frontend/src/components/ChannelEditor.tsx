@@ -17,9 +17,10 @@ interface ChannelEditorProps {
   onDuplicate: () => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
+  onRevealSecret?: (fieldPath: string) => Promise<string>;
 }
 
-export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget }: ChannelEditorProps) {
+export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: ChannelEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   return (
     <Collapsible
@@ -189,6 +190,7 @@ export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPr
             onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
+            onRevealSecret={onRevealSecret}
           />
         ))}
       </div>

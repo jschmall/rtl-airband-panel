@@ -14,9 +14,10 @@ interface ConfigEditorProps {
   onChange: (config: RtlAirbandConfig) => void;
   /** A validation issue the user clicked, to auto-expand and scroll to. See InstanceEditPage. */
   jumpTarget?: { path: string; nonce: number } | null;
+  onRevealSecret?: (fieldPath: string) => Promise<string>;
 }
 
-export function ConfigEditor({ config, onChange, jumpTarget }: ConfigEditorProps) {
+export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: ConfigEditorProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
@@ -103,6 +104,7 @@ export function ConfigEditor({ config, onChange, jumpTarget }: ConfigEditorProps
             onDuplicate={() => onChange({ ...config, devices: duplicateAt(config.devices, i, cloneWithNewUiKeys) })}
             pathPrefix={`$.devices[${i}]`}
             jumpTarget={jumpTarget}
+            onRevealSecret={onRevealSecret}
           />
         ))}
       </div>
@@ -130,6 +132,7 @@ export function ConfigEditor({ config, onChange, jumpTarget }: ConfigEditorProps
             onDuplicate={() => onChange({ ...config, mixers: duplicateAt(config.mixers ?? [], i, (m) => ({ ...cloneWithNewUiKeys(m), name: "" })) })}
             pathPrefix={`$.mixers[${i}]`}
             jumpTarget={jumpTarget}
+            onRevealSecret={onRevealSecret}
           />
         ))}
       </div>
