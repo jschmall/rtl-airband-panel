@@ -17,48 +17,46 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-        <div className="space-y-3">
-          <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
-            <input
-              className={inputClass}
-              value={config.stats_filepath}
-              onChange={(e) => onChange({ ...config, stats_filepath: e.target.value })}
-            />
-          </Field>
-          <Field label="FFT size (optional, power of two 256-8192)" tooltip={GLOBAL_TOOLTIPS.fftSize}>
-            <input
-              type="number"
-              className={inputClass}
-              value={config.fft_size ?? ""}
-              onChange={(e) => onChange({ ...config, fft_size: e.target.value === "" ? undefined : Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="PID file (optional, default /run/rtl_airband.pid)" tooltip={GLOBAL_TOOLTIPS.pidfile}>
-            <input
-              className={inputClass}
-              value={config.pidfile ?? ""}
-              onChange={(e) => onChange({ ...config, pidfile: e.target.value || undefined })}
-            />
-          </Field>
-          <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)" tooltip={GLOBAL_TOOLTIPS.shoutMetadataDelay}>
-            <input
-              type="number"
-              min="0"
-              max="32"
-              className={inputClass}
-              value={config.shout_metadata_delay ?? ""}
-              onChange={(e) => onChange({ ...config, shout_metadata_delay: numberOrUndefined(e.target.value) })}
-            />
-          </Field>
-          <Field label="Tau, µs (optional; global NFM deemphasis, default 200)" tooltip={GLOBAL_TOOLTIPS.tau}>
-            <input
-              type="number"
-              className={inputClass}
-              value={config.tau ?? ""}
-              onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
-            />
-          </Field>
-        </div>
+        <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
+          <input
+            className={inputClass}
+            value={config.stats_filepath}
+            onChange={(e) => onChange({ ...config, stats_filepath: e.target.value })}
+          />
+        </Field>
+        <Field label="FFT size (optional, power of two 256-8192)" tooltip={GLOBAL_TOOLTIPS.fftSize}>
+          <input
+            type="number"
+            className={inputClass}
+            value={config.fft_size ?? ""}
+            onChange={(e) => onChange({ ...config, fft_size: e.target.value === "" ? undefined : Number(e.target.value) })}
+          />
+        </Field>
+        <Field label="PID file (optional, default /run/rtl_airband.pid)" tooltip={GLOBAL_TOOLTIPS.pidfile}>
+          <input
+            className={inputClass}
+            value={config.pidfile ?? ""}
+            onChange={(e) => onChange({ ...config, pidfile: e.target.value || undefined })}
+          />
+        </Field>
+        <Field label="Shout metadata delay, seconds (optional, 0-32, default 3)" tooltip={GLOBAL_TOOLTIPS.shoutMetadataDelay}>
+          <input
+            type="number"
+            min="0"
+            max="32"
+            className={inputClass}
+            value={config.shout_metadata_delay ?? ""}
+            onChange={(e) => onChange({ ...config, shout_metadata_delay: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
+        <Field label="Tau, µs (optional; global NFM deemphasis, default 200)" tooltip={GLOBAL_TOOLTIPS.tau}>
+          <input
+            type="number"
+            className={inputClass}
+            value={config.tau ?? ""}
+            onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
         <div className="flex flex-col justify-end gap-2">
           <BoolField
             label="Multiple demod threads"

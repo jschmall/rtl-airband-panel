@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.9] - 2026-07-26
+
+### Fixed
+
+- **Top-level config checkbox grouping.** v0.4.8 grouped the four
+  top-level checkboxes into their own column, but that column sat
+  entirely below the 5-field text column rather than beside it, since
+  the fields and checkboxes were two separate stacks in a 2-column grid
+  instead of one shared grid. Flattened them into a single `grid-cols-2`
+  so the fields fill left-to-right/top-to-bottom (Stats, FFT / PID,
+  Shout / Tau, checkboxes), landing the checkbox group in the
+  bottom-right cell next to Tau as intended.
+
 ## [0.4.8] - 2026-07-26
 
 ### Added
