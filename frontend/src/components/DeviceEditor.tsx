@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Channel, Device, MultichannelChannel, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -5,7 +6,7 @@ import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, removeAt, updateAt } from "../lib/array-utils.js";
-import { channelsForMode, defaultChannel, defaultScanChannel, deviceForMode, deviceForType } from "../lib/defaults.js";
+import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 
@@ -42,6 +43,16 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
   const isRtl = device.type === "rtlsdr";
   const isScan = device.mode === "scan";
 
+  // Remembers the last-edited device state for each Type and each Mode visited in this
+  // editing session, so flipping either dropdown away and back restores what was there
+  // instead of resetting to defaults. Session-only (a ref, not part of the saved config).
+  const lastByType = useRef<Partial<Record<string, Device>>>({});
+  const lastByMode = useRef<Partial<Record<"multichannel" | "scan", Device>>>({});
+  useEffect(() => {
+    lastByType.current[device.type] = device;
+    lastByMode.current[device.mode === "scan" ? "scan" : "multichannel"] = device;
+  }, [device]);
+
   return (
     <Collapsible
       className="rounded-lg border border-slate-700 bg-slate-900 p-4"
@@ -69,7 +80,11 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
     >
       <div className="grid grid-cols-3 gap-2">
         <Field label="Type" tooltip={DEVICE_TOOLTIPS.type}>
-          <select className={inputClass} value={device.type} onChange={(e) => onChange(deviceForType(device, e.target.value))}>
+          <select
+            className={inputClass}
+            value={device.type}
+            onChange={(e) => onChange(restoreTypeFields(device, lastByType.current[e.target.value], e.target.value))}
+          >
             {DEVICE_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -83,7 +98,8 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
             value={device.mode ?? ""}
             onChange={(e) => {
               const mode = (e.target.value || undefined) as Device["mode"];
-              onChange({ ...deviceForMode(device, mode), mode, channels: channelsForMode(device.channels, mode) });
+              const modeKey = mode === "scan" ? "scan" : "multichannel";
+              onChange(restoreModeFields(device, lastByMode.current[modeKey], mode));
             }}
           >
             <option value="">(default: multichannel)</option>

@@ -105,6 +105,40 @@ export function deviceForMode(device: Device, newMode: Device["mode"]): Device {
   return next;
 }
 
+/**
+ * Like `deviceForType`, but layers back in whatever type-specific field
+ * values (serial/index/buffers/etc.) were last seen for `newType`, if the
+ * caller has a cached snapshot from earlier in the same editing session —
+ * so flipping the Type dropdown away and back doesn't retype everything.
+ * `cached` is expected to already be scoped to `newType` (see DeviceEditor's
+ * per-type ref); other fields (mode, channels, gain, ...) come from the
+ * freshly-stripped `device`, not from `cached`, so this only restores what
+ * the Type control itself is responsible for.
+ */
+export function restoreTypeFields(device: Device, cached: Device | undefined, newType: string): Device {
+  const stripped = deviceForType(device, newType);
+  if (!cached) return stripped;
+  const restored: Device = { ...stripped };
+  for (const field of FIELDS_BY_TYPE[newType] ?? []) {
+    const value = cached[field];
+    if (value !== undefined) restored[field] = value as never;
+  }
+  return restored;
+}
+
+/**
+ * Like the `deviceForMode`/`channelsForMode` pair, but restores the
+ * previous `channels`/`centerfreq` from a cached snapshot for `newMode`
+ * instead of rebuilding defaults, if the caller has one from earlier in the
+ * same editing session — so flipping the Mode dropdown away and back
+ * doesn't lose previously entered channels.
+ */
+export function restoreModeFields(device: Device, cached: Device | undefined, newMode: Device["mode"]): Device {
+  const baseline: Device = { ...deviceForMode(device, newMode), mode: newMode, channels: channelsForMode(device.channels, newMode) };
+  if (!cached) return baseline;
+  return { ...baseline, channels: cached.channels, centerfreq: cached.centerfreq };
+}
+
 export function defaultDevice(): Device {
   return {
     type: "rtlsdr",

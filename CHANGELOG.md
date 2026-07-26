@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.12] - 2026-07-26
+
+### Added
+
+- **Device Type/Mode switching no longer discards unsaved values.**
+  Extends v0.4.11's per-output-type session cache to the two other
+  destructive dropdowns in the editor:
+  - **Type** (rtlsdr/mirisdr/soapysdr): switching away used to
+    immediately drop type-specific fields (serial/index/buffers,
+    device_string/channel/antenna) that don't apply to the new type —
+    correct once you actually commit to that type, but previously
+    permanent even if you switched right back. `DeviceEditor` now
+    restores those fields from a cached snapshot when returning to a
+    previously-visited type.
+  - **Mode** (multichannel/scan): switching used to replace the whole
+    `channels` array (and drop `centerfreq`) with that mode's defaults.
+    Now restores the previous `channels`/`centerfreq` when switching
+    back to a previously-visited mode.
+
+  Both caches are session-local (component refs, not part of the saved
+  config) and scoped per device — same model as the output-type cache,
+  and independent of it, so switching Type doesn't disturb Mode/channels
+  or vice versa.
+
 ## [0.4.11] - 2026-07-26
 
 ### Added
