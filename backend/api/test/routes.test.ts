@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { CommandError } from "../src/systemd/run-command.js";
 import { buildHarness, FIXTURE_INSTANCE_NAME, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
 let h: TestHarness;
@@ -97,6 +98,54 @@ describe("GET /instances/:name", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.devices[0].channels[0].outputs[0].password).not.toBe("hunter2");
+  });
+
+  it("sets an ETag header identifying the current config version", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}` });
+    expect(res.headers["etag"]).toBeDefined();
+    expect(typeof res.headers["etag"]).toBe("string");
+  });
+});
+
+describe("PUT /instances/:name optimistic concurrency (If-Match)", () => {
+  it("saves normally when If-Match isn't sent at all", async () => {
+    await seedFixture(h.instancesDir);
+    const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const res = await app.inject({ method: "PUT", url: `/api/instances/${FIXTURE_INSTANCE_NAME}`, payload: config });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("saves when If-Match matches the current ETag", async () => {
+    await seedFixture(h.instancesDir);
+    const getRes = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}` });
+    const config = getRes.json();
+
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}`,
+      headers: { "if-match": getRes.headers["etag"] as string },
+      payload: config,
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("409s when If-Match is stale — the config changed on disk since it was fetched", async () => {
+    await seedFixture(h.instancesDir);
+    const getRes = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}` });
+    const staleEtag = getRes.headers["etag"] as string;
+    const config = getRes.json();
+
+    // Someone else (or another tab) saves first, moving the on-disk version on.
+    await app.inject({ method: "PUT", url: `/api/instances/${FIXTURE_INSTANCE_NAME}`, payload: config });
+
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}`,
+      headers: { "if-match": staleEtag },
+      payload: { ...config, tau: 250 },
+    });
+    expect(res.statusCode).toBe(409);
   });
 });
 
@@ -230,6 +279,17 @@ describe("POST /instances/:name/restart", () => {
     const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/restart` });
     expect(res.statusCode).toBe(200);
     expect(h.systemd.calls).toEqual([`restart ${FIXTURE_INSTANCE_NAME}.service`, `status ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
+
+  it("maps a failed systemctl invocation to a 502 with exit code and stderr, not a generic 500", async () => {
+    await seedFixture(h.instancesDir);
+    h.systemd.restart = async () => {
+      throw new CommandError("systemctl", ["restart", `${FIXTURE_INSTANCE_NAME}.service`], 1, "Unit not found.");
+    };
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/restart` });
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toMatchObject({ exitCode: 1, stderr: "Unit not found." });
   });
 });
 

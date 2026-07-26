@@ -86,6 +86,22 @@ describe("StatsPoller.pollOnce", () => {
     expect(errors.map((e) => e.instance)).toEqual(["rtl_bad"]);
   });
 
+  it("refuses to read a stats file over the size cap, reporting via onError instead of reading it in", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    // Comfortably over the 5 MB cap; a real RTLSDR-Airband stats snapshot is a few KB.
+    await writeFile(statsPath, "x".repeat(6 * 1024 * 1024), "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_huge", statsPath);
+
+    const errors: Array<{ instance: string }> = [];
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 }, (instance) =>
+      errors.push({ instance })
+    );
+    await poller.pollOnce();
+
+    expect(errors.map((e) => e.instance)).toEqual(["rtl_huge"]);
+    expect(statsStore.latest("rtl_huge")).toEqual([]);
+  });
+
   it("prunes on every poll cycle", async () => {
     const statsPath = path.join(h.instancesDir, "stats.txt");
     await writeFile(statsPath, STATS_TEXT, "utf8");
@@ -96,6 +112,33 @@ describe("StatsPoller.pollOnce", () => {
     await poller.pollOnce();
 
     expect(statsStore.history("rtl_x", { metric: "old" })).toEqual([]);
+  });
+
+  it("reports a prune failure via onError instead of rejecting the whole poll (e.g. DB closed mid-cycle during shutdown)", async () => {
+    statsStore.close();
+
+    const errors: Array<{ instance: string }> = [];
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 }, (instance) => errors.push({ instance }));
+
+    await expect(poller.pollOnce()).resolves.toBeUndefined();
+    expect(errors.map((e) => e.instance)).toContain("<prune>");
+  });
+});
+
+describe("StatsPoller.stop", () => {
+  it("waits for an in-flight poll to finish before resolving, so it's safe to close the DB right after", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 });
+    poller.start();
+    await poller.stop();
+
+    // If stop() had returned before the in-flight pollOnce() actually finished,
+    // closing here could race a still-running insertBatch/prune call against
+    // an already-closed DB handle.
+    expect(() => statsStore.close()).not.toThrow();
   });
 });
 

@@ -93,8 +93,12 @@ app.listen({ port: config.port, host: config.host }).catch((err) => {
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
-    poller.stop();
-    statsStore.close();
-    void app.close().finally(() => process.exit(0));
+    void (async () => {
+      // Wait for any in-flight poll to finish before closing the DB it writes to.
+      await poller.stop();
+      statsStore.close();
+      await app.close();
+      process.exit(0);
+    })();
   });
 }

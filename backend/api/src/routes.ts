@@ -14,8 +14,10 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
 
   app.get("/instances", async () => service.listInstances());
 
-  app.get<{ Params: { name: string } }>("/instances/:name", async (request) => {
-    return service.getConfig(request.params.name);
+  app.get<{ Params: { name: string } }>("/instances/:name", async (request, reply) => {
+    const { config, version } = await service.getConfigWithVersion(request.params.name);
+    reply.header("etag", version);
+    return config;
   });
 
   app.get<{ Params: { name: string } }>("/instances/:name/health", async (request) => {
@@ -28,7 +30,9 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     async (request) => {
       const config = parseRtlAirbandConfigBody(request.body);
       const restart = request.query.restart !== "false";
-      return service.updateConfig(request.params.name, config, { restart });
+      const ifMatchHeader = request.headers["if-match"];
+      const ifMatch = typeof ifMatchHeader === "string" ? { ifMatch: ifMatchHeader } : {};
+      return service.updateConfig(request.params.name, config, { restart, ...ifMatch });
     }
   );
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import { InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "../src/instance-service.js";
+import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "../src/instance-service.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
 import { buildHarness, FIXTURE_INSTANCE_NAME, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
@@ -121,6 +121,59 @@ describe("updateConfig", () => {
     const written = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
     expect(written).toEqual(config);
   });
+
+  it("leaves the instance marked pending-restart if the restart itself fails, instead of silently reporting in-sync", async () => {
+    await seedFixture(h.instancesDir);
+    h.systemd.restart = async () => {
+      throw new Error("simulated restart failure");
+    };
+
+    await expect(h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig())).rejects.toThrow("simulated restart failure");
+
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+    const [summary] = await h.service.listInstances();
+    expect(summary!.pendingRestart).toBe(true);
+  });
+});
+
+describe("updateConfig optimistic concurrency (ifMatch)", () => {
+  it("succeeds when ifMatch matches the current on-disk version", async () => {
+    await seedFixture(h.instancesDir);
+    const { version } = await h.service.getConfigWithVersion(FIXTURE_INSTANCE_NAME);
+
+    await expect(h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig(), { ifMatch: version })).resolves.toMatchObject({
+      status: { activeState: "active" },
+    });
+  });
+
+  it("rejects with ConfigConflictError when ifMatch is stale (someone else saved first)", async () => {
+    await seedFixture(h.instancesDir);
+    const { version: staleVersion } = await h.service.getConfigWithVersion(FIXTURE_INSTANCE_NAME);
+
+    // A second "tab" saves first, moving the on-disk version on.
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    await expect(h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig({ tau: 250 }), { ifMatch: staleVersion })).rejects.toBeInstanceOf(
+      ConfigConflictError
+    );
+  });
+
+  it("skips the check entirely when ifMatch is omitted (last-write-wins, unchanged default behavior)", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    await expect(h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig({ tau: 250 }))).resolves.toMatchObject({
+      status: { activeState: "active" },
+    });
+  });
+
+  it("returns a new version after each successful write, usable as the next ifMatch", async () => {
+    await seedFixture(h.instancesDir);
+    const first = await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig());
+    const second = await h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig({ tau: 250 }), { ifMatch: first.version });
+
+    expect(second.version).not.toBe(first.version);
+  });
 });
 
 describe("updateConfig secret redaction round-trip", () => {
@@ -223,6 +276,17 @@ describe("createInstance", () => {
 
     await expect(h.service.createInstance("rtl_100000", minimalConfig())).rejects.toThrow("simulated systemd failure");
     expect(await h.service.listInstances()).toEqual([]);
+  });
+
+  it("also rolls back an already-installed unit file if a later step (daemon-reload/enable/start) fails", async () => {
+    h.systemd.daemonReload = async () => {
+      throw new Error("simulated daemon-reload failure");
+    };
+
+    await expect(h.service.createInstance("rtl_100000", minimalConfig())).rejects.toThrow("simulated daemon-reload failure");
+    expect(await h.service.listInstances()).toEqual([]);
+    // Previously left an orphaned unit file referencing the just-deleted conf.
+    expect(h.systemd.unitFiles.has("rtl_100000.service")).toBe(false);
   });
 });
 

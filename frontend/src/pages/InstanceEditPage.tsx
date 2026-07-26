@@ -11,6 +11,7 @@ export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
   const { refresh: refreshInstanceList } = useInstanceList();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
+  const [version, setVersion] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
@@ -21,7 +22,10 @@ export function InstanceEditPage() {
     if (!name) return;
     api
       .getConfig(name)
-      .then(setConfig)
+      .then(({ config, version }) => {
+        setConfig(config);
+        setVersion(version);
+      })
       .catch((err: unknown) => setLoadError(err instanceof ApiError ? err.message : "Failed to load config"));
   }, [name]);
 
@@ -34,8 +38,9 @@ export function InstanceEditPage() {
     setErrors([]);
     setSavedMessage(null);
     try {
-      const result = await api.updateConfig(name, config, { restart });
+      const result = await api.updateConfig(name, config, { restart, ifMatch: version ?? undefined });
       setWarnings(result.warnings);
+      setVersion(result.version);
       setSavedMessage(
         restart
           ? `Saved and restarted ${name}.service (${result.status.activeState}).`
@@ -45,6 +50,15 @@ export function InstanceEditPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
         setErrors(err.body.errors);
+      } else if (err instanceof ApiError && err.status === 409) {
+        setErrors([
+          {
+            severity: "error",
+            code: "conflict",
+            path: "$",
+            message: `${err.message}. Your unsaved edits are still here below — reload the page to see the latest version, then re-apply them before saving.`,
+          },
+        ]);
       } else {
         setErrors([
           {

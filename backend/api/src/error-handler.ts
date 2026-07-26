@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "./instance-service.js";
+import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, ValidationFailedError } from "./instance-service.js";
 import { ShapeValidationError } from "./config-shape.js";
 import { InvalidInstanceNameError } from "./instance-name.js";
+import { CommandError } from "./systemd/run-command.js";
 
 export function installErrorHandler(app: FastifyInstance): void {
   // Fastify 5's setErrorHandler defaults its error generic to `unknown`
@@ -13,7 +14,7 @@ export function installErrorHandler(app: FastifyInstance): void {
       reply.code(404).send({ error: err.message });
       return;
     }
-    if (err instanceof InstanceAlreadyExistsError) {
+    if (err instanceof InstanceAlreadyExistsError || err instanceof ConfigConflictError) {
       reply.code(409).send({ error: err.message });
       return;
     }
@@ -23,6 +24,16 @@ export function installErrorHandler(app: FastifyInstance): void {
     }
     if (err instanceof ShapeValidationError || err instanceof InvalidInstanceNameError) {
       reply.code(400).send({ error: err.message });
+      return;
+    }
+    // A failed systemd/sudo invocation (unit busy, device unplugged, permission
+    // denied, ...) is a routine operational occurrence, not a bug in this
+    // service — surface exit code and stderr instead of lumping it in with the
+    // generic 500 below, which gave callers zero way to tell "systemctl failed"
+    // apart from "this server has a bug".
+    if (err instanceof CommandError) {
+      request.log.warn(err);
+      reply.code(502).send({ error: err.message, exitCode: err.exitCode, stderr: err.stderr });
       return;
     }
     // Fastify's own errors (malformed JSON, bad content-type, etc.) already

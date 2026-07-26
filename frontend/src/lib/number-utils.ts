@@ -1,5 +1,8 @@
+/** Empty or unparseable (e.g. pasted non-numeric text) both become undefined, rather than letting a stray NaN into the saved config. */
 export function numberOrUndefined(value: string): number | undefined {
-  return value === "" ? undefined : Number(value);
+  if (value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 /**
@@ -7,14 +10,16 @@ export function numberOrUndefined(value: string): number | undefined {
  * as either a single scalar (applied to every scanned frequency) or a list
  * with one entry per frequency, e.g. `squelch_threshold = ( -30, -25, 0 );`.
  * A single entry with no comma round-trips as a scalar, not a one-item list.
+ * Entries that don't parse to a finite number (a typo, e.g. "100000, abc") are
+ * dropped rather than saved as NaN, which would corrupt the written config.
  */
 export function parseNumberOrList(text: string): number | number[] | undefined {
   const parts = text
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s !== "");
-  if (parts.length === 0) return undefined;
-  const numbers = parts.map(Number);
+  const numbers = parts.map(Number).filter(Number.isFinite);
+  if (numbers.length === 0) return undefined;
   return numbers.length === 1 ? numbers[0] : numbers;
 }
 
@@ -23,13 +28,14 @@ export function formatNumberOrList(value: number | number[] | undefined): string
   return Array.isArray(value) ? value.join(", ") : String(value);
 }
 
-/** Parses a required comma-separated list of numbers, e.g. scan-mode `freqs`. */
+/** Parses a required comma-separated list of numbers, e.g. scan-mode `freqs`. Unparseable entries are dropped rather than saved as NaN. */
 export function parseNumberList(text: string): number[] {
   return text
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s !== "")
-    .map(Number);
+    .map(Number)
+    .filter(Number.isFinite);
 }
 
 export function formatNumberList(values: number[]): string {

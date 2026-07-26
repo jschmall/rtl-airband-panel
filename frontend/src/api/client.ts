@@ -20,6 +20,14 @@ export interface UnitStatus {
 export interface WriteResult {
   warnings: ValidationIssue[];
   status: UnitStatus;
+  /** The written config's new version — pass as `ifMatch` on the next updateConfig call. */
+  version: string;
+}
+
+export interface ConfigWithVersion {
+  config: RtlAirbandConfig;
+  /** Identifies this exact on-disk content; null if the server didn't send one (e.g. an older server). Pass to updateConfig's `ifMatch` to detect a conflicting edit. */
+  version: string | null;
 }
 
 export interface StatSample {
@@ -57,7 +65,7 @@ export class ApiError extends Error {
 
 const API_BASE = "/api";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestRaw(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: init?.body !== undefined ? { "Content-Type": "application/json", ...init.headers } : init?.headers,
@@ -66,6 +74,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body: ApiErrorBody = await res.json().catch(() => ({ error: res.statusText }));
     throw new ApiError(res.status, body);
   }
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await requestRaw(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -73,14 +86,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   listInstances: (): Promise<InstanceSummary[]> => request("/instances"),
 
-  getConfig: (name: string): Promise<RtlAirbandConfig> => request(`/instances/${encodeURIComponent(name)}`),
+  getConfig: async (name: string): Promise<ConfigWithVersion> => {
+    const res = await requestRaw(`/instances/${encodeURIComponent(name)}`);
+    return { config: (await res.json()) as RtlAirbandConfig, version: res.headers.get("etag") };
+  },
 
   getHealth: (name: string): Promise<UnitStatus> => request(`/instances/${encodeURIComponent(name)}/health`),
 
-  updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean } = {}): Promise<WriteResult> =>
+  updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {
       method: "PUT",
       body: JSON.stringify(config),
+      headers: options.ifMatch !== undefined ? { "If-Match": options.ifMatch } : undefined,
     }),
 
   createInstance: (name: string, config: RtlAirbandConfig): Promise<WriteResult> =>

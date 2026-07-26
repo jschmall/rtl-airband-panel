@@ -28,6 +28,13 @@ export class ValidationFailedError extends Error {
   }
 }
 
+export class ConfigConflictError extends Error {
+  constructor(name: string) {
+    super(`'${name}' was changed on disk since this copy was loaded — reload it and re-apply your edits before saving again`);
+    this.name = "ConfigConflictError";
+  }
+}
+
 export interface InstanceSummary {
   name: string;
   confPath: string;
@@ -39,6 +46,8 @@ export interface InstanceSummary {
 export interface WriteResult {
   warnings: ValidationIssue[];
   status: UnitStatus;
+  /** The written config's new version identifier — pass as `ifMatch` on the next updateConfig call to detect a conflicting edit. */
+  version: string;
 }
 
 export interface InstanceServiceOptions {
@@ -73,8 +82,14 @@ export class InstanceService {
   }
 
   async getConfig(name: string): Promise<RtlAirbandConfig> {
+    return (await this.getConfigWithVersion(name)).config;
+  }
+
+  /** Like `getConfig`, but also returns a version identifier for optimistic concurrency — see `updateConfig`'s `ifMatch` option. */
+  async getConfigWithVersion(name: string): Promise<{ config: RtlAirbandConfig; version: string }> {
     await this.requireExists(name);
-    return redactSecrets(await this.configStore.read(name));
+    const { config, version } = await this.configStore.readWithVersion(name);
+    return { config: redactSecrets(config), version };
   }
 
   async getHealth(name: string): Promise<UnitStatus> {
@@ -88,25 +103,38 @@ export class InstanceService {
    * conf file is written but the running process (if any) keeps running on
    * its old, in-memory config until an explicit restart. RTLSDR-Airband has
    * no live-reload, so a write-only save never takes effect on its own.
+   *
+   * If `ifMatch` is passed (the `version` from a prior getConfigWithVersion/
+   * updateConfig call), this throws ConfigConflictError instead of writing
+   * when the on-disk config has changed since — e.g. two browser tabs, or two
+   * people, editing the same instance. Omitting it skips the check entirely
+   * (last-write-wins, the previous behavior), so existing callers are
+   * unaffected until they opt in.
    */
-  async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean } = {}): Promise<WriteResult> {
+  async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> {
     const restart = options.restart ?? true;
     await this.requireExists(name);
-    const existing = await this.configStore.read(name);
+    const { config: existing, version } = await this.configStore.readWithVersion(name);
+    if (options.ifMatch !== undefined && options.ifMatch !== version) {
+      throw new ConfigConflictError(name);
+    }
     const restored = restoreSecrets(config, existing);
     const { errors, warnings } = validateConfig(restored);
     if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    await this.configStore.write(name, restored);
+    const newVersion = await this.configStore.write(name, restored);
     const unit = unitFileName(name);
+    // Marked as pending the moment the file is written, regardless of whether the
+    // restart below succeeds — a failed restart still leaves the on-disk config
+    // ahead of whatever the running process has loaded, so "pending" must already
+    // be true before we find out whether restart() throws, not only if it doesn't.
+    await this.pendingRestartStore.mark(name);
     if (restart) {
       await this.systemd.restart(unit);
       await this.pendingRestartStore.clear(name);
-    } else {
-      await this.pendingRestartStore.mark(name);
     }
     const status = await this.systemd.status(unit);
-    return { warnings, status };
+    return { warnings, status, version: newVersion };
   }
 
   async restartInstance(name: string): Promise<UnitStatus> {
@@ -126,7 +154,7 @@ export class InstanceService {
     const { errors, warnings } = validateConfig(restored);
     if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    await this.configStore.write(name, restored);
+    const version = await this.configStore.write(name, restored);
     const unit = unitFileName(name);
     const unitContents = renderUnitFile({
       description: `RTLSDR-Airband instance: ${name}`,
@@ -140,12 +168,18 @@ export class InstanceService {
       await this.systemd.enable(unit);
       await this.systemd.start(unit);
     } catch (err) {
+      // Mirrors renameInstance's rollback: undo whichever of the steps above
+      // actually happened, not just the conf file — a failure after
+      // installUnitFile succeeds (daemonReload/enable/start) used to leave an
+      // orphaned unit file on disk referencing a .conf that was just deleted.
       await this.configStore.remove(name).catch(() => undefined);
+      await this.systemd.removeUnitFile(unit).catch(() => undefined);
+      await this.systemd.daemonReload().catch(() => undefined);
       throw err;
     }
 
     const status = await this.systemd.status(unit);
-    return { warnings, status };
+    return { warnings, status, version };
   }
 
   /**
@@ -160,11 +194,12 @@ export class InstanceService {
     await this.requireExists(oldName);
 
     if (newName === oldName) {
-      return { warnings: [], status: await this.systemd.status(unitFileName(oldName)) };
+      const { version } = await this.configStore.readWithVersion(oldName);
+      return { warnings: [], status: await this.systemd.status(unitFileName(oldName)), version };
     }
     if (await this.configStore.exists(newName)) throw new InstanceAlreadyExistsError(newName);
 
-    const config = await this.configStore.read(oldName);
+    const { config } = await this.configStore.readWithVersion(oldName);
     const oldUnit = unitFileName(oldName);
     const newUnit = unitFileName(newName);
     const newUnitContents = renderUnitFile({
@@ -175,8 +210,9 @@ export class InstanceService {
 
     await this.systemd.stop(oldUnit);
 
+    let version: string;
     try {
-      await this.configStore.write(newName, config);
+      version = await this.configStore.write(newName, config);
       await this.systemd.installUnitFile(newUnit, newUnitContents);
       await this.systemd.daemonReload();
       await this.systemd.enable(newUnit);
@@ -198,7 +234,7 @@ export class InstanceService {
     await this.pendingRestartStore.clear(oldName);
 
     const status = await this.systemd.status(newUnit);
-    return { warnings: [], status };
+    return { warnings: [], status, version };
   }
 
   /** Stops, disables, and removes both the unit file and the conf file. */

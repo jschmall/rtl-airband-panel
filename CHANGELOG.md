@@ -5,6 +5,49 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.14] - 2026-07-26
+
+### Added
+
+- **Optimistic concurrency control on config saves.** `GET /instances/:name`
+  now returns an `ETag` header identifying the exact on-disk content; `PUT`
+  accepts a matching `If-Match` header and rejects with 409 (new
+  `ConfigConflictError`) if the config changed on disk since it was fetched
+  — two browser tabs, or two people, editing the same instance no longer
+  silently last-write-wins. The frontend now sends this automatically and
+  shows a clear message (with the user's unsaved edits still in the form)
+  when a save is rejected this way. Omitting `If-Match` skips the check
+  entirely, so any existing API client that doesn't send it keeps the old
+  behavior.
+- **Stats file reads are now bounded.** `stats_filepath` is fully
+  operator/API-controlled with no restriction on what it points at; the
+  poller now refuses anything over 5MB (a real snapshot is a few KB) and
+  times out a read after 5s, so one instance's bad or malicious
+  `stats_filepath` can no longer stall or balloon memory for the whole poll
+  cycle.
+
+### Fixed
+
+- **A failed restart no longer leaves an instance silently reported as
+  in-sync.** `updateConfig` now marks the instance pending-restart as soon
+  as the file is written, before attempting the restart — previously a
+  restart failure skipped that bookkeeping entirely, so the file and the
+  running process could silently diverge with the UI still showing "no
+  pending changes."
+- **A failed systemd/sudo call now surfaces as a 502 with exit code and
+  stderr**, not a generic 500 — this is a routine operational occurrence
+  (unit busy, device unplugged, permission denied), not a server bug.
+- **`createInstance` now fully rolls back an already-installed unit file**
+  if a later step (daemon-reload/enable/start) fails, instead of leaving an
+  orphaned unit file referencing a just-deleted `.conf` — mirrors
+  `renameInstance`'s more careful rollback, which didn't have this gap.
+- **Fixed a shutdown race** between the stats poller and closing the stats
+  DB: `poller.stop()` now waits for any in-flight poll to finish, and a
+  `prune()` failure is caught instead of becoming an unhandled rejection.
+- **Comma-list numeric fields (e.g. scan-mode frequencies) no longer let a
+  typo silently save as `NaN`** — unparseable entries are dropped instead of
+  passed through.
+
 ## [0.4.13] - 2026-07-26
 
 ### Added
