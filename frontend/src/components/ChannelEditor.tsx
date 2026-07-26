@@ -75,6 +75,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
           <input
             type="number"
             step="0.1"
+            min="0"
             className={inputClass}
             value={channel.ampfactor ?? ""}
             onChange={(e) => onChange({ ...channel, ampfactor: numberOrUndefined(e.target.value) })}
@@ -109,6 +110,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
         <Field label="Squelch threshold, dBFS (optional; mutually exclusive with SNR threshold in practice)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
           <input
             type="number"
+            max="0"
             className={inputClass}
             value={channel.squelch_threshold ?? ""}
             onChange={(e) => onChange({ ...channel, squelch_threshold: numberOrUndefined(e.target.value) })}
@@ -125,6 +127,7 @@ export function ChannelEditor({ channel, onChange, onRemove }: ChannelEditorProp
           <input
             type="number"
             step="0.1"
+            min="0.1"
             className={inputClass}
             value={channel.notch_q ?? ""}
             onChange={(e) => onChange({ ...channel, notch_q: numberOrUndefined(e.target.value) })}

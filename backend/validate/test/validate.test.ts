@@ -5,14 +5,25 @@ import { describe, expect, it } from "vitest";
 import { parseConfigFile } from "@rtl-airband-panel/parser";
 import type { Channel, Device, Mixer, RtlAirbandConfig, ScanChannel } from "@rtl-airband-panel/parser";
 import {
+  checkAmpfactor,
   checkBinCollisions,
   checkCtcssTones,
   checkDeviceRequirements,
   checkDisableCascade,
+  checkFftSize,
+  checkFileOutputFlags,
+  checkFilterCutoffs,
   checkFrequencyWindow,
+  checkMixerNestedOutputs,
+  checkMixerOutputBalance,
   checkMixerReferences,
+  checkModulation,
+  checkNotchQ,
   checkRdioScanner,
   checkScanMode,
+  checkShoutMetadataDelay,
+  checkSquelchSnrThreshold,
+  checkSquelchThreshold,
   computeBin,
   validateConfig,
 } from "../src/index.js";
@@ -268,6 +279,12 @@ describe("checkScanMode", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "warning", code: "scan-list-too-long" });
   });
+
+  it("errors when freqs is an empty list", () => {
+    const device = makeDevice([makeScanChannel([])], { mode: "scan", centerfreq: undefined });
+    const issues = checkScanMode(makeConfig([device]));
+    expect(issues.some((i) => i.code === "scan-freqs-empty")).toBe(true);
+  });
 });
 
 describe("checkDeviceRequirements", () => {
@@ -303,6 +320,72 @@ describe("checkDeviceRequirements", () => {
     const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined });
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues).toEqual([]);
+  });
+
+  it("errors on an unsupported device type", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "hackrf" });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-type-unsupported")).toBe(true);
+  });
+
+  it("does not flag any of the three known device types", () => {
+    for (const type of ["rtlsdr", "mirisdr", "soapysdr"]) {
+      const device = makeDevice([makeChannel(100_000_000)], type === "soapysdr" ? { type, device_string: "driver=rtlsdr" } : { type });
+      const issues = checkDeviceRequirements(makeConfig([device]));
+      expect(issues.some((i) => i.code === "device-type-unsupported")).toBe(false);
+    }
+  });
+
+  it("errors when sample_rate is at or below RTLSDR-Airband's floor", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { sample_rate: 16_000 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-sample-rate-too-low")).toBe(true);
+  });
+
+  it("does not flag a sample_rate comfortably above the floor", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { sample_rate: 1_400_000 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-sample-rate-too-low")).toBe(false);
+  });
+
+  it("does not flag a device that omits sample_rate (falls back to the documented default)", () => {
+    const { sample_rate: _omitted, ...deviceWithoutSampleRate } = makeDevice([makeChannel(100_000_000)]);
+    const issues = checkDeviceRequirements(makeConfig([deviceWithoutSampleRate]));
+    expect(issues.some((i) => i.code === "device-sample-rate-too-low")).toBe(false);
+  });
+
+  it("errors when an rtlsdr device has neither serial nor index", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    delete (device as Partial<Device>).serial;
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-serial-or-index-required")).toBe(true);
+  });
+
+  it("does not require serial when index is given instead", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    delete (device as Partial<Device>).serial;
+    device.index = 0;
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-serial-or-index-required")).toBe(false);
+  });
+
+  it("does not require serial/index on a soapysdr device", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "soapysdr", device_string: "driver=rtlsdr" });
+    delete (device as Partial<Device>).serial;
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-serial-or-index-required")).toBe(false);
+  });
+
+  it("errors when rtlsdr buffers is not greater than 0", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { buffers: 0 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-buffers-invalid")).toBe(true);
+  });
+
+  it("errors when mirisdr num_buffers is not greater than 0", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "mirisdr", num_buffers: -1 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-num-buffers-invalid")).toBe(true);
   });
 });
 
@@ -409,5 +492,295 @@ describe("checkDisableCascade", () => {
     const issues = checkDisableCascade(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "no-active-outputs" });
+  });
+
+  it("errors when every output on an active mixer is disabled", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", disable: true }] };
+    const issues = checkDisableCascade(makeConfig([device], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "no-active-mixer-outputs", path: "$.mixers[0]" });
+  });
+
+  it("does not flag a disabled mixer even with zero non-disabled outputs", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", disable: true }], disable: true };
+    expect(checkDisableCascade(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
+  });
+});
+
+describe("checkFftSize", () => {
+  it("does not flag a config with no fft_size set", () => {
+    expect(checkFftSize(makeConfig([]))).toEqual([]);
+  });
+
+  it.each([256, 512, 1024, 2048, 4096, 8192])("does not flag the valid power-of-two %d", (fft_size) => {
+    expect(checkFftSize(makeConfig([], { fft_size }))).toEqual([]);
+  });
+
+  it.each([255, 8193, 300, 0, -512])("errors on the invalid value %d", (fft_size) => {
+    const issues = checkFftSize(makeConfig([], { fft_size }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "fft-size-invalid", path: "$.fft_size" });
+  });
+});
+
+describe("checkShoutMetadataDelay", () => {
+  it("does not flag a config with no shout_metadata_delay set", () => {
+    expect(checkShoutMetadataDelay(makeConfig([]))).toEqual([]);
+  });
+
+  it.each([0, 16, 32])("does not flag the in-range value %d", (shout_metadata_delay) => {
+    expect(checkShoutMetadataDelay(makeConfig([], { shout_metadata_delay }))).toEqual([]);
+  });
+
+  it.each([-1, 33])("errors on the out-of-range value %d", (shout_metadata_delay) => {
+    const issues = checkShoutMetadataDelay(makeConfig([], { shout_metadata_delay }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "shout-metadata-delay-out-of-range" });
+  });
+});
+
+describe("checkFilterCutoffs", () => {
+  it("does not flag a channel with lowpass >= highpass", () => {
+    const device = makeDevice([makeChannel(100_000_000, { highpass: 100, lowpass: 2500 })]);
+    expect(checkFilterCutoffs(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when a channel's lowpass is below its highpass", () => {
+    const device = makeDevice([makeChannel(100_000_000, { highpass: 3000, lowpass: 1000 })]);
+    const issues = checkFilterCutoffs(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "lowpass-below-highpass", path: "$.devices[0].channels[0]" });
+  });
+
+  it("does not flag a channel with only one of the two fields set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { highpass: 3000 })]);
+    expect(checkFilterCutoffs(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when a mixer's lowpass is below its highpass", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], highpass: 3000, lowpass: 1000 };
+    const issues = checkFilterCutoffs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "lowpass-below-highpass", path: "$.mixers[0]" });
+  });
+});
+
+describe("checkModulation", () => {
+  it("does not flag exact 'am'/'nfm' values", () => {
+    const device = makeDevice([makeChannel(100_000_000, { modulation: "am" }), makeChannel(100_100_000, { modulation: "nfm" })]);
+    expect(checkModulation(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a channel with no modulation set", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    delete (device.channels[0] as { modulation?: string }).modulation;
+    expect(checkModulation(makeConfig([device]))).toEqual([]);
+  });
+
+  it("mirrors upstream's permissive prefix match (e.g. 'nfmwide' is accepted)", () => {
+    const device = makeDevice([makeChannel(100_000_000, { modulation: "nfmwide" })]);
+    expect(checkModulation(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors on an unrecognized modulation value", () => {
+    const device = makeDevice([makeChannel(100_000_000, { modulation: "usb" })]);
+    const issues = checkModulation(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "modulation-unrecognized", path: "$.devices[0].channels[0].modulation" });
+  });
+
+  it("errors on an unrecognized value inside a scan-mode modulations list", () => {
+    const device = makeDevice([makeScanChannel([100_000_000, 101_000_000], { modulations: ["am", "usb"] })], {
+      mode: "scan",
+      centerfreq: undefined,
+    });
+    const issues = checkModulation(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "modulation-unrecognized", path: expect.stringContaining("modulations[1]") });
+  });
+});
+
+describe("checkAmpfactor", () => {
+  it("does not flag a positive scalar ampfactor", () => {
+    const device = makeDevice([makeChannel(100_000_000, { ampfactor: 1.5 })]);
+    expect(checkAmpfactor(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors on a negative scalar ampfactor", () => {
+    const device = makeDevice([makeChannel(100_000_000, { ampfactor: -0.5 })]);
+    const issues = checkAmpfactor(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "ampfactor-negative", path: "$.devices[0].channels[0].ampfactor" });
+  });
+
+  it("errors on a negative entry inside a per-frequency ampfactor list", () => {
+    const device = makeDevice([makeScanChannel([100_000_000, 101_000_000], { ampfactor: [1.0, -1.0] })], {
+      mode: "scan",
+      centerfreq: undefined,
+    });
+    const issues = checkAmpfactor(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "ampfactor-negative", path: expect.stringContaining("ampfactor[1]") });
+  });
+});
+
+describe("checkSquelchThreshold", () => {
+  it("does not flag zero or negative values", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_threshold: 0 }), makeChannel(100_100_000, { squelch_threshold: -35 })]);
+    expect(checkSquelchThreshold(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors on a positive value", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_threshold: 5 })]);
+    const issues = checkSquelchThreshold(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "squelch-threshold-positive" });
+  });
+
+  it("errors on a positive entry inside a per-frequency list", () => {
+    const device = makeDevice([makeScanChannel([100_000_000, 101_000_000], { squelch_threshold: [-30, 5] })], {
+      mode: "scan",
+      centerfreq: undefined,
+    });
+    const issues = checkSquelchThreshold(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "squelch-threshold-positive", path: expect.stringContaining("squelch_threshold[1]") });
+  });
+});
+
+describe("checkSquelchSnrThreshold", () => {
+  it("does not flag zero or positive values", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_snr_threshold: 0 }), makeChannel(100_100_000, { squelch_snr_threshold: 20 })]);
+    expect(checkSquelchSnrThreshold(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag the documented -1 sentinel (use default)", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_snr_threshold: -1 })]);
+    expect(checkSquelchSnrThreshold(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors on any other negative value", () => {
+    const device = makeDevice([makeChannel(100_000_000, { squelch_snr_threshold: -0.5 })]);
+    const issues = checkSquelchSnrThreshold(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "squelch-snr-threshold-invalid" });
+  });
+
+  it("honors the -1 sentinel inside a per-frequency list but still flags other negatives", () => {
+    const device = makeDevice([makeScanChannel([100_000_000, 101_000_000, 102_000_000], { squelch_snr_threshold: [-1, 10, -2] })], {
+      mode: "scan",
+      centerfreq: undefined,
+    });
+    const issues = checkSquelchSnrThreshold(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "squelch-snr-threshold-invalid", path: expect.stringContaining("squelch_snr_threshold[2]") });
+  });
+});
+
+describe("checkNotchQ", () => {
+  it("does not flag a positive notch_q", () => {
+    const device = makeDevice([makeChannel(100_000_000, { notch_q: 10 })]);
+    expect(checkNotchQ(makeConfig([device]))).toEqual([]);
+  });
+
+  it.each([0, -1])("errors on a non-positive notch_q value %d", (notch_q) => {
+    const device = makeDevice([makeChannel(100_000_000, { notch_q })]);
+    const issues = checkNotchQ(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "notch-q-non-positive" });
+  });
+});
+
+describe("checkFileOutputFlags", () => {
+  it("does not flag a file output with only continuous set", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "file", directory: "/tmp", filename_template: "x", continuous: true }] }),
+    ]);
+    expect(checkFileOutputFlags(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a file output with only split_on_transmission set", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true }] }),
+    ]);
+    expect(checkFileOutputFlags(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when both continuous and split_on_transmission are set", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", continuous: true, split_on_transmission: true }],
+      }),
+    ]);
+    const issues = checkFileOutputFlags(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "file-output-continuous-and-split-on-transmission" });
+  });
+});
+
+describe("checkMixerNestedOutputs", () => {
+  it("does not flag a pulse output with stream_name set", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", stream_name: "mix1" }] };
+    expect(checkMixerNestedOutputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when a mixer's pulse output omits stream_name", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    const issues = checkMixerNestedOutputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-pulse-stream-name-required" });
+  });
+
+  it("errors on a rawfile output nested under a mixer", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "rawfile", directory: "/tmp", filename_template: "x" }] };
+    const issues = checkMixerNestedOutputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-rawfile-not-allowed" });
+  });
+
+  it("errors on a file output with split_on_transmission set under a mixer", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true }],
+    };
+    const issues = checkMixerNestedOutputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-split-on-transmission-not-allowed" });
+  });
+
+  it("does not flag the same rules on a channel's own outputs (not mixer-nested)", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "pulse" }, // no stream_name -- fine on a channel
+          { type: "rawfile", directory: "/tmp", filename_template: "x" }, // fine on a channel
+        ],
+      }),
+    ]);
+    expect(checkMixerNestedOutputs(makeConfig([device]))).toEqual([]);
+  });
+});
+
+describe("checkMixerOutputBalance", () => {
+  it("does not flag balance within [-1.0, 1.0]", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix1", balance: -1.0 }] }),
+      makeChannel(100_100_000, { outputs: [{ type: "mixer", name: "mix1", balance: 1.0 }] }),
+    ]);
+    expect(checkMixerOutputBalance(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a mixer output with no balance set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix1" }] })]);
+    expect(checkMixerOutputBalance(makeConfig([device]))).toEqual([]);
+  });
+
+  it.each([1.5, -1.5])("errors when balance is out of range (%d)", (balance) => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix1", balance }] })]);
+    const issues = checkMixerOutputBalance(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-balance-out-of-range" });
   });
 });

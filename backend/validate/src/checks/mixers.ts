@@ -24,3 +24,30 @@ export function checkMixerReferences(config: RtlAirbandConfig): ValidationIssue[
 
   return issues;
 }
+
+/**
+ * Mirrors RTLSDR-Airband's own startup check (config.cpp): a channel output
+ * routing into a mixer (`type: "mixer"`) must have `balance` in [-1.0, 1.0],
+ * or config parsing calls error() (_Exit(1)).
+ */
+export function checkMixerOutputBalance(config: RtlAirbandConfig): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  config.devices.forEach((device, di) => {
+    device.channels.forEach((channel, ci) => {
+      channel.outputs.forEach((output, oi) => {
+        if (output.type !== "mixer" || output.balance === undefined) return;
+        if (output.balance < -1.0 || output.balance > 1.0) {
+          issues.push({
+            severity: "error",
+            code: "mixer-output-balance-out-of-range",
+            path: `$.devices[${di}].channels[${ci}].outputs[${oi}]`,
+            message: `balance ${output.balance} is out of allowed range <-1.0;1.0>`,
+          });
+        }
+      });
+    });
+  });
+
+  return issues;
+}

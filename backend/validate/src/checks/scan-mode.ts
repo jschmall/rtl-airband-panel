@@ -52,6 +52,16 @@ export function checkScanMode(config: RtlAirbandConfig): ValidationIssue[] {
       if (!isScanChannel(channel)) return;
       const channelPath = `${devicePath}.channels[${ci}]`;
       const freqCount = channel.freqs.length;
+
+      if (freqCount === 0) {
+        issues.push({
+          severity: "error",
+          code: "scan-freqs-empty",
+          path: `${channelPath}.freqs`,
+          message: "freqs should be a list with at least one element",
+        });
+      }
+
       checkListLength(issues, channelPath, "labels", channel.labels, freqCount);
       checkListLength(issues, channelPath, "modulations", channel.modulations, freqCount);
       checkListLength(issues, channelPath, "ampfactor", asList(channel.ampfactor), freqCount);

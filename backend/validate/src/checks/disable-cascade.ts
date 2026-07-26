@@ -4,8 +4,9 @@ import type { ValidationIssue } from "../types.js";
 /**
  * Enforces RTLSDR-Airband's startup constraints around `disable` (Disabling
  * configuration sections): there must be at least one non-disabled device,
- * each non-disabled device needs at least one non-disabled channel, and each
- * non-disabled channel needs at least one non-disabled output.
+ * each non-disabled device needs at least one non-disabled channel, each
+ * non-disabled channel needs at least one non-disabled output, and each
+ * non-disabled mixer needs at least one non-disabled output.
  */
 export function checkDisableCascade(config: RtlAirbandConfig): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -50,6 +51,19 @@ export function checkDisableCascade(config: RtlAirbandConfig): ValidationIssue[]
       message: "every device is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled device",
     });
   }
+
+  (config.mixers ?? []).forEach((mixer, mi) => {
+    if (mixer.disable) return;
+    const activeOutputCount = mixer.outputs.filter((o) => !o.disable).length;
+    if (activeOutputCount === 0) {
+      issues.push({
+        severity: "error",
+        code: "no-active-mixer-outputs",
+        path: `$.mixers[${mi}]`,
+        message: "every output on this mixer is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled output per mixer",
+      });
+    }
+  });
 
   return issues;
 }

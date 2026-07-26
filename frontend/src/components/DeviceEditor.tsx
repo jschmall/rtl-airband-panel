@@ -129,6 +129,7 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
         <Field label="Sample rate (Hz, blank = default 2,560,000)" tooltip={DEVICE_TOOLTIPS.sampleRate}>
           <input
             type="number"
+            min="16001"
             className={inputClass}
             value={device.sample_rate ?? ""}
             onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
@@ -158,6 +159,8 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
           <Field label="Buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.buffers}>
             <input
               type="number"
+              min="1"
+              step="1"
               className={inputClass}
               value={device.buffers ?? ""}
               onChange={(e) => onChange({ ...device, buffers: numberOrUndefined(e.target.value) })}
@@ -168,6 +171,8 @@ export function DeviceEditor({ device, onChange, onRemove }: DeviceEditorProps) 
           <Field label="Num buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.numBuffers}>
             <input
               type="number"
+              min="1"
+              step="1"
               className={inputClass}
               value={device.num_buffers ?? ""}
               onChange={(e) => onChange({ ...device, num_buffers: numberOrUndefined(e.target.value) })}
