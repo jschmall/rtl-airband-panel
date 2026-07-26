@@ -3,6 +3,12 @@ import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { InstanceService } from "./instance-service.js";
 import { parseRtlAirbandConfigBody, ShapeValidationError } from "./config-shape.js";
 
+// Applied to every route that writes a config, restarts/renames/creates/deletes an
+// instance, or otherwise touches systemd — deliberately much tighter than the global
+// default in app.ts, since these are the actions a misbehaving client could use to
+// restart-storm every managed instance.
+const MUTATING_ROUTE_OPTS = { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } };
+
 export function registerRoutes(app: FastifyInstance, service: InstanceService): void {
   app.get("/health", async () => ({ status: "ok" }));
 
@@ -16,27 +22,31 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return service.getHealth(request.params.name);
   });
 
-  app.put<{ Params: { name: string }; Querystring: { restart?: string } }>("/instances/:name", async (request) => {
-    const config = parseRtlAirbandConfigBody(request.body);
-    const restart = request.query.restart !== "false";
-    return service.updateConfig(request.params.name, config, { restart });
-  });
+  app.put<{ Params: { name: string }; Querystring: { restart?: string } }>(
+    "/instances/:name",
+    MUTATING_ROUTE_OPTS,
+    async (request) => {
+      const config = parseRtlAirbandConfigBody(request.body);
+      const restart = request.query.restart !== "false";
+      return service.updateConfig(request.params.name, config, { restart });
+    }
+  );
 
-  app.post<{ Params: { name: string } }>("/instances/:name/restart", async (request) => {
+  app.post<{ Params: { name: string } }>("/instances/:name/restart", MUTATING_ROUTE_OPTS, async (request) => {
     return service.restartInstance(request.params.name);
   });
 
-  app.post<{ Params: { name: string } }>("/instances/:name/rename", async (request) => {
+  app.post<{ Params: { name: string } }>("/instances/:name/rename", MUTATING_ROUTE_OPTS, async (request) => {
     const { newName } = extractRenameBody(request.body);
     return service.renameInstance(request.params.name, newName);
   });
 
-  app.post("/instances", async (request) => {
+  app.post("/instances", MUTATING_ROUTE_OPTS, async (request) => {
     const { name, config } = extractCreateBody(request.body);
     return service.createInstance(name, config);
   });
 
-  app.delete<{ Params: { name: string } }>("/instances/:name", async (request, reply) => {
+  app.delete<{ Params: { name: string } }>("/instances/:name", MUTATING_ROUTE_OPTS, async (request, reply) => {
     await service.deleteInstance(request.params.name);
     reply.code(204);
   });

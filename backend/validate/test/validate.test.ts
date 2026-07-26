@@ -19,6 +19,7 @@ import {
   checkMixerReferences,
   checkModulation,
   checkNotchQ,
+  checkPostWriteScript,
   checkRdioScanner,
   checkScanMode,
   checkShoutMetadataDelay,
@@ -76,11 +77,18 @@ function makeConfig(devices: Device[], overrides: Partial<RtlAirbandConfig> = {}
 }
 
 describe("validateConfig against the real fixture", () => {
-  it("produces no errors or warnings for a known-good config", () => {
+  it("produces no errors for a known-good config", () => {
     const config = parseConfigFile(fixtureSource);
     const result = validateConfig(config);
     expect(result.errors).toEqual([]);
-    expect(result.warnings).toEqual([]);
+  });
+
+  it("warns about post_write_script on every file output that sets one, and nothing else", () => {
+    const config = parseConfigFile(fixtureSource);
+    const result = validateConfig(config);
+    const postWriteScriptCount = (fixtureSource.match(/post_write_script\s*=/g) ?? []).length;
+    expect(result.warnings.every((w) => w.code === "post-write-script-runs-arbitrary-command")).toBe(true);
+    expect(result.warnings).toHaveLength(postWriteScriptCount);
   });
 });
 
@@ -812,5 +820,30 @@ describe("checkMixerOutputBalance", () => {
     const issues = checkMixerOutputBalance(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-balance-out-of-range" });
+  });
+});
+
+describe("checkPostWriteScript", () => {
+  it("does not flag a file output with no post_write_script", () => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "file", directory: "/tmp", filename_template: "x" }] })]);
+    expect(checkPostWriteScript(makeConfig([device]))).toEqual([]);
+  });
+
+  it("warns (not errors) when post_write_script is set on a channel output", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", post_write_script: "/usr/local/bin/upload.sh" }],
+      }),
+    ]);
+    const issues = checkPostWriteScript(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "post-write-script-runs-arbitrary-command", path: "$.devices[0].channels[0].outputs[0].post_write_script" });
+  });
+
+  it("also checks post_write_script on top-level mixer outputs", () => {
+    const mixer = { name: "mix1", outputs: [{ type: "file" as const, directory: "/tmp", filename_template: "x", post_write_script: "/usr/local/bin/upload.sh" }] };
+    const issues = checkPostWriteScript(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "post-write-script-runs-arbitrary-command", path: "$.mixers[0].outputs[0].post_write_script" });
   });
 });

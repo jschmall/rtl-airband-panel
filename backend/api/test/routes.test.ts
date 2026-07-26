@@ -65,6 +65,53 @@ describe("GET /instances/:name", () => {
     expect(body.devices).toHaveLength(1);
     expect(body.devices[0].channels).toHaveLength(22);
   });
+
+  it("redacts an icecast output's password instead of returning it in plaintext", async () => {
+    const config = {
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices: [
+        {
+          type: "rtlsdr",
+          serial: "1",
+          gain: 29,
+          centerfreq: 100_000_000,
+          sample_rate: 1_400_000,
+          correction: 0,
+          channels: [
+            {
+              freq: 100_000_000,
+              afc: 0,
+              modulation: "nfm",
+              outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: "hunter2" }],
+            },
+          ],
+        },
+      ],
+    };
+    await app.inject({ method: "POST", url: "/api/instances", payload: { name: "rtl_icecast", config } });
+
+    const res = await app.inject({ method: "GET", url: "/api/instances/rtl_icecast" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.devices[0].channels[0].outputs[0].password).not.toBe("hunter2");
+  });
+});
+
+describe("security middleware", () => {
+  it("sets basic security headers on every response", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/health" });
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
+  });
+
+  it("sets rate-limit headers on every response", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/health" });
+    expect(res.headers["x-ratelimit-limit"]).toBeDefined();
+    expect(res.headers["x-ratelimit-remaining"]).toBeDefined();
+  });
 });
 
 describe("PUT /instances/:name", () => {

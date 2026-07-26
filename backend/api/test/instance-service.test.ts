@@ -123,6 +123,47 @@ describe("updateConfig", () => {
   });
 });
 
+describe("updateConfig secret redaction round-trip", () => {
+  it("getConfig masks a saved icecast password, and re-submitting it unchanged keeps the real password on disk", async () => {
+    const withPassword = minimalConfig({
+      devices: [
+        {
+          type: "rtlsdr",
+          serial: "1",
+          gain: 29,
+          centerfreq: 100_000_000,
+          sample_rate: 1_400_000,
+          correction: 0,
+          channels: [
+            {
+              freq: 100_000_000,
+              afc: 0,
+              modulation: "nfm",
+              outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: "hunter2" }],
+            },
+          ],
+        },
+      ],
+    });
+    await h.service.createInstance("rtl_icecast", withPassword);
+
+    const fetched = await h.service.getConfig("rtl_icecast");
+    const fetchedOutput = fetched.devices[0]!.channels[0]!.outputs[0];
+    expect(fetchedOutput).toMatchObject({ password: expect.not.stringMatching("hunter2") });
+
+    // Simulate editing an unrelated field and saving without touching the (redacted) password field.
+    const edited = {
+      ...fetched,
+      devices: [{ ...fetched.devices[0]!, gain: 40 }],
+    };
+    await h.service.updateConfig("rtl_icecast", edited);
+
+    const afterSave = await h.configStore.read("rtl_icecast");
+    expect(afterSave.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "hunter2" });
+    expect(afterSave.devices[0]!.gain).toBe(40);
+  });
+});
+
 describe("createInstance", () => {
   it("writes the conf file and installs+enables+starts a new unit", async () => {
     const config = minimalConfig();

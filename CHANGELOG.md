@@ -5,6 +5,51 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.13] - 2026-07-26
+
+### Added
+
+- **Secrets no longer returned in plaintext by the API.** `GET /instances/:name`
+  previously returned Icecast passwords and rdio-scanner API keys verbatim —
+  now redacted to a sentinel value. Editing and saving a config that still
+  has the sentinel (i.e. the user never touched that field) transparently
+  restores the real on-disk value before writing, so normal edit-and-save
+  workflows are unaffected; anything the user actually types through
+  unchanged. This is defense-in-depth against incidental exposure (browser
+  history, dev-tools network tabs, server logs) — it's not a substitute for
+  real authentication, which this project still doesn't have.
+- **`post_write_script` now surfaces a standing validation warning.** It's a
+  legitimate documented RTLSDR-Airband feature, so this doesn't block
+  save/restart — but it runs an arbitrary command after every file write,
+  which combined with no auth layer is worth a persistent reminder rather
+  than silence.
+- **Rate-limiting and security headers on the API.** `@fastify/rate-limit`
+  (300 req/min global default, 20 req/min on the config-write/restart/
+  create/rename/delete routes specifically) and `@fastify/helmet` (default
+  security headers) are now registered. No CORS plugin was added — this
+  app is same-origin in both its deployment modes (single-process serving,
+  or Vite's dev proxy), so the browser's default same-origin policy is
+  already the correct posture; a permissive CORS policy would weaken it
+  without a real need.
+
+### Fixed
+
+- Bumped `@fastify/static` to 10.1.2, resolving two high-severity advisories
+  (auth bypass / path traversal via non-canonical URL paths) it shipped
+  with. The remaining `npm audit` findings (a moderate react-router issue,
+  and two transitive build-tooling deps) are left for a dedicated
+  dependency-hygiene pass rather than bundled into a security-focused
+  commit.
+
+### Note
+
+Two related, larger items were deliberately **not** attempted here and are
+tracked in the backlog instead, since they're architectural decisions that
+need direction rather than something to guess at: adding a real
+authentication/authorization layer, and replacing the `sudo systemctl`
+adapter with a least-privilege helper daemon or polkit rule (the sudoers
+`tee` step can't restrict file *content*, only the destination path).
+
 ## [0.4.12] - 2026-07-26
 
 ### Added

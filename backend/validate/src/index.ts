@@ -15,6 +15,7 @@ import { checkModulation } from "./checks/modulation.js";
 import { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
 import { checkFileOutputFlags } from "./checks/output-flags.js";
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
+import { checkPostWriteScript } from "./checks/post-write-script.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -38,6 +39,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkFileOutputFlags(config),
     ...checkMixerNestedOutputs(config),
     ...checkMixerOutputBalance(config),
+    ...checkPostWriteScript(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -65,3 +67,4 @@ export { checkModulation } from "./checks/modulation.js";
 export { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
 export { checkFileOutputFlags } from "./checks/output-flags.js";
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
+export { checkPostWriteScript } from "./checks/post-write-script.js";

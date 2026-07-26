@@ -5,6 +5,7 @@ import type { PendingRestartStore } from "./pending-restart-store.js";
 import type { SystemdAdapter, UnitStatus } from "./systemd/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
+import { redactSecrets, restoreSecrets } from "./secrets.js";
 
 export class InstanceNotFoundError extends Error {
   constructor(name: string) {
@@ -73,7 +74,7 @@ export class InstanceService {
 
   async getConfig(name: string): Promise<RtlAirbandConfig> {
     await this.requireExists(name);
-    return this.configStore.read(name);
+    return redactSecrets(await this.configStore.read(name));
   }
 
   async getHealth(name: string): Promise<UnitStatus> {
@@ -91,10 +92,12 @@ export class InstanceService {
   async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean } = {}): Promise<WriteResult> {
     const restart = options.restart ?? true;
     await this.requireExists(name);
-    const { errors, warnings } = validateConfig(config);
+    const existing = await this.configStore.read(name);
+    const restored = restoreSecrets(config, existing);
+    const { errors, warnings } = validateConfig(restored);
     if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    await this.configStore.write(name, config);
+    await this.configStore.write(name, restored);
     const unit = unitFileName(name);
     if (restart) {
       await this.systemd.restart(unit);
@@ -119,10 +122,11 @@ export class InstanceService {
     assertValidInstanceName(name);
     if (await this.configStore.exists(name)) throw new InstanceAlreadyExistsError(name);
 
-    const { errors, warnings } = validateConfig(config);
+    const restored = restoreSecrets(config, undefined);
+    const { errors, warnings } = validateConfig(restored);
     if (errors.length > 0) throw new ValidationFailedError(errors);
 
-    await this.configStore.write(name, config);
+    await this.configStore.write(name, restored);
     const unit = unitFileName(name);
     const unitContents = renderUnitFile({
       description: `RTLSDR-Airband instance: ${name}`,
