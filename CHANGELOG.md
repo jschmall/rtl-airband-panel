@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.7] - 2026-07-26
+
+### Fixed
+
+- **Reverted most of the v0.4.6 grid-alignment fix.** The reserved
+  two-line label area on every `Field` and the `alignWithField` spacer
+  on `BoolField` produced a much bigger visual regression than the
+  misalignment they fixed — every label/input pair now read as
+  double-spaced throughout the config editor. Reverted `Field.tsx`,
+  `BoolField`, and all `alignWithField` call sites back to their
+  pre-0.4.6 form, and reverted the shortened "Squelch threshold, dBFS"
+  label back to its longer wording. Kept the one part of 0.4.6 that was
+  a clean win: `inputClass` still sets an explicit height so `<select>`
+  dropdowns match text inputs.
+
 ## [0.4.6] - 2026-07-26
 
 ### Fixed

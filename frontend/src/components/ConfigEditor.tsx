@@ -62,28 +62,19 @@ export function ConfigEditor({ config, onChange }: ConfigEditorProps) {
           tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
           checked={config.multiple_demod_threads}
           onChange={(v) => onChange({ ...config, multiple_demod_threads: v })}
-          alignWithField
         />
         <BoolField
           label="Multiple output threads"
           tooltip={GLOBAL_TOOLTIPS.multipleOutputThreads}
           checked={config.multiple_output_threads}
           onChange={(v) => onChange({ ...config, multiple_output_threads: v })}
-          alignWithField
         />
-        <BoolField
-          label="Localtime"
-          tooltip={GLOBAL_TOOLTIPS.localtime}
-          checked={config.localtime}
-          onChange={(v) => onChange({ ...config, localtime: v })}
-          alignWithField
-        />
+        <BoolField label="Localtime" tooltip={GLOBAL_TOOLTIPS.localtime} checked={config.localtime} onChange={(v) => onChange({ ...config, localtime: v })} />
         <BoolField
           label="Log scan activity"
           tooltip={GLOBAL_TOOLTIPS.logScanActivity}
           checked={config.log_scan_activity ?? false}
           onChange={(v) => onChange({ ...config, log_scan_activity: v })}
-          alignWithField
         />
       </div>
 
