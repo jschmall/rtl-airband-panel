@@ -51,10 +51,12 @@ export function parseConfig(source: string): ConfigFile {
     }
     next();
     const value = parseValue();
-    // trailing ';' is conventional and, in practice, always present in
-    // RTLSDR-Airband configs; tolerate a missing one on the final setting.
-    const semi = peek();
-    if (semi.type === "punct" && semi.raw === ";") {
+    // ';' is conventional and, in practice, always present in RTLSDR-Airband
+    // configs; libconfig also accepts ',' as a setting separator (seen in
+    // upstream's own mixers.conf example), and the terminator is optional on
+    // the final setting in a group.
+    const sep = peek();
+    if (sep.type === "punct" && (sep.raw === ";" || sep.raw === ",")) {
       next();
     }
     return { name: nameTok.raw, value, assignOp: opTok.raw as "=" | ":" };

@@ -257,7 +257,7 @@ npm test --workspace=frontend
 
 ## Current scope
 
-The JSON model covers both `multichannel`- and `scan`-mode devices, top-level mixer *definitions* (the `mixers: (...)` list itself, not just a channel routing into one by name), all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the rdio-scanner call-upload block, and per-channel options like `highpass`/`lowpass`/`tau`/`label`/`labels`.
+The JSON model covers both `multichannel`- and `scan`-mode devices, top-level mixer *definitions* (the `mixers: { ... }` group itself, not just a channel routing into one by name), all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the rdio-scanner call-upload block, and per-channel options like `highpass`/`lowpass`/`tau`/`label`/`labels`.
 
 ## Contributing
 

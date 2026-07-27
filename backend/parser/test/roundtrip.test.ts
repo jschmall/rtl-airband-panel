@@ -593,9 +593,9 @@ describe("mixers", () => {
         { type = "rtlsdr"; serial = "1"; gain = 29; centerfreq = 100.0;
           channels: ( { freq = 100.0; outputs: ( { type = "mixer"; name = "mix1"; } ); } ); }
       );
-      mixers: (
-        { name = "mix1"; outputs: ( { type = "mixer"; name = "mix2"; } ); }
-      );
+      mixers: {
+        mix1: { outputs: ( { type = "mixer"; name = "mix2"; } ); };
+      };
     `;
     expect(() => parseConfigFile(source)).toThrow(/cannot themselves be of type 'mixer'/);
   });

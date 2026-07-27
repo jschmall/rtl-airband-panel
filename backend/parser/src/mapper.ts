@@ -1,4 +1,4 @@
-import type { ConfigFile, GroupNode } from "./ast.js";
+import type { ConfigFile, GroupNode, SettingNode } from "./ast.js";
 import {
   DomainMappingError,
   boolSetting,
@@ -74,11 +74,17 @@ export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   const tau = optionalNumber(root, "tau", path);
   if (tau !== undefined) config.tau = tau;
 
-  const mixersList = findSetting(root, "mixers");
-  if (mixersList) {
-    const ml = requireList(root, "mixers", path);
-    const mixerGroups = requireGroupItems(ml, `${path}.mixers`);
-    config.mixers = mixerGroups.map((g, i) => toMixer(g, `${path}.mixers[${i}]`));
+  const mixersSetting = findSetting(root, "mixers");
+  if (mixersSetting) {
+    if (mixersSetting.value.kind !== "group") {
+      throw new DomainMappingError("Expected 'mixers' to be a group", `${path}.mixers`);
+    }
+    config.mixers = mixersSetting.value.members.map((m) => {
+      if (m.value.kind !== "group") {
+        throw new DomainMappingError(`Expected mixer '${m.name}' to be a group`, `${path}.mixers.${m.name}`);
+      }
+      return toMixer(m.value, m.name, `${path}.mixers.${m.name}`);
+    });
   }
   return config;
 }
@@ -221,7 +227,7 @@ function isScanChannel(channel: Channel): channel is ScanChannel {
   return "freqs" in channel;
 }
 
-function toMixer(g: GroupNode, path: string): Mixer {
+function toMixer(g: GroupNode, name: string, path: string): Mixer {
   const outputsList = requireList(g, "outputs", path);
   const outputGroups = requireGroupItems(outputsList, `${path}.outputs`);
   const outputs = outputGroups.map((o, i) => toOutput(o, `${path}.outputs[${i}]`));
@@ -231,7 +237,7 @@ function toMixer(g: GroupNode, path: string): Mixer {
     }
   });
   const mixer: Mixer = {
-    name: requireString(g, "name", path),
+    name,
     outputs: outputs as Mixer["outputs"],
   };
   const disable = optionalBool(g, "disable", path);
@@ -436,7 +442,7 @@ export function fromDomain(config: RtlAirbandConfig): ConfigFile {
   if (config.tau !== undefined) members.push(numberSetting("tau", config.tau, "int"));
   members.push(setting("devices", listNode(config.devices.map(deviceFromDomain))));
   if (config.mixers !== undefined) {
-    members.push(setting("mixers", listNode(config.mixers.map(mixerFromDomain))));
+    members.push(setting("mixers", group(config.mixers.map(mixerFromDomain))));
   }
   return { members };
 }
@@ -514,13 +520,13 @@ function scanChannelFromDomain(channel: ScanChannel): GroupNode {
   return group(members);
 }
 
-function mixerFromDomain(mixer: Mixer): GroupNode {
-  const members = [stringSetting("name", mixer.name)];
+function mixerFromDomain(mixer: Mixer): SettingNode {
+  const members: SettingNode[] = [];
   if (mixer.disable !== undefined) members.push(boolSetting("disable", mixer.disable));
   if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
   if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
   members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));
-  return group(members);
+  return setting(mixer.name, group(members));
 }
 
 function outputFromDomain(output: Output): GroupNode {

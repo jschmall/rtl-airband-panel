@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.29] - 2026-07-27
+
+### Fixed
+
+- **Mixer definitions were written in a syntax RTLSDR-Airband can't parse.**
+  The panel serialized top-level mixers as a `mixers: ( { name = "..."; ... } )`
+  list, mirroring devices/channels/outputs, but RTLSDR-Airband actually
+  expects `mixers` to be a *group* keyed by mixer name (`mixers: { mixer1:
+  { ... } };`) with no `name` field inside -- so any mixer created or edited
+  through the GUI produced a config that failed to load. The parser now
+  reads and writes mixers in that group-keyed form; the JSON domain model
+  (`Mixer.name`) is unchanged, only the .conf text shape. Verified against
+  the `mixers.conf` and `big_mixer.conf` example configs from the upstream
+  RTLSDR-Airband repo. Along the way, the parser was also tightened to
+  accept `,` as a group-setting separator (not just `;`), since those same
+  upstream example files use commas between sibling mixer definitions and
+  libconfig accepts both.
+
 ## [0.4.28] - 2026-07-27
 
 ### Changed
