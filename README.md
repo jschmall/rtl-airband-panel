@@ -5,6 +5,22 @@
 
 A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-Airband) instances. Each SDR runs as its own systemd-managed `rtl_airband` process with its own `.conf` file (one service per instance). This panel reads and writes those config files through a JSON intermediate model, validates changes before saving, and restarts only the systemd unit it touched — RTLSDR-Airband itself has no live-reload, so a config change always means a targeted restart.
 
+## Screenshots
+
+Instance list and config editor, with the cross-instance search and pending-restart indicator in the header:
+
+![Instance editor overview](./docs/screenshots/overview.png)
+
+A channel expanded showing its outputs, with the channel's label next to its frequency in the header:
+
+![Channel and output editor](./docs/screenshots/channel-editor.png)
+
+Per-channel signal history:
+
+![Stats page](./docs/screenshots/stats.png)
+
+(Instance name, frequencies, and labels above are placeholder data from the repo's sanitized [test fixture](./fixtures/151719.conf), not a real deployment.)
+
 ## Prerequisites
 
 - Node.js 20 or newer, and npm. Check what you have installed:

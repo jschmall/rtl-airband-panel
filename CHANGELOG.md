@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.26] - 2026-07-27
+
+### Added
+
+- **Screenshots** in the README: instance editor overview, a channel/output
+  editor, and the stats page's signal-history chart. All three use the
+  repo's existing sanitized test fixture (`fixtures/151719.conf`) as
+  placeholder data, not a real deployment.
+
 ## [0.4.25] - 2026-07-27
 
 General README polish pass.
