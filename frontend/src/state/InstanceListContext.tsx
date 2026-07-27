@@ -5,10 +5,12 @@ import { AUTO_REFRESH_MS } from "../lib/polling.js";
 
 interface InstanceListContextValue {
   instances: InstanceSummary[] | null;
-  /** `instances` filtered by `searchQuery` (name substring match, case-insensitive).
-   *  Equal to `instances` when the query is empty. Lives here rather than in the
-   *  sidebar alone so the search box in the header (which filters "across all
-   *  instances") and the sidebar list it filters share one source of truth. */
+  /** `instances` filtered by `searchQuery` -- case-insensitive substring match against
+   *  the instance name OR any of its channel labels, so e.g. searching "CHP" surfaces
+   *  every instance with a CHP-labeled channel, not just one named "chp". Equal to
+   *  `instances` when the query is empty. Lives here rather than in the sidebar alone
+   *  so the search box in the header (which filters "across all instances") and the
+   *  sidebar list it filters share one source of truth. */
   filteredInstances: InstanceSummary[] | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -72,7 +74,10 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
     if (!instances) return instances;
     const query = searchQuery.trim().toLowerCase();
     if (!query) return instances;
-    return instances.filter((instance) => instance.name.toLowerCase().includes(query));
+    return instances.filter(
+      (instance) =>
+        instance.name.toLowerCase().includes(query) || instance.channelLabels.some((label) => label.toLowerCase().includes(query))
+    );
   }, [instances, searchQuery]);
 
   const value = useMemo(

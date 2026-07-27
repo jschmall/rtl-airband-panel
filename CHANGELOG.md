@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.27] - 2026-07-27
+
+### Fixed
+
+- **Global search bar is now system-wide.** It previously matched only the
+  instance name; typing a channel label (e.g. `CHP`, `CDF`) found nothing
+  unless it happened to also be in the instance name. `GET /instances` now
+  includes each instance's `channelLabels` (collected from both
+  multichannel `label` and scan-mode `labels[]` fields), and the sidebar
+  filter matches against name OR any channel label. When a match comes
+  from a label rather than the name, the sidebar row shows which label(s)
+  matched (`Matches channel: ...`) so it's clear why an instance with an
+  unrelated name showed up -- e.g. a talkgroup like CHP or CDF split
+  across several site instances.
+
 ## [0.4.26] - 2026-07-27
 
 ### Added

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, InstanceService, ValidationFailedError } from "../src/instance-service.js";
 import { ConfigStore } from "../src/config-store.js";
@@ -53,7 +55,13 @@ describe("listInstances / getConfig", () => {
     await seedFixture(h.instancesDir);
     const list = await h.service.listInstances();
     expect(list).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
+      {
+        name: FIXTURE_INSTANCE_NAME,
+        confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME),
+        unit: `${FIXTURE_INSTANCE_NAME}.service`,
+        pendingRestart: false,
+        channelLabels: expect.any(Array),
+      },
     ]);
 
     const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
@@ -63,6 +71,56 @@ describe("listInstances / getConfig", () => {
 
   it("throws InstanceNotFoundError for a nonexistent instance", async () => {
     await expect(h.service.getConfig("does_not_exist")).rejects.toBeInstanceOf(InstanceNotFoundError);
+  });
+
+  it("collects channel labels from both multichannel and scan-mode devices, for cross-instance search", async () => {
+    await h.service.createInstance(
+      "rtl_labeled",
+      minimalConfig({
+        devices: [
+          {
+            type: "rtlsdr",
+            serial: "1",
+            gain: 29,
+            centerfreq: 100_000_000,
+            sample_rate: 1_400_000,
+            correction: 0,
+            channels: [
+              { freq: 100_000_000, label: "CHP North", modulation: "nfm", outputs: [{ type: "pulse", continuous: false }] },
+              { freq: 100_100_000, modulation: "nfm", outputs: [{ type: "pulse", continuous: false }] }, // no label -- must not add "" or undefined
+            ],
+          },
+          {
+            type: "rtlsdr",
+            serial: "2",
+            gain: 29,
+            mode: "scan",
+            sample_rate: 1_400_000,
+            correction: 0,
+            channels: [
+              {
+                freqs: [151_000_000, 151_100_000],
+                labels: ["CHP South", "CDF Air"],
+                modulation: "nfm",
+                outputs: [{ type: "pulse", continuous: false }],
+              },
+            ],
+          },
+        ],
+      })
+    );
+
+    const [summary] = await h.service.listInstances();
+    expect(summary!.channelLabels).toEqual(["CHP North", "CHP South", "CDF Air"]);
+  });
+
+  it("lists an instance with an unparsable .conf with an empty channelLabels instead of throwing", async () => {
+    await fs.writeFile(path.join(h.instancesDir, "rtl_broken.conf"), "not valid libconfig {{{", "utf8");
+
+    const list = await h.service.listInstances();
+    const broken = list.find((i) => i.name === "rtl_broken");
+    expect(broken).toBeDefined();
+    expect(broken!.channelLabels).toEqual([]);
   });
 });
 
@@ -431,7 +489,7 @@ describe("renameInstance", () => {
     expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("Description=RTLSDR-Airband instance: rtl_renamed");
 
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, channelLabels: expect.any(Array) },
     ]);
     const renamed = await h.service.getConfig("rtl_renamed");
     expect(renamed).toEqual(before);
@@ -444,7 +502,7 @@ describe("renameInstance", () => {
     expect(result.status).toBeDefined();
     expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, channelLabels: expect.any(Array) },
     ]);
   });
 
@@ -473,7 +531,7 @@ describe("renameInstance", () => {
 
     // old conf untouched, new conf rolled back, old unit restarted
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, channelLabels: expect.any(Array) },
     ]);
     expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
     expect(h.systemd.unitFiles.has("rtl_renamed.service")).toBe(false);

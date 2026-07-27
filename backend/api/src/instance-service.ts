@@ -42,6 +42,23 @@ export interface InstanceSummary {
   unit: string;
   /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
   pendingRestart: boolean;
+  /** Every channel label configured on this instance (multichannel `label` and scan-mode `labels[]`), for cross-instance search. */
+  channelLabels: string[];
+}
+
+/** Every channel label on a config, across all devices -- multichannel channels contribute their single `label`, scan-mode channels contribute each entry of `labels[]`. */
+function extractChannelLabels(config: RtlAirbandConfig): string[] {
+  const labels: string[] = [];
+  for (const device of config.devices) {
+    for (const channel of device.channels) {
+      if ("freqs" in channel) {
+        for (const label of channel.labels ?? []) if (label) labels.push(label);
+      } else if (channel.label) {
+        labels.push(channel.label);
+      }
+    }
+  }
+  return labels;
 }
 
 export interface WriteResult {
@@ -88,8 +105,20 @@ export class InstanceService {
         confPath: info.confPath,
         unit: unitFileName(info.name),
         pendingRestart: await this.pendingRestartStore.has(info.name),
+        channelLabels: await this.getChannelLabels(info.name),
       }))
     );
+  }
+
+  /** Empty (rather than throwing) for a config that fails to parse -- an unparsable
+   *  instance just won't be label-searchable until it's fixed, but it must still
+   *  show up in the list. */
+  private async getChannelLabels(name: string): Promise<string[]> {
+    try {
+      return extractChannelLabels(await this.configStore.read(name));
+    } catch {
+      return [];
+    }
   }
 
   async getConfig(name: string): Promise<RtlAirbandConfig> {

@@ -129,6 +129,13 @@ export function InstanceSidebar() {
             const status = health[instance.name];
             const isRenaming = renaming === instance.name;
             const isBusy = busy === instance.name;
+            const query = searchQuery.trim().toLowerCase();
+            // Only surface which channel label(s) matched when the instance name itself
+            // didn't -- otherwise every row would redundantly echo the query back.
+            const matchedLabels =
+              query && !instance.name.toLowerCase().includes(query)
+                ? instance.channelLabels.filter((label) => label.toLowerCase().includes(query))
+                : [];
             return (
               <div key={instance.name} className="border-b border-slate-800 px-3 py-2">
                 {isRenaming ? (
@@ -171,6 +178,10 @@ export function InstanceSidebar() {
                     </span>
                     {status && <span className="flex-shrink-0"><HealthBadge state={status.activeState} subState={status.subState} /></span>}
                   </GuardedNavLink>
+                )}
+
+                {matchedLabels.length > 0 && (
+                  <p className="ml-1 truncate text-xs text-slate-400">Matches channel: {matchedLabels.join(", ")}</p>
                 )}
 
                 <div className="ml-4 mt-1 flex gap-3 text-xs">
