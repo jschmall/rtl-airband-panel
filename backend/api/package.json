@@ -1,6 +1,6 @@
 {
   "name": "@rtl-airband-panel/api",
-  "version": "0.4.24",
+  "version": "0.4.25",
   "private": true,
   "license": "GPL-2.0",
   "description": "HTTP API: config CRUD + systemd restart + health checks for RTLSDR-Airband instances",

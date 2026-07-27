@@ -1,5 +1,8 @@
 # rtl-airband-panel
 
+[![CI](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml/badge.svg)](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml)
+[![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)](./LICENSE)
+
 A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-Airband) instances. Each SDR runs as its own systemd-managed `rtl_airband` process with its own `.conf` file (one service per instance). This panel reads and writes those config files through a JSON intermediate model, validates changes before saving, and restarts only the systemd unit it touched — RTLSDR-Airband itself has no live-reload, so a config change always means a targeted restart.
 
 ## Prerequisites
@@ -72,7 +75,7 @@ npm run build
 npm start --workspace=backend/api
 ```
 
-If you're updating from a version older than the Node 20 requirement was added, upgrade Node on this machine first — `npm install` will fail (or the server will fail to start) on Node 18.
+If you're updating an install from before the Node 20 requirement was added, upgrade Node on this machine first — `npm install` will fail (or the server will fail to start) on Node 18.
 
 ### Making the panel reachable on your network
 
@@ -211,7 +214,7 @@ The repo is an npm workspace monorepo with four packages, each one layer of the 
 | Package | What it does |
 |---|---|
 | [`backend/parser`](./backend/parser) | Hand-rolled libconfig tokenizer/parser/serializer. Converts a `.conf` file to a JSON domain model (`devices` → `channels` → `outputs`) and back, round-trip tested against a real sanitized fixture. |
-| [`backend/validate`](./backend/validate) | Semantic checks on the JSON model, grounded in RTLSDR-Airband's own source: frequency-in-window (warning), FFT bin collisions between distinct frequencies (error), and CTCSS tone validity (warnings for non-positive values or near-miss typos of the 51 standard tones). |
+| [`backend/validate`](./backend/validate) | Semantic checks on the JSON model, grounded in RTLSDR-Airband's own source: frequency-in-window and FFT bin collisions between distinct frequencies (errors), CTCSS tone validity, filter cutoff ordering, and per-output-type constraints (e.g. rdio-scanner needs `split_on_transmission`, mixer output nesting rules) — plus a standing warning wherever `post_write_script` is set, since it runs an arbitrary command after every write. |
 | [`backend/api`](./backend/api) | Fastify HTTP API: instance CRUD, systemd restart, health checks, and stats history. Also serves the built frontend directly when present, so the whole app can run as one process. Fails closed — a config write that fails validation never touches disk or systemd. |
 | [`frontend`](./frontend) | React + Vite + Tailwind UI: a resizable two-pane layout with the instance list on the left and a form editor or stats/charts view on the right. |
 
@@ -231,10 +234,19 @@ Each package has its own test suite (Vitest):
 npm test --workspace=backend/parser
 npm test --workspace=backend/validate
 npm test --workspace=backend/api
+npm test --workspace=frontend
 ```
 
-`backend/parser` and `backend/validate` tests run against [`fixtures/151719.conf`](./fixtures/151719.conf), a sanitized real-world config. `backend/api` tests run entirely against a mock systemd adapter and temp scratch directories — nothing in the test suite touches real systemd or the configured instances directory.
+`backend/parser` and `backend/validate` tests run against [`fixtures/151719.conf`](./fixtures/151719.conf), a sanitized real-world config. `backend/api` tests run entirely against a mock systemd adapter and temp scratch directories — nothing in the test suite touches real systemd or the configured instances directory. `frontend` tests use Vitest + React Testing Library in a jsdom environment (`frontend/test/`, mirroring the `frontend/src/` structure it covers).
 
 ## Current scope
 
 The JSON model covers both `multichannel`- and `scan`-mode devices, top-level mixer *definitions* (the `mixers: (...)` list itself, not just a channel routing into one by name), all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the rdio-scanner call-upload block, and per-channel options like `highpass`/`lowpass`/`tau`/`label`/`labels`.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how the pieces fit together, test/build commands, and the conventions a change is expected to follow — [CLAUDE.md](./CLAUDE.md) has the fuller list of architectural constraints.
+
+## License
+
+[GPL-2.0](./LICENSE).

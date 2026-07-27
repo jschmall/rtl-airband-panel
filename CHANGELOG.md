@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.25] - 2026-07-27
+
+General README polish pass.
+
+### Changed
+
+- **Testing section** was missing the `frontend` workspace's test command
+  (added in Section I, v0.4.23) -- now lists all four, matching
+  CONTRIBUTING.md.
+- **`backend/validate`'s row** in the "How it's built" table only described
+  3 of its 15 checks (frequency-in-window, FFT bin collisions, CTCSS) --
+  now also mentions filter cutoff ordering, per-output-type constraints,
+  and the standing `post_write_script` security warning.
+- Added **CI and license badges** under the title, and **Contributing**/
+  **License** sections at the bottom linking to `CONTRIBUTING.md` and
+  `LICENSE` -- both existed since Section I but weren't referenced
+  anywhere in the README.
+- Minor wording fix in the Node 20 upgrade note.
+
 ## [0.4.24] - 2026-07-27
 
 Section J from the project to-do list (GitHub issue #1): fixes and UX
