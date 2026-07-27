@@ -7,8 +7,8 @@ export interface InstanceSummary {
   unit: string;
   /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
   pendingRestart: boolean;
-  /** Every channel label configured on this instance, for cross-instance search. */
-  channelLabels: string[];
+  /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
+  searchFields: string[];
 }
 
 export type UnitActiveState = "active" | "inactive" | "activating" | "deactivating" | "failed" | "unknown";

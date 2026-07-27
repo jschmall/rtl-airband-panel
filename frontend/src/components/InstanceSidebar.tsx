@@ -130,11 +130,14 @@ export function InstanceSidebar() {
             const isRenaming = renaming === instance.name;
             const isBusy = busy === instance.name;
             const query = searchQuery.trim().toLowerCase();
-            // Only surface which channel label(s) matched when the instance name itself
+            // Only surface which search field(s) matched when the instance name itself
             // didn't -- otherwise every row would redundantly echo the query back.
-            const matchedLabels =
+            // Deduplicated: unlike channel labels (usually unique per channel), a
+            // frequency or modulation match can otherwise repeat once per matching
+            // channel (e.g. "nfm" on every channel of a device).
+            const matchedFields =
               query && !instance.name.toLowerCase().includes(query)
-                ? instance.channelLabels.filter((label) => label.toLowerCase().includes(query))
+                ? [...new Set(instance.searchFields.filter((field) => field.toLowerCase().includes(query)))]
                 : [];
             return (
               <div key={instance.name} className="border-b border-slate-800 px-3 py-2">
@@ -180,8 +183,8 @@ export function InstanceSidebar() {
                   </GuardedNavLink>
                 )}
 
-                {matchedLabels.length > 0 && (
-                  <p className="ml-1 truncate text-xs text-slate-400">Matches channel: {matchedLabels.join(", ")}</p>
+                {matchedFields.length > 0 && (
+                  <p className="ml-1 truncate text-xs text-slate-400">Matches: {matchedFields.join(", ")}</p>
                 )}
 
                 <div className="ml-4 mt-1 flex gap-3 text-xs">

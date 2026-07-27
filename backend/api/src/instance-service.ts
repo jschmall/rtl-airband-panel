@@ -42,23 +42,41 @@ export interface InstanceSummary {
   unit: string;
   /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
   pendingRestart: boolean;
-  /** Every channel label configured on this instance (multichannel `label` and scan-mode `labels[]`), for cross-instance search. */
-  channelLabels: string[];
+  /**
+   * Every free-text term worth matching a global search against: channel
+   * labels (multichannel `label` and scan-mode `labels[]`), each channel's
+   * frequency formatted in MHz, each channel's modulation, and each
+   * device's type/serial -- so e.g. searching "146.94" or "nfm" or "rtlsdr"
+   * surfaces the right instance, not just a search on channel labels.
+   */
+  searchFields: string[];
 }
 
-/** Every channel label on a config, across all devices -- multichannel channels contribute their single `label`, scan-mode channels contribute each entry of `labels[]`. */
-function extractChannelLabels(config: RtlAirbandConfig): string[] {
-  const labels: string[] = [];
+/** Hz -> MHz string with no trailing zeros, matching how a user would type a frequency (e.g. 146940000 -> "146.94"). */
+function formatFreqMHz(hz: number): string {
+  return (hz / 1_000_000).toString();
+}
+
+/** Every searchable term on a config, across all devices/channels -- see `InstanceSummary.searchFields` for exactly what's included and why. */
+function extractSearchFields(config: RtlAirbandConfig): string[] {
+  const fields: string[] = [];
   for (const device of config.devices) {
+    fields.push(device.type);
+    if (device.serial) fields.push(device.serial);
     for (const channel of device.channels) {
       if ("freqs" in channel) {
-        for (const label of channel.labels ?? []) if (label) labels.push(label);
-      } else if (channel.label) {
-        labels.push(channel.label);
+        for (const label of channel.labels ?? []) if (label) fields.push(label);
+        for (const freq of channel.freqs) fields.push(formatFreqMHz(freq));
+        if (channel.modulation) fields.push(channel.modulation);
+        for (const mod of channel.modulations ?? []) if (mod) fields.push(mod);
+      } else {
+        if (channel.label) fields.push(channel.label);
+        fields.push(formatFreqMHz(channel.freq));
+        if (channel.modulation) fields.push(channel.modulation);
       }
     }
   }
-  return labels;
+  return fields;
 }
 
 export interface WriteResult {
@@ -105,17 +123,17 @@ export class InstanceService {
         confPath: info.confPath,
         unit: unitFileName(info.name),
         pendingRestart: await this.pendingRestartStore.has(info.name),
-        channelLabels: await this.getChannelLabels(info.name),
+        searchFields: await this.getSearchFields(info.name),
       }))
     );
   }
 
   /** Empty (rather than throwing) for a config that fails to parse -- an unparsable
-   *  instance just won't be label-searchable until it's fixed, but it must still
+   *  instance just won't be searchable until it's fixed, but it must still
    *  show up in the list. */
-  private async getChannelLabels(name: string): Promise<string[]> {
+  private async getSearchFields(name: string): Promise<string[]> {
     try {
-      return extractChannelLabels(await this.configStore.read(name));
+      return extractSearchFields(await this.configStore.read(name));
     } catch {
       return [];
     }

@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.28] - 2026-07-27
+
+### Changed
+
+- **Global search now matches frequency, modulation, and device identifiers,
+  not just instance name and channel labels.** `GET /instances` replaces
+  `channelLabels` with `searchFields` (channel labels, each channel's
+  frequency formatted in MHz, modulation, and each device's `type`/`serial`),
+  and the sidebar search filters against all of it -- e.g. typing `146.94`,
+  `nfm`, or `rtlsdr` now surfaces the right instance, not just a label or
+  name match. The "Matches: ..." line under a matched row is deduplicated,
+  since a frequency or modulation (unlike most labels) can otherwise repeat
+  once per matching channel on the same instance.
+
 ## [0.4.27] - 2026-07-27
 
 ### Fixed
