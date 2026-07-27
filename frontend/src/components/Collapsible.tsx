@@ -34,14 +34,14 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
           aria-expanded={open}
           aria-controls={contentId}
         >
-          <span className={`inline-block text-slate-500 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
+          <span className={`inline-block flex-shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
             ▶
           </span>
-          <span className={titleClassName}>{title}</span>
+          <span className={`min-w-0 ${titleClassName ?? ""}`}>{title}</span>
         </button>
         {headerActions}
       </div>

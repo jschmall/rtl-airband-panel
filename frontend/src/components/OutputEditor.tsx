@@ -169,7 +169,8 @@ interface FileLikeOutput {
   dated_subdirectories?: boolean;
 }
 
-function FileLikeFields<T extends FileLikeOutput>({ output, onChange }: { output: T; onChange: (o: T) => void }) {
+/** Directory/filename_template text fields, shared by FileOutput and RawFileOutput. */
+function FileLikeTextFields<T extends FileLikeOutput>({ output, onChange }: { output: T; onChange: (o: T) => void }) {
   return (
     <>
       <Field label="Directory" tooltip={OUTPUT_TOOLTIPS.fileDirectory}>
@@ -182,6 +183,16 @@ function FileLikeFields<T extends FileLikeOutput>({ output, onChange }: { output
           onChange={(e) => onChange({ ...output, filename_template: e.target.value })}
         />
       </Field>
+    </>
+  );
+}
+
+/** Boolean fields shared by FileOutput and RawFileOutput. Kept separate from the text
+ *  fields above so callers can insert their own text fields (e.g. FileOutput's
+ *  min_rx_seconds/post_write_script) before all the checkboxes, instead of in between them. */
+function FileLikeCheckboxFields<T extends FileLikeOutput>({ output, onChange }: { output: T; onChange: (o: T) => void }) {
+  return (
+    <>
       <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
       <BoolField
         label="Split on transmission"
@@ -212,7 +223,7 @@ function FileFields({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <FileLikeFields output={output} onChange={onChange} />
+      <FileLikeTextFields output={output} onChange={onChange} />
       <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
         <input
           type="number"
@@ -229,6 +240,7 @@ function FileFields({
           onChange={(e) => onChange({ ...output, post_write_script: e.target.value || undefined })}
         />
       </Field>
+      <FileLikeCheckboxFields output={output} onChange={onChange} />
       <div className="col-span-2 space-y-2 rounded border border-slate-600 bg-slate-800 p-3">
         <BoolField
           label="Upload to rdio-scanner"
@@ -368,7 +380,8 @@ function RdioScannerFields({
 function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: (o: Output) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <FileLikeFields output={output} onChange={onChange} />
+      <FileLikeTextFields output={output} onChange={onChange} />
+      <FileLikeCheckboxFields output={output} onChange={onChange} />
     </div>
   );
 }

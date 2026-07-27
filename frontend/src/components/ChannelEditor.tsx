@@ -22,12 +22,23 @@ interface ChannelEditorProps {
 
 export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: ChannelEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
+  const channelTitle = `Channel ${(channel.freq / 1e6).toFixed(4)} MHz${channel.label ? ` — ${channel.label}` : ""}`;
   return (
     <Collapsible
       openSignal={openSignal}
       className="rounded border border-slate-600 bg-slate-800 p-3"
       titleClassName="font-medium text-slate-200"
-      title={`Channel ${(channel.freq / 1e6).toFixed(4)} MHz`}
+      title={
+        // Truncates with an ellipsis when the header is too narrow for the full
+        // frequency + label; hovering swaps to a horizontally scrollable view
+        // instead of just clipping, so the full title is still reachable.
+        <span
+          title={channelTitle}
+          className="block overflow-hidden text-ellipsis whitespace-nowrap hover:overflow-x-auto hover:text-clip"
+        >
+          {channelTitle}
+        </span>
+      }
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />

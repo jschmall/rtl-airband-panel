@@ -7,9 +7,14 @@ interface ValidationBannerProps {
   warnings?: ValidationIssue[];
   config: RtlAirbandConfig;
   onJumpTo: (path: string) => void;
+  /** Errors aren't dismissible -- they mean the save was blocked, so hiding them
+   *  without fixing anything would be misleading. Warnings are advisory (e.g.
+   *  post_write_script running arbitrary commands) and can be acknowledged away
+   *  for the current view; they reappear on the next save that still triggers them. */
+  onDismissWarnings?: () => void;
 }
 
-export function ValidationBanner({ errors, warnings, config, onJumpTo }: ValidationBannerProps) {
+export function ValidationBanner({ errors, warnings, config, onJumpTo, onDismissWarnings }: ValidationBannerProps) {
   if (!errors?.length && !warnings?.length) return null;
   return (
     <div className="space-y-2">
@@ -25,7 +30,18 @@ export function ValidationBanner({ errors, warnings, config, onJumpTo }: Validat
       )}
       {warnings && warnings.length > 0 && (
         <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
-          <p className="font-medium">Warnings:</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-medium">Warnings:</p>
+            {onDismissWarnings && (
+              <button
+                type="button"
+                onClick={onDismissWarnings}
+                className="shrink-0 text-xs text-amber-300 underline decoration-dotted hover:text-white"
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
           <ul className="mt-1 list-disc pl-5">
             {warnings.map((issue, i) => (
               <IssueRow key={i} issue={issue} config={config} onJumpTo={onJumpTo} labelClassName="text-amber-200" />

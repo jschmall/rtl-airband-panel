@@ -846,4 +846,13 @@ describe("checkPostWriteScript", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "warning", code: "post-write-script-runs-arbitrary-command", path: "$.mixers[0].outputs[0].post_write_script" });
   });
+
+  it("does not flag a file output whose post_write_script is an empty string", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [{ type: "file", directory: "/tmp", filename_template: "x", post_write_script: "" }],
+      }),
+    ]);
+    expect(checkPostWriteScript(makeConfig([device]))).toEqual([]);
+  });
 });

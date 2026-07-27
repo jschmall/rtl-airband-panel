@@ -5,6 +5,47 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.24] - 2026-07-27
+
+Section J from the project to-do list (GitHub issue #1): fixes and UX
+requests from a user testing pass against the running v0.4.23 build.
+
+### Fixed
+
+- **False-positive `post_write_script` validation warning**: `checkPostWriteScript`
+  flagged the field whenever it was present, but the parser passes an
+  empty-string literal (`post_write_script = "";`) through as `""` rather
+  than `undefined`, so a field that was present-but-empty in a real `.conf`
+  still triggered the "runs an arbitrary command" warning even though no
+  script would run. The check now treats an empty string as absent.
+- **`file` output section layout**: checkboxes were interleaved between text
+  fields (an odd number of checkboxes in a 2-column grid put one next to a
+  text field), making the section look scattered compared to every other
+  output type. `OutputEditor`'s shared field-rendering was split into a
+  text-fields half and a checkbox-fields half so `FileFields` can group all
+  of its checkboxes together, directly above the "Upload to rdio-scanner"
+  checkbox.
+
+### Added
+
+- **Clickable pending-restart list**: each instance name in the
+  pending-restart popover now links to that instance's edit page (still
+  respecting the app's unsaved-changes guard), instead of being read-only
+  text.
+- **Dismiss control for instance-page warnings**: the warnings block in
+  `ValidationBanner` now has a "Dismiss" action. Errors stay
+  non-dismissible, since they mean the save was blocked. Dismissal is
+  session-local to the current page load and is cleared again by the next
+  save that still reports warnings -- a security-relevant warning like
+  `post_write_script` can't be permanently silenced by dismissing it once.
+- **Cross-instance search**: a search box in the top-right of the header
+  filters the sidebar's instance list by name, with the pending-restart
+  indicator moved to sit to its left.
+- **Channel label in the header**: when a channel has a label set, it now
+  shows next to the frequency in the channel's collapsed header. If the
+  combined text is too wide for the header, it truncates with an ellipsis
+  and becomes horizontally scrollable on hover instead of just clipping.
+
 ## [0.4.23] - 2026-07-26
 
 Ninth and final batch from the full-system design review: docs & project

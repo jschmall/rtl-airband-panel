@@ -5,6 +5,13 @@ import { AUTO_REFRESH_MS } from "../lib/polling.js";
 
 interface InstanceListContextValue {
   instances: InstanceSummary[] | null;
+  /** `instances` filtered by `searchQuery` (name substring match, case-insensitive).
+   *  Equal to `instances` when the query is empty. Lives here rather than in the
+   *  sidebar alone so the search box in the header (which filters "across all
+   *  instances") and the sidebar list it filters share one source of truth. */
+  filteredInstances: InstanceSummary[] | null;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   error: string | null;
   /** Re-fetches the instance list (including each instance's pendingRestart flag) from the server. */
   refresh: () => Promise<void>;
@@ -31,6 +38,7 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -60,7 +68,17 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh]);
 
-  const value = useMemo(() => ({ instances, error, refresh, pollBriefly }), [instances, error, refresh, pollBriefly]);
+  const filteredInstances = useMemo(() => {
+    if (!instances) return instances;
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return instances;
+    return instances.filter((instance) => instance.name.toLowerCase().includes(query));
+  }, [instances, searchQuery]);
+
+  const value = useMemo(
+    () => ({ instances, filteredInstances, searchQuery, setSearchQuery, error, refresh, pollBriefly }),
+    [instances, filteredInstances, searchQuery, error, refresh, pollBriefly]
+  );
 
   return <InstanceListContext.Provider value={value}>{children}</InstanceListContext.Provider>;
 }

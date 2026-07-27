@@ -31,6 +31,7 @@ export function InstanceEditPage() {
   const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
+  const [warningsDismissed, setWarningsDismissed] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   // Set when the user clicks a validation issue in the banner -- nonce is bumped
@@ -128,6 +129,7 @@ export function InstanceEditPage() {
     try {
       const result = await api.updateConfig(name, config, { restart, ifMatch: version ?? undefined });
       setWarnings(result.warnings);
+      setWarningsDismissed(false);
       setVersion(result.version);
       setSavedConfig(config);
       setSavedMessage(
@@ -197,9 +199,10 @@ export function InstanceEditPage() {
 
       <ValidationBanner
         errors={errors}
-        warnings={warnings}
+        warnings={warningsDismissed ? [] : warnings}
         config={config}
         onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })}
+        onDismissWarnings={() => setWarningsDismissed(true)}
       />
       {savedMessage && (
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>

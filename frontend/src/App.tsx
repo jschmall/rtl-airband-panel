@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { TwoPaneLayout } from "./components/layout/TwoPaneLayout.js";
 import { PendingRestartIndicator } from "./components/PendingRestartIndicator.js";
+import { InstanceSearchInput } from "./components/InstanceSearchInput.js";
 import { GuardedLink } from "./components/GuardedLink.js";
 import { WelcomePage } from "./pages/WelcomePage.js";
 import { InstanceEditPage } from "./pages/InstanceEditPage.js";
@@ -24,7 +25,10 @@ export function App() {
               <GuardedLink to="/" className="text-lg font-semibold tracking-tight">
                 RTLSDR-Airband Panel
               </GuardedLink>
-              <PendingRestartIndicator />
+              <div className="flex items-center gap-3">
+                <PendingRestartIndicator />
+                <InstanceSearchInput />
+              </div>
             </div>
           </header>
           <main className="min-h-0 flex-1">

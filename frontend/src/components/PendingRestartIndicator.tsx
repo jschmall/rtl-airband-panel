@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useInstanceList } from "../state/InstanceListContext.js";
+import { GuardedLink } from "./GuardedLink.js";
 
 export function PendingRestartIndicator() {
   const { instances } = useInstanceList();
@@ -52,8 +53,14 @@ export function PendingRestartIndicator() {
           <p className="mb-1 px-1 text-xs font-medium text-slate-400">Saved, waiting on a restart:</p>
           <ul className="max-h-48 overflow-y-auto text-sm text-slate-100">
             {pendingNames.map((name) => (
-              <li key={name} className="truncate rounded px-1 py-0.5 hover:bg-slate-800">
-                {name}
+              <li key={name}>
+                <GuardedLink
+                  to={`/instances/${encodeURIComponent(name)}`}
+                  onClick={() => setOpen(false)}
+                  className="block truncate rounded px-1 py-0.5 hover:bg-slate-800 hover:text-white"
+                >
+                  {name}
+                </GuardedLink>
               </li>
             ))}
           </ul>

@@ -16,7 +16,7 @@ export function checkPostWriteScript(config: RtlAirbandConfig): ValidationIssue[
 
   const checkOutputs = (outputs: RtlAirbandConfig["devices"][number]["channels"][number]["outputs"], pathPrefix: string) => {
     outputs.forEach((output, oi) => {
-      if (output.type === "file" && output.post_write_script !== undefined) {
+      if (output.type === "file" && output.post_write_script) {
         issues.push({
           severity: "warning",
           code: "post-write-script-runs-arbitrary-command",

@@ -8,7 +8,7 @@ import { GuardedNavLink } from "./GuardedLink.js";
 export function InstanceSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { instances, error: listError, refresh, pollBriefly } = useInstanceList();
+  const { instances, filteredInstances, searchQuery, error: listError, refresh, pollBriefly } = useInstanceList();
 
   const [health, setHealth] = useState<Record<string, UnitStatus>>({});
   const [error, setError] = useState<string | null>(null);
@@ -122,8 +122,10 @@ export function InstanceSidebar() {
           <p className="p-3 text-sm text-slate-400">Loading…</p>
         ) : instances.length === 0 ? (
           <p className="p-3 text-sm text-slate-400">No instances yet.</p>
+        ) : filteredInstances && filteredInstances.length === 0 ? (
+          <p className="p-3 text-sm text-slate-400">No instances match "{searchQuery}".</p>
         ) : (
-          instances.map((instance) => {
+          (filteredInstances ?? instances).map((instance) => {
             const status = health[instance.name];
             const isRenaming = renaming === instance.name;
             const isBusy = busy === instance.name;
