@@ -23,6 +23,7 @@ import type {
 } from "@rtl-airband-panel/parser";
 
 const TLS_MODES = ["auto", "auto_no_plain", "transport", "upgrade", "disabled"] as const;
+const UDP_BIT_DEPTHS = [8, 16, 32] as const;
 const DEVICE_MODES = ["multichannel", "scan"] as const;
 
 export class ShapeValidationError extends Error {
@@ -487,6 +488,13 @@ function parseUdpStreamOutput(obj: Record<string, unknown>, path: string): UdpSt
     dest_address: requireString(obj, "dest_address", path),
     dest_port: requireStringOrNumberAsString(obj, "dest_port", path),
   };
+  const bitDepth = optionalNumber(obj, "bit_depth", path);
+  if (bitDepth !== undefined) {
+    if (!(UDP_BIT_DEPTHS as readonly number[]).includes(bitDepth)) {
+      throw new ShapeValidationError(`Invalid bit_depth value '${bitDepth}' (must be one of: ${UDP_BIT_DEPTHS.join(", ")})`, path);
+    }
+    out.bit_depth = bitDepth as Exclude<UdpStreamOutput["bit_depth"], undefined>;
+  }
   const continuous = optionalBoolean(obj, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
   parseOutputDisable(obj, path, out);

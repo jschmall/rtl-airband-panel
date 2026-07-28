@@ -447,6 +447,7 @@ function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: 
 }
 
 const TLS_OPTIONS = ["", "auto", "auto_no_plain", "transport", "upgrade", "disabled"] as const;
+const UDP_BIT_DEPTH_OPTIONS = ["", "32", "16", "8"] as const;
 
 function IcecastFields({
   output,
@@ -545,6 +546,21 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
           value={output.dest_port}
           onChange={(e) => onChange({ ...output, dest_port: e.target.value })}
         />
+      </Field>
+      <Field label="Bit depth (optional)" tooltip={OUTPUT_TOOLTIPS.bitDepth}>
+        <select
+          className={inputClass}
+          value={output.bit_depth != null ? String(output.bit_depth) : ""}
+          onChange={(e) =>
+            onChange({ ...output, bit_depth: (e.target.value ? Number(e.target.value) : undefined) as UdpStreamOutput["bit_depth"] })
+          }
+        >
+          {UDP_BIT_DEPTH_OPTIONS.map((depth) => (
+            <option key={depth} value={depth}>
+              {depth === "" ? "(default: 32)" : `${depth}-bit`}
+            </option>
+          ))}
+        </select>
       </Field>
       <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
     </div>

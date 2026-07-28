@@ -124,7 +124,7 @@ describe("config-shape.ts / mapper.ts parity", () => {
               squelch_threshold: [-30, -25],
               highpass: 200,
               lowpass: 3000,
-              outputs: [{ type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005", continuous: true }],
+              outputs: [{ type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005", bit_depth: 16, continuous: true }],
             },
           ],
         },

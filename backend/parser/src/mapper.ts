@@ -47,6 +47,7 @@ import type {
 } from "./domain.js";
 
 const TLS_MODES = ["auto", "auto_no_plain", "transport", "upgrade", "disabled"] as const;
+const UDP_BIT_DEPTHS = [8, 16, 32] as const;
 const DEVICE_MODES = ["multichannel", "scan"] as const;
 
 export function toDomain(ast: ConfigFile): RtlAirbandConfig {
@@ -395,6 +396,13 @@ function toUdpStreamOutput(g: GroupNode, path: string): UdpStreamOutput {
     // dest_port may be authored as an int or a string in the source; normalize to string either way.
     dest_port: requireStringOrNumberAsString(g, "dest_port", path),
   };
+  const bitDepth = optionalNumber(g, "bit_depth", path);
+  if (bitDepth !== undefined) {
+    if (!(UDP_BIT_DEPTHS as readonly number[]).includes(bitDepth)) {
+      throw new DomainMappingError(`Invalid bit_depth value '${bitDepth}' (must be one of: ${UDP_BIT_DEPTHS.join(", ")})`, path);
+    }
+    out.bit_depth = bitDepth as Exclude<UdpStreamOutput["bit_depth"], undefined>;
+  }
   const continuous = optionalBool(g, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
   applyDisable(g, path, out);
@@ -641,6 +649,7 @@ function udpStreamOutputToAst(output: UdpStreamOutput): GroupNode {
     stringSetting("dest_address", output.dest_address),
     stringSetting("dest_port", output.dest_port),
   ];
+  if (output.bit_depth !== undefined) members.push(numberSetting("bit_depth", output.bit_depth, "int"));
   if (output.continuous !== undefined) members.push(boolSetting("continuous", output.continuous));
   appendDisable(members, output);
   return group(members);

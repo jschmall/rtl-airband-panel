@@ -114,6 +114,24 @@ describe("parseRtlAirbandConfigBody output types", () => {
     expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005" });
   });
 
+  it("accepts a udp_stream output with a valid bit_depth", () => {
+    const config = parseRtlAirbandConfigBody(
+      bodyWithOutput({ type: "udp_stream", dest_address: "10.0.0.1", dest_port: 5005, bit_depth: 16 })
+    );
+    expect(config.devices[0]!.channels[0]!.outputs[0]).toEqual({
+      type: "udp_stream",
+      dest_address: "10.0.0.1",
+      dest_port: "5005",
+      bit_depth: 16,
+    });
+  });
+
+  it("rejects a udp_stream output with an invalid bit_depth value", () => {
+    expect(() =>
+      parseRtlAirbandConfigBody(bodyWithOutput({ type: "udp_stream", dest_address: "10.0.0.1", dest_port: 5005, bit_depth: 24 }))
+    ).toThrow(ShapeValidationError);
+  });
+
   it("accepts a file output with a rdio_scanner block", () => {
     const config = parseRtlAirbandConfigBody(
       bodyWithOutput({

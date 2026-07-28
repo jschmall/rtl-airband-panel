@@ -291,6 +291,8 @@ export interface UdpStreamOutput {
   dest_address: string;
   /** A port number or a named service, e.g. "5005" or "http" — kept as a string either way. */
   dest_port: string;
+  /** Sample format sent over the wire. RTLSDR-Airband defaults to 32 (float32) when absent. */
+  bit_depth?: 8 | 16 | 32;
   /** RTLSDR-Airband defaults to false when absent. */
   continuous?: boolean;
   /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */

@@ -318,6 +318,27 @@ describe("output types", () => {
     expect(output).toEqual({ type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005", continuous: true });
   });
 
+  it("round-trips a udp_stream output with bit_depth", () => {
+    const output: Output = { type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005", bit_depth: 16 };
+    expect(roundTrip(output)).toEqual(output);
+  });
+
+  it("rejects a udp_stream output with an invalid bit_depth value", () => {
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        { type = "rtlsdr"; serial = "1"; gain = 29; centerfreq = 100.0;
+          channels: ( { freq = 100.0; outputs: (
+            { type = "udp_stream"; dest_address = "10.0.0.5"; dest_port = 5005; bit_depth = 24; }
+          ); } ); }
+      );
+    `;
+    expect(() => parseConfigFile(source)).toThrow(/Invalid bit_depth value/);
+  });
+
   it("round-trips a mixer output", () => {
     const output: Output = { type: "mixer", name: "mix1", ampfactor: 1.5, balance: -0.5 };
     expect(roundTrip(output)).toEqual(output);

@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.33] - 2026-07-28
+
+### Added
+
+- **`bit_depth` option for UDP stream outputs.** Matches the new
+  `bit_depth` config field added upstream in this project's
+  RTLSDR-Airband fork (32/16/8, defaulting to 32/float when unset). The
+  UDP output editor now has a "Bit depth (optional)" dropdown alongside
+  destination address/port and continuous, and the value round-trips
+  through parsing, the API's JSON shape validation, and serialization
+  back to the `.conf` file. An out-of-range value (anything other than
+  32, 16, or 8) is rejected the same way an invalid Icecast `tls` value
+  already is.
+
 ## [0.4.32] - 2026-07-28
 
 ### Added
