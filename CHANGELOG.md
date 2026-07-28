@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.36] - 2026-07-28
+
+### Added
+
+- **Dedicated "Mixer stats" section on the stats page.** Mixer-labeled
+  counters (`output_overrun_count{mixer=...}`, `input_overrun_count`) used
+  to render alongside device counters as one `StatTile` per sample — fine
+  for one or two mixers, but a mixer with a dozen inputs (a real config had
+  11) buried the rest of the page in tiles. These now get their own section
+  below the signal/squelch chart: one row per mixer, collapsed by default to
+  a one-line summary (output overrun count, and how many of its inputs are
+  currently dropping), expanding to a compact table of every feeding
+  channel's overrun count with non-zero values highlighted.
+
 ## [0.4.35] - 2026-07-28
 
 ### Changed

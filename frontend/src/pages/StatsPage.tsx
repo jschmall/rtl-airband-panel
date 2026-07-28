@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
+import { MixerStats } from "../components/stats/MixerStats.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
@@ -83,6 +84,10 @@ export function StatsPage() {
 
   const channels = useMemo(() => (latest ? discoverChannels(latest) : []), [latest]);
   const deviceSamples = useMemo(() => (latest ? latest.filter((s) => !s.metric.startsWith("channel_")) : []), [latest]);
+  // Mixer-labeled samples (output_overrun_count{mixer=...}, input_overrun_count) get their own
+  // section below the chart instead of the device tile grid -- a mixer with a dozen inputs would
+  // otherwise dwarf the rest of the page with one tile per input.
+  const deviceOnlySamples = useMemo(() => deviceSamples.filter((s) => s.labels["mixer"] === undefined), [deviceSamples]);
   const selectedChannel = channels.find((c) => c.key === selectedChannelKey) ?? channels[0];
   const channelSamples = useMemo(
     () => (latest && selectedChannel ? latest.filter((s) => canonicalizeLabels(s.labels) === selectedChannel.key) : []),
@@ -224,11 +229,11 @@ export function StatsPage() {
         </p>
       ) : (
         <>
-          {deviceSamples.length > 0 && (
+          {deviceOnlySamples.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-400">Device / mixer counters (latest)</h2>
+              <h2 className="text-sm font-medium text-slate-400">Device counters (latest)</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {deviceSamples.map((sample, i) => (
+                {deviceOnlySamples.map((sample, i) => (
                   <StatTile
                     key={i}
                     label={titleCaseMetric(sample.metric)}
@@ -263,6 +268,8 @@ export function StatsPage() {
             </div>
 
             <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
+
+            <MixerStats samples={deviceSamples} mixerLookups={mixerLookups} />
 
             {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
               <div className="space-y-2">
