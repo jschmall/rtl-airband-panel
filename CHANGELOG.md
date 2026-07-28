@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.37] - 2026-07-28
+
+### Fixed
+
+- **Validation banner leaked warnings/errors across instances.** Save,
+  restart, and "Check config" results were kept in page-level state that
+  was never reset or scoped to the instance that produced it, and the
+  instance edit page doesn't remount when you switch instances (React
+  Router reuses it, only the `:name` param changes). Save/restart instance
+  A, get a warning, then navigate to instance B, and the banner kept
+  showing A's warnings — mislabeled using B's freshly-loaded config, or
+  overwritten by whatever B's own last check happened to be. Warnings,
+  errors, and the saved-message banner now reset whenever the edited
+  instance changes, and an in-flight save/check request whose instance no
+  longer matches the page being shown is dropped instead of applied.
+
 ## [0.4.36] - 2026-07-28
 
 ### Added

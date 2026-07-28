@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
@@ -39,6 +39,25 @@ export function InstanceEditPage() {
   // scroll/expand even though the path string didn't change. See Collapsible's
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
+
+  // Tracks the instance this page is currently showing, so an in-flight
+  // save/check for the *previous* instance can tell it's stale once the user
+  // has navigated away, and skip applying its result to this instance's state.
+  const nameRef = useRef(name);
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+
+  // Validation state (errors/warnings/etc.) is a result of an action taken
+  // against one specific instance -- it must not carry over when the user
+  // switches to editing a different instance's config.
+  useEffect(() => {
+    setErrors([]);
+    setWarnings([]);
+    setWarningsDismissed(false);
+    setSavedMessage(null);
+    setPendingAction(null);
+  }, [name]);
 
   const loadConfig = useCallback(() => {
     if (!name) return;
@@ -128,6 +147,11 @@ export function InstanceEditPage() {
     setSavedMessage(null);
     try {
       const result = await api.updateConfig(name, config, { restart, ifMatch: version ?? undefined });
+      // The user may have navigated to a different instance while this request
+      // was in flight -- its result belongs to `name`, not whatever instance
+      // this page happens to be showing now, so drop it rather than let it
+      // clobber that instance's state.
+      if (nameRef.current !== name) return;
       setWarnings(result.warnings);
       setWarningsDismissed(false);
       setVersion(result.version);
@@ -143,6 +167,7 @@ export function InstanceEditPage() {
       // instead of freezing on whatever snapshot the request above happened to catch.
       if (restart) pollBriefly();
     } catch (err) {
+      if (nameRef.current !== name) return;
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
         setErrors(err.body.errors);
       } else if (err instanceof ApiError && err.status === 409) {
@@ -165,7 +190,7 @@ export function InstanceEditPage() {
         ]);
       }
     } finally {
-      setPendingAction(null);
+      if (nameRef.current === name) setPendingAction(null);
     }
   }
 
@@ -178,10 +203,12 @@ export function InstanceEditPage() {
     setSavedMessage(null);
     try {
       const result = await api.validate(name, config);
+      if (nameRef.current !== name) return;
       setErrors(result.errors);
       setWarnings(result.warnings);
       setWarningsDismissed(false);
     } catch (err) {
+      if (nameRef.current !== name) return;
       setErrors([
         {
           severity: "error",
@@ -191,7 +218,7 @@ export function InstanceEditPage() {
         },
       ]);
     } finally {
-      setPendingAction(null);
+      if (nameRef.current === name) setPendingAction(null);
     }
   }
 
