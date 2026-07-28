@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.30] - 2026-07-28
+
+### Fixed
+
+- **Saving a config with a mixer that nothing routes into is now rejected.**
+  RTLSDR-Airband's mixer thread has nothing to write to a mixer with zero
+  inbound channel outputs, and exits at startup -- but the validator only
+  ever checked the *forward* direction (a channel output naming a mixer that
+  must exist), never the reverse. A new `checkMixerUnused` check errors on
+  any non-disabled mixer with no channel output routed into it, mirroring
+  `checkMixerReferences` from the other side of the same edge. Disabled
+  mixers are exempt, and a mixer whose own outputs are all disabled is left
+  to the existing `checkDisableCascade` error rather than being flagged
+  twice for the same root cause.
+
+### Added
+
+- **"Check config" button on the instance edit page.** The
+  `POST /instances/:name/validate` endpoint already existed and ran the
+  same validation a save would, without writing anything, but nothing in
+  the UI called it. A new button next to Save / Save-and-restart lets you
+  catch validation errors (including the new mixer-unused check above)
+  before committing to a save that restarts the unit and interrupts live
+  audio.
+
 ## [0.4.29] - 2026-07-27
 
 ### Fixed

@@ -32,7 +32,7 @@ export function InstanceEditPage() {
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [warningsDismissed, setWarningsDismissed] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"save" | "restart" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"save" | "restart" | "check" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   // Set when the user clicks a validation issue in the banner -- nonce is bumped
   // (not just the path) so clicking the same issue twice still re-triggers the
@@ -169,6 +169,32 @@ export function InstanceEditPage() {
     }
   }
 
+  // Runs the same validation a save would, without writing or restarting anything --
+  // an early-warning convenience so the user can find problems before committing to
+  // Save-and-restart, which interrupts live audio.
+  async function handleCheck() {
+    if (!name || !config || pendingAction) return;
+    setPendingAction("check");
+    setSavedMessage(null);
+    try {
+      const result = await api.validate(name, config);
+      setErrors(result.errors);
+      setWarnings(result.warnings);
+      setWarningsDismissed(false);
+    } catch (err) {
+      setErrors([
+        {
+          severity: "error",
+          code: "request-failed",
+          path: "$",
+          message: err instanceof ApiError ? err.message : "Check failed",
+        },
+      ]);
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   if (loadError) {
     return (
       <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
@@ -211,6 +237,14 @@ export function InstanceEditPage() {
       <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} onRevealSecret={revealSecret} />
 
       <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          disabled={pendingAction !== null}
+          onClick={() => void handleCheck()}
+          className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+        >
+          {pendingAction === "check" ? "Checking…" : "Check config"}
+        </button>
         <button
           type="button"
           disabled={pendingAction !== null}

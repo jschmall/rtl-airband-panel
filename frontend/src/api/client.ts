@@ -1,5 +1,5 @@
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import type { ValidationIssue } from "@rtl-airband-panel/validate";
+import type { ValidationIssue, ValidationResult } from "@rtl-airband-panel/validate";
 
 export interface InstanceSummary {
   name: string;
@@ -97,6 +97,13 @@ export const api = {
 
   /** Unredacted config -- only ever called when the user clicks "Show" on a field still holding the redaction sentinel. */
   getSecrets: (name: string): Promise<RtlAirbandConfig> => request(`/instances/${encodeURIComponent(name)}/secrets`),
+
+  /** Runs the same validation a save would, without writing anything -- lets the UI surface errors before Save. */
+  validate: (name: string, config: RtlAirbandConfig): Promise<ValidationResult> =>
+    request(`/instances/${encodeURIComponent(name)}/validate`, {
+      method: "POST",
+      body: JSON.stringify(config),
+    }),
 
   updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {

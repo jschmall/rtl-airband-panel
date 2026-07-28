@@ -17,6 +17,7 @@ import {
   checkMixerNestedOutputs,
   checkMixerOutputBalance,
   checkMixerReferences,
+  checkMixerUnused,
   checkModulation,
   checkNotchQ,
   checkPostWriteScript,
@@ -419,6 +420,66 @@ describe("checkMixerReferences", () => {
     const issues = checkMixerReferences(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]!.code).toBe("mixer-reference-not-found");
+  });
+});
+
+describe("checkMixerUnused", () => {
+  it("does not flag a mixer with an inbound channel output", () => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix1" }] })]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    expect(checkMixerUnused(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when a mixer has zero inbound channel outputs", () => {
+    const device = makeDevice([makeChannel(100_000_000)]); // plain, non-mixer output
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    const issues = checkMixerUnused(makeConfig([device], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-unused", path: "$.mixers[0]" });
+  });
+
+  it("does not flag anything when mixers is undefined", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    expect(checkMixerUnused(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag anything when mixers is an empty array", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    expect(checkMixerUnused(makeConfig([device], { mixers: [] }))).toEqual([]);
+  });
+
+  it("does not flag a disabled, unreferenced mixer", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], disable: true };
+    expect(checkMixerUnused(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("does not double-report a mixer that is both unreferenced and has all-disabled outputs (checkDisableCascade already covers it)", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", disable: true }] };
+    const config = makeConfig([device], { mixers: [mixer] });
+    expect(checkMixerUnused(config)).toEqual([]);
+    const cascadeIssues = checkDisableCascade(config);
+    expect(cascadeIssues).toHaveLength(1);
+    expect(cascadeIssues[0]).toMatchObject({ code: "no-active-mixer-outputs", path: "$.mixers[0]" });
+  });
+
+  it("scopes the reference lookup across all devices, not just the first", () => {
+    const referenced = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix2" }] })]);
+    const unreferenced = makeDevice([makeChannel(101_000_000)]);
+    const mixers: Mixer[] = [
+      { name: "mix1", outputs: [{ type: "pulse" }] },
+      { name: "mix2", outputs: [{ type: "pulse" }] },
+    ];
+    const issues = checkMixerUnused(makeConfig([unreferenced, referenced], { mixers }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "mixer-unused", path: "$.mixers[0]" });
+  });
+
+  it("still counts a reference coming from a disabled channel/device", () => {
+    const device = makeDevice([makeChannel(100_000_000, { outputs: [{ type: "mixer", name: "mix1" }] })], { disable: true });
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    expect(checkMixerUnused(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
   });
 });
 

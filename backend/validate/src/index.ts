@@ -6,6 +6,7 @@ import { checkCtcssTones } from "./checks/ctcss.js";
 import { checkScanMode } from "./checks/scan-mode.js";
 import { checkDeviceRequirements } from "./checks/device-requirements.js";
 import { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+import { checkMixerUnused } from "./checks/mixer-unused.js";
 import { checkDisableCascade } from "./checks/disable-cascade.js";
 import { checkRdioScanner } from "./checks/rdio-scanner.js";
 import { checkFftSize } from "./checks/fft-size.js";
@@ -25,6 +26,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkScanMode(config),
     ...checkDeviceRequirements(config),
     ...checkMixerReferences(config),
+    ...checkMixerUnused(config),
     ...checkDisableCascade(config),
     ...checkRdioScanner(config),
     ...checkFftSize(config),
@@ -58,6 +60,7 @@ export { checkCtcssTones } from "./checks/ctcss.js";
 export { checkScanMode } from "./checks/scan-mode.js";
 export { checkDeviceRequirements } from "./checks/device-requirements.js";
 export { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+export { checkMixerUnused } from "./checks/mixer-unused.js";
 export { checkDisableCascade } from "./checks/disable-cascade.js";
 export { checkRdioScanner } from "./checks/rdio-scanner.js";
 export { checkFftSize } from "./checks/fft-size.js";
