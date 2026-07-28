@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.35] - 2026-07-28
+
+### Changed
+
+- **Versioning convention tightened: every commit bumps the version.**
+  Previously a version bump was a judgment call ("does this change deserve
+  one?"), which is what let git tags silently drift behind package.json on
+  two separate occasions (v0.4.24-27, then again v0.4.30-33 — both caught
+  late and backfilled). From now on every commit bumps package.json in
+  lockstep across the root and all workspaces, adds a CHANGELOG entry, and
+  gets a pushed `vX.Y.Z` tag — no exceptions, no judgment call. Documented
+  in CLAUDE.md's Conventions section.
+
 ## [0.4.34] - 2026-07-28
 
 ### Changed
