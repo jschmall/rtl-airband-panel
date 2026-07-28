@@ -7,9 +7,12 @@ import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
 import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
 import { CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
 import { humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
+import { buildMixerLookups, resolveMixerSampleLabel, type MixerLookups } from "../lib/stats-mixer-labels.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
 import { AUTO_REFRESH_MS } from "../lib/polling.js";
+
+const EMPTY_MIXER_LOOKUPS: MixerLookups = { mixerNames: new Map(), inputChannels: new Map() };
 
 interface ChannelOption {
   key: string;
@@ -58,6 +61,10 @@ export function StatsPage() {
   const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
   const [rangeMs, setRangeMs] = useState<number>(60 * 60 * 1000);
   const [snrSeries, setSnrSeries] = useState<Series[]>([]);
+  // Only used to resolve mixer/input indices in stats labels to names -- not
+  // re-fetched on every poll tick, since it only needs to be fresh enough to
+  // match the mixer topology, which doesn't change without a restart.
+  const [mixerLookups, setMixerLookups] = useState<MixerLookups>(EMPTY_MIXER_LOOKUPS);
 
   const loadInstances = useCallback(async () => {
     setError(null);
@@ -143,7 +150,12 @@ export function StatsPage() {
   useEffect(() => {
     setLatest(null);
     setSelectedChannelKey(null);
+    setMixerLookups(EMPTY_MIXER_LOOKUPS);
     if (!selectedInstanceName) return;
+    api
+      .getConfig(selectedInstanceName)
+      .then(({ config }) => setMixerLookups(buildMixerLookups(config)))
+      .catch(() => undefined); // mixer/input tiles just fall back to raw indices below
     void loadLatest();
     // Same interval drives both the stat tiles and the history chart below them, so
     // they never drift out of sync the way they used to (tiles moving on every poll,
@@ -221,7 +233,7 @@ export function StatsPage() {
                     key={i}
                     label={titleCaseMetric(sample.metric)}
                     value={sample.value}
-                    sublabel={humanizeLabels(sample.labels)}
+                    sublabel={resolveMixerSampleLabel(sample.metric, sample.labels, mixerLookups) ?? humanizeLabels(sample.labels)}
                     tooltip={deviceMetricTooltip(sample.metric)}
                   />
                 ))}

@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.34] - 2026-07-28
+
+### Changed
+
+- **Stats page resolves mixer input indices to channel names.** RTLSDR-Airband's
+  stats file identifies mixers and mixer inputs by bare position (`mixer="0"`,
+  `input="1"`), not name — so an instance with several channels feeding one
+  mixer showed a pile of identically-titled "Input Overrun" tiles,
+  differentiated only by raw index. The stats page now replays the same
+  numbering RTLSDR-Airband itself uses (`config.cpp`'s
+  `parse_mixers`/`mixer_connect_input`, skipping disabled devices/channels/
+  outputs/mixers) against the instance's own config to resolve each tile's
+  sublabel to the actual mixer name and feeding channel (e.g. "bcfy_1 —
+  151.1900 MHz — CDF - Tac 4"), falling back to the raw indices if the config
+  and running stats fall out of sync.
+
 ## [0.4.33] - 2026-07-28
 
 ### Added
