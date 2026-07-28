@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.31] - 2026-07-28
+
+### Changed
+
+- **journalctl no longer gets a JSON line for every HTTP request.** The
+  panel's own service logged via Fastify's default logger
+  (`logger: true`), which emits an "incoming request"/"request completed"
+  line per request -- at the frontend's 20-second polling cadence for the
+  instance list and stats pages, this drowned the journal in noise with no
+  way to turn it down. Request-level access logging is now off by default
+  (`logController` with `disableRequestLogging`); the existing audit log
+  (one line per mutating action), and warning/error logging, are
+  unchanged. A new `RTL_PANEL_LOG_LEVEL` env var / `--log-level` flag
+  (default `info`) controls the pino log level for further tuning. The
+  example systemd unit now also sets `SyslogIdentifier=rtl-airband-panel`
+  so the panel's journal entries are tagged distinctly from the generic
+  `node` identifier, enabling `journalctl -t rtl-airband-panel`. No file
+  logging under `/var/log` was added -- journald already owns rotation,
+  and a new file would need its own logrotate config and permissions
+  story for no real benefit over the level/identifier changes above.
+
 ## [0.4.30] - 2026-07-28
 
 ### Fixed

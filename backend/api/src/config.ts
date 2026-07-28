@@ -34,6 +34,12 @@ export interface ApiConfig {
   statsRetentionDays: number;
   /** Directory to serve the built frontend from, if it exists (see static.ts). Doesn't need to exist -- absent means dev mode via a separate Vite server. */
   frontendDistPath: string;
+  /**
+   * Pino log level for the server's own logger (fatal/error/warn/info/debug/trace/silent).
+   * Not validated here -- an invalid value surfaces as a clear error from pino itself
+   * when Fastify is constructed, so there's no need to duplicate that check.
+   */
+  logLevel: string;
 }
 
 /**
@@ -51,6 +57,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     sudoUnitNamePrefix: env.RTL_PANEL_SUDO_UNIT_PREFIX ?? "",
     port: env.RTL_PANEL_PORT ? Number(env.RTL_PANEL_PORT) : 3000,
     host: env.RTL_PANEL_HOST ?? "127.0.0.1",
+    logLevel: env.RTL_PANEL_LOG_LEVEL ?? "info",
     statsDbPath: env.RTL_PANEL_STATS_DB_PATH ?? path.join(os.homedir(), ".rtl-airband-panel", "stats.db"),
     statsPollIntervalMs: env.RTL_PANEL_STATS_POLL_INTERVAL_MS ? Number(env.RTL_PANEL_STATS_POLL_INTERVAL_MS) : 15_000,
     statsRetentionDays: env.RTL_PANEL_STATS_RETENTION_DAYS ? Number(env.RTL_PANEL_STATS_RETENTION_DAYS) : 7,

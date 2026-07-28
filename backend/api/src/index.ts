@@ -72,7 +72,7 @@ const statsStore = new StatsStore(config.statsDbPath);
 const pollStatusTracker = new PollStatusTracker();
 const statsService = new StatsService(configStore, statsStore, pollStatusTracker);
 
-const app = buildApp(service, statsService, { frontendDistPath: config.frontendDistPath });
+const app = buildApp(service, statsService, { logLevel: config.logLevel, frontendDistPath: config.frontendDistPath });
 
 const poller = new StatsPoller(
   configStore,

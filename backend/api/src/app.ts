@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { LogController, type FastifyInstance } from "fastify";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import type { InstanceService } from "./instance-service.js";
@@ -11,9 +11,19 @@ import { registerFrontend } from "./static-frontend.js";
 export function buildApp(
   service: InstanceService,
   statsService: StatsService,
-  options: { logger?: boolean; frontendDistPath?: string } = {}
+  options: { logger?: boolean; logLevel?: string; frontendDistPath?: string } = {}
 ): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? true });
+  // logController.disableRequestLogging: Fastify's default logger otherwise
+  // emits an "incoming request"/"request completed" JSON line for every
+  // HTTP request, which drowns out the deliberate audit/warn/error logging
+  // below under routine polling traffic (instance list, stats, /metrics
+  // scraping every ~15-20s). Mutating actions still get their own explicit
+  // auditLog line in routes.ts, so nothing about *what happened* is lost --
+  // just the per-poll noise.
+  const app = Fastify({
+    logger: options.logger === false ? false : { level: options.logLevel ?? "info" },
+    logController: new LogController({ disableRequestLogging: true }),
+  });
   installErrorHandler(app);
 
   // Every response carries the same request id Fastify's own logger already

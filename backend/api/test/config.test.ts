@@ -9,6 +9,17 @@ describe("loadConfig", () => {
     expect(config.port).toBe(3000);
     expect(config.host).toBe("127.0.0.1");
     expect(config.sudoUnitNamePrefix).toBe("");
+    expect(config.logLevel).toBe("info");
+  });
+
+  it("RTL_PANEL_LOG_LEVEL sets the pino log level", () => {
+    const config = loadConfig({ RTL_PANEL_LOG_LEVEL: "debug" });
+    expect(config.logLevel).toBe("debug");
+  });
+
+  it("a CLI override for logLevel wins over the env var", () => {
+    const config = loadConfig({ RTL_PANEL_LOG_LEVEL: "debug" }, { logLevel: "warn" });
+    expect(config.logLevel).toBe("warn");
   });
 
   it("RTL_PANEL_SUDO_UNIT_PREFIX sets the sudo-mode unit scoping prefix", () => {

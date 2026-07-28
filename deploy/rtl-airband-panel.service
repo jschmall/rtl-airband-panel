@@ -19,6 +19,10 @@ After=network.target
 Type=simple
 User=rtl-airband-panel
 WorkingDirectory=/opt/rtl-airband-panel
+# Tags every journal entry from this unit as "rtl-airband-panel" instead of
+# the generic "node" -- lets you filter with `journalctl -t rtl-airband-panel`
+# as an alternative to `-u rtl-airband-panel`.
+SyslogIdentifier=rtl-airband-panel
 # Optional: KEY=VALUE settings, same format as .env.example. The leading
 # "-" means a missing file is not an error, matching the app's own
 # missing-.env behavior.

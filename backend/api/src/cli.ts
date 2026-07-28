@@ -9,6 +9,7 @@ const OPTIONS = {
   "sudo-unit-prefix": { type: "string" },
   port: { type: "string" },
   host: { type: "string" },
+  "log-level": { type: "string" },
   "stats-db-path": { type: "string" },
   "stats-poll-interval-ms": { type: "string" },
   "stats-retention-days": { type: "string" },
@@ -41,6 +42,7 @@ export function parseCliArgs(argv: string[]): CliResult {
   if (values["sudo-unit-prefix"] !== undefined) overrides.sudoUnitNamePrefix = values["sudo-unit-prefix"];
   if (values.port !== undefined) overrides.port = Number(values.port);
   if (values.host !== undefined) overrides.host = values.host;
+  if (values["log-level"] !== undefined) overrides.logLevel = values["log-level"];
   if (values["stats-db-path"] !== undefined) overrides.statsDbPath = values["stats-db-path"];
   if (values["stats-poll-interval-ms"] !== undefined) overrides.statsPollIntervalMs = Number(values["stats-poll-interval-ms"]);
   if (values["stats-retention-days"] !== undefined) overrides.statsRetentionDays = Number(values["stats-retention-days"]);
@@ -65,6 +67,7 @@ Options:
   --sudo-unit-prefix <prefix>   In sudo mode, only act on units named <prefix>*.service (default: "", no restriction beyond the existing safe-name check)
   --port <number>               API listen port (default: 3000)
   --host <address>              API listen host (default: 127.0.0.1)
+  --log-level <level>           Pino log level: fatal|error|warn|info|debug|trace|silent (default: info)
   --stats-db-path <path>        SQLite file for historical stats samples (default: ~/.rtl-airband-panel/stats.db)
   --stats-poll-interval-ms <n>  How often each instance's stats file is re-read (default: 15000)
   --stats-retention-days <n>    Stats samples older than this are pruned; 0 disables pruning (default: 7)
