@@ -9,7 +9,18 @@ import { defaultDevice } from "../../src/lib/defaults.js";
 /** DeviceEditor is controlled, same as OutputEditor -- see that test file. */
 function Harness() {
   const [device, setDevice] = useState<Device>(defaultDevice());
-  return <DeviceEditor device={device} onChange={setDevice} onRemove={() => {}} onDuplicate={() => {}} pathPrefix="$.test" />;
+  return (
+    <DeviceEditor
+      device={device}
+      deviceIndex={0}
+      onChange={setDevice}
+      onRemove={() => {}}
+      onDuplicate={() => {}}
+      pathPrefix="$.test"
+      channelTargets={[]}
+      onCopyOutputToChannel={() => {}}
+    />
+  );
 }
 
 describe("DeviceEditor type-switch value memory", () => {

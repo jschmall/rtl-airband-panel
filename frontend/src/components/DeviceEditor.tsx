@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Channel, Device, MultichannelChannel, ScanChannel } from "@rtl-airband-panel/parser";
+import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { ChannelEditor } from "./ChannelEditor.js";
@@ -11,14 +11,7 @@ import { numberOrUndefined } from "../lib/number-utils.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
-
-function isMultichannelChannel(channel: Channel): channel is MultichannelChannel {
-  return "freq" in channel;
-}
-
-function isScanChannel(channel: Channel): channel is ScanChannel {
-  return "freqs" in channel;
-}
+import { isMultichannelChannel, isScanChannel, type ChannelTarget } from "../lib/channel-targets.js";
 
 /** Matches a channel search filter against frequency (MHz or raw Hz), label, and modulation. */
 function channelMatchesFilter(channel: MultichannelChannel, filter: string): boolean {
@@ -34,12 +27,16 @@ function channelMatchesFilter(channel: MultichannelChannel, filter: string): boo
 
 interface DeviceEditorProps {
   device: Device;
+  deviceIndex: number;
   onChange: (device: Device) => void;
   onRemove: () => void;
   onDuplicate: () => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Every channel an output can be copied to, across the whole instance -- see OutputEditor. */
+  channelTargets: ChannelTarget[];
+  onCopyOutputToChannel: (output: Output, target: ChannelTarget) => void;
 }
 
 const DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"] as const;
@@ -55,7 +52,18 @@ function parseGain(text: string): number | string | undefined {
   return Number.isFinite(n) && text.trim() !== "" ? n : text;
 }
 
-export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: DeviceEditorProps) {
+export function DeviceEditor({
+  device,
+  deviceIndex,
+  onChange,
+  onRemove,
+  onDuplicate,
+  pathPrefix,
+  jumpTarget,
+  onRevealSecret,
+  channelTargets,
+  onCopyOutputToChannel,
+}: DeviceEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
@@ -286,10 +294,14 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
         {isScan ? (
           <ScanChannelEditor
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}
+            deviceIndex={deviceIndex}
+            channelIndex={0}
             onChange={(next) => onChange({ ...device, channels: [next] })}
             pathPrefix={`${pathPrefix}.channels[0]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={channelTargets}
+            onCopyOutputToChannel={onCopyOutputToChannel}
           />
         ) : (
           <>
@@ -302,12 +314,16 @@ export function DeviceEditor({ device, onChange, onRemove, onDuplicate, pathPref
               <ChannelEditor
                 key={uiKeyOf(channel, i)}
                 channel={channel}
+                deviceIndex={deviceIndex}
+                channelIndex={i}
                 onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
                 onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
                 onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
                 pathPrefix={`${pathPrefix}.channels[${i}]`}
                 jumpTarget={jumpTarget}
                 onRevealSecret={onRevealSecret}
+                channelTargets={channelTargets}
+                onCopyOutputToChannel={onCopyOutputToChannel}
               />
             ))}
           </>

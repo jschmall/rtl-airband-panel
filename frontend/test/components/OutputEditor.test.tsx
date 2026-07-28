@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Output } from "@rtl-airband-panel/parser";
 import { OutputEditor } from "../../src/components/OutputEditor.js";
 import { defaultPulseOutput } from "../../src/lib/defaults.js";
+import type { ChannelTarget } from "../../src/lib/channel-targets.js";
 
 /**
  * OutputEditor is a controlled component (the parent owns `output` state),
@@ -61,5 +62,63 @@ describe("OutputEditor type-switch value memory", () => {
     await user.selectOptions(screen.getByLabelText("Output type"), "icecast");
 
     expect(screen.getByRole("button", { name: /Output — icecast/ })).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("OutputEditor copy to channel", () => {
+  it("does not render the action when there are no copy targets", () => {
+    render(<OutputEditor output={defaultPulseOutput()} onChange={() => {}} onRemove={() => {}} onDuplicate={() => {}} pathPrefix="$.test" />);
+    expect(screen.queryByRole("button", { name: /Copy to channel/ })).not.toBeInTheDocument();
+  });
+
+  it("lets the user pick a target and calls onCopyToChannel with it", async () => {
+    const user = userEvent.setup();
+    const targets: ChannelTarget[] = [
+      { deviceIndex: 0, channelIndex: 1, label: "100.1000 MHz (Device 0)" },
+      { deviceIndex: 1, channelIndex: 0, label: "Scan channel (Device 1 — rtlsdr)" },
+    ];
+    const onCopyToChannel = vi.fn();
+    render(
+      <OutputEditor
+        output={defaultPulseOutput()}
+        onChange={() => {}}
+        onRemove={() => {}}
+        onDuplicate={() => {}}
+        pathPrefix="$.test"
+        channelTargets={targets}
+        onCopyToChannel={onCopyToChannel}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Copy to channel/ }));
+    await user.selectOptions(screen.getByRole("combobox"), "Scan channel (Device 1 — rtlsdr)");
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+
+    expect(onCopyToChannel).toHaveBeenCalledTimes(1);
+    expect(onCopyToChannel).toHaveBeenCalledWith(targets[1]);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("closes the picker without copying on Cancel", async () => {
+    const user = userEvent.setup();
+    const targets: ChannelTarget[] = [{ deviceIndex: 0, channelIndex: 1, label: "100.1000 MHz (Device 0)" }];
+    const onCopyToChannel = vi.fn();
+    render(
+      <OutputEditor
+        output={defaultPulseOutput()}
+        onChange={() => {}}
+        onRemove={() => {}}
+        onDuplicate={() => {}}
+        pathPrefix="$.test"
+        channelTargets={targets}
+        onCopyToChannel={onCopyToChannel}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Copy to channel/ }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onCopyToChannel).not.toHaveBeenCalled();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });

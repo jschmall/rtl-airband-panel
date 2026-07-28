@@ -9,6 +9,7 @@ import { numberOrUndefined } from "../lib/number-utils.js";
 import { MIXER_TOOLTIPS } from "../lib/config-descriptions.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
+import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface MixerEditorProps {
   mixer: Mixer;
@@ -18,10 +19,23 @@ interface MixerEditorProps {
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Every channel an output can be copied to, across the whole instance -- see OutputEditor. */
+  channelTargets: ChannelTarget[];
+  onCopyOutputToChannel: (output: Output, target: ChannelTarget) => void;
 }
 
 /** Editor for a top-level mixer definition, which channel outputs of type "mixer" route audio into by name. */
-export function MixerEditor({ mixer, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: MixerEditorProps) {
+export function MixerEditor({
+  mixer,
+  onChange,
+  onRemove,
+  onDuplicate,
+  pathPrefix,
+  jumpTarget,
+  onRevealSecret,
+  channelTargets,
+  onCopyOutputToChannel,
+}: MixerEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   return (
     <Collapsible
@@ -91,6 +105,8 @@ export function MixerEditor({ mixer, onChange, onRemove, onDuplicate, pathPrefix
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={channelTargets}
+            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
           />
         ))}
       </div>

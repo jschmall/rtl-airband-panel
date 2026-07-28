@@ -1,4 +1,4 @@
-import type { ScanChannel } from "@rtl-airband-panel/parser";
+import type { Output, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
@@ -17,13 +17,19 @@ import {
 import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
+import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface ScanChannelEditorProps {
   channel: ScanChannel;
+  deviceIndex: number;
+  channelIndex: number;
   onChange: (channel: ScanChannel) => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Every channel an output can be copied to, across the whole instance -- see OutputEditor. */
+  channelTargets: ChannelTarget[];
+  onCopyOutputToChannel: (output: Output, target: ChannelTarget) => void;
 }
 
 /**
@@ -32,8 +38,21 @@ interface ScanChannelEditorProps {
  * with one entry per frequency, matching RTLSDR-Airband's own config
  * grammar (e.g. `squelch_threshold = ( -30, -25, 0, -35 );`).
  */
-export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget, onRevealSecret }: ScanChannelEditorProps) {
+export function ScanChannelEditor({
+  channel,
+  deviceIndex,
+  channelIndex,
+  onChange,
+  pathPrefix,
+  jumpTarget,
+  onRevealSecret,
+  channelTargets,
+  onCopyOutputToChannel,
+}: ScanChannelEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
+  // A scan channel is always index 0 within its own device, so its own targets are
+  // excluded the same way ChannelEditor excludes itself.
+  const copyTargets = channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex));
   return (
     <Collapsible
       openSignal={openSignal}
@@ -149,6 +168,8 @@ export function ScanChannelEditor({ channel, onChange, pathPrefix, jumpTarget, o
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={copyTargets}
+            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
           />
         ))}
       </div>

@@ -1,4 +1,5 @@
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import { useMemo } from "react";
+import type { Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
@@ -8,6 +9,7 @@ import { defaultDevice, defaultMixer } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { GLOBAL_TOOLTIPS } from "../lib/config-descriptions.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
+import { buildChannelTargets, type ChannelTarget } from "../lib/channel-targets.js";
 
 interface ConfigEditorProps {
   config: RtlAirbandConfig;
@@ -18,6 +20,26 @@ interface ConfigEditorProps {
 }
 
 export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: ConfigEditorProps) {
+  const channelTargets = useMemo(() => buildChannelTargets(config.devices), [config.devices]);
+
+  // Appends a copy of `output` onto the target channel's outputs -- used by the
+  // "Copy to channel…" action on every OutputEditor (channel and mixer outputs alike).
+  // Always appends, never replaces, mirroring how "Duplicate output" behaves.
+  function handleCopyOutputToChannel(output: Output, target: ChannelTarget) {
+    const targetDevice = config.devices[target.deviceIndex];
+    if (!targetDevice) return;
+    const targetChannel = targetDevice.channels[target.channelIndex];
+    if (!targetChannel) return;
+    const nextDevice = {
+      ...targetDevice,
+      channels: updateAt(targetDevice.channels, target.channelIndex, {
+        ...targetChannel,
+        outputs: appendItem(targetChannel.outputs, cloneWithNewUiKeys(output)),
+      }),
+    };
+    onChange({ ...config, devices: updateAt(config.devices, target.deviceIndex, nextDevice) });
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
@@ -99,12 +121,15 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: C
           <DeviceEditor
             key={uiKeyOf(device, i)}
             device={device}
+            deviceIndex={i}
             onChange={(next) => onChange({ ...config, devices: updateAt(config.devices, i, next) })}
             onRemove={() => onChange({ ...config, devices: removeAt(config.devices, i) })}
             onDuplicate={() => onChange({ ...config, devices: duplicateAt(config.devices, i, cloneWithNewUiKeys) })}
             pathPrefix={`$.devices[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={channelTargets}
+            onCopyOutputToChannel={handleCopyOutputToChannel}
           />
         ))}
       </div>
@@ -133,6 +158,8 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: C
             pathPrefix={`$.mixers[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={channelTargets}
+            onCopyOutputToChannel={handleCopyOutputToChannel}
           />
         ))}
       </div>

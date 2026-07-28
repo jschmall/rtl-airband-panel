@@ -5,6 +5,36 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.32] - 2026-07-28
+
+### Added
+
+- **"Copy to channel…" action on every output.** Re-entering the same
+  Icecast/pulse/etc. settings by hand on every channel that needs them was
+  the only option before. Each output editor (on a regular channel, a
+  scan-mode channel, or a mixer) now has a "Copy to channel…" button that
+  expands an inline picker listing every other channel on the instance
+  (across all devices, including scan-mode channels) and appends a copy of
+  the output's settings onto whichever one is selected. It only ever
+  appends -- it never replaces an existing output -- mirroring how
+  "Duplicate output" already behaves, just targeting a different channel
+  instead of the same one.
+
+### Known issue (pre-existing, not introduced by this release)
+
+- Copying (or duplicating) an output whose Icecast password or
+  rdio-scanner API key is still showing the redacted placeholder --
+  i.e. hasn't been revealed via "Show" in this editing session -- saves
+  the new copy with that field blanked out instead of the real secret.
+  The backend's redaction-restore logic (`backend/api/src/secrets.ts`)
+  matches redacted fields back to their real values positionally
+  (device/channel/output index against the on-disk config), so any
+  action that inserts an output at a new index -- "Duplicate output" has
+  always had this same gap -- has nothing at that position to restore
+  from. Tracked as a follow-up; fixing it properly means changing how
+  secrets are matched back on save, not something to bundle into this
+  change.
+
 ## [0.4.31] - 2026-07-28
 
 ### Changed

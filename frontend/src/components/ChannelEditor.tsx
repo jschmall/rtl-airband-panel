@@ -1,4 +1,4 @@
-import type { MultichannelChannel } from "@rtl-airband-panel/parser";
+import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
@@ -9,18 +9,39 @@ import { numberOrUndefined } from "../lib/number-utils.js";
 import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
+import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface ChannelEditorProps {
   channel: MultichannelChannel;
+  deviceIndex: number;
+  channelIndex: number;
   onChange: (channel: MultichannelChannel) => void;
   onRemove: () => void;
   onDuplicate: () => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Every channel an output can be copied to, across the whole instance -- see OutputEditor. */
+  channelTargets: ChannelTarget[];
+  onCopyOutputToChannel: (output: Output, target: ChannelTarget) => void;
 }
 
-export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPrefix, jumpTarget, onRevealSecret }: ChannelEditorProps) {
+export function ChannelEditor({
+  channel,
+  deviceIndex,
+  channelIndex,
+  onChange,
+  onRemove,
+  onDuplicate,
+  pathPrefix,
+  jumpTarget,
+  onRevealSecret,
+  channelTargets,
+  onCopyOutputToChannel,
+}: ChannelEditorProps) {
+  // Excludes this channel itself from its outputs' copy-target list --
+  // "Duplicate output" already covers copying an output within its own channel.
+  const copyTargets = channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex));
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const channelTitle = `Channel ${(channel.freq / 1e6).toFixed(4)} MHz${channel.label ? ` — ${channel.label}` : ""}`;
   return (
@@ -202,6 +223,8 @@ export function ChannelEditor({ channel, onChange, onRemove, onDuplicate, pathPr
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
+            channelTargets={copyTargets}
+            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
           />
         ))}
       </div>

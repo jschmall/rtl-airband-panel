@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   FileOutput,
   IcecastOutput,
@@ -26,6 +26,7 @@ import {
 } from "../lib/defaults.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { withSameUiKey } from "../lib/keys.js";
+import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface OutputEditorProps {
   output: Output;
@@ -38,6 +39,13 @@ interface OutputEditorProps {
   jumpTarget?: { path: string; nonce: number } | null;
   /** Resolves a "$.devices[0]....password"-style path to its real value -- see PasswordInput. */
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Channels this output could be copied onto; omitted/empty hides "Copy to channel…" entirely. */
+  channelTargets?: ChannelTarget[];
+  onCopyToChannel?: (target: ChannelTarget) => void;
+}
+
+function channelTargetKey(target: ChannelTarget): string {
+  return `${target.deviceIndex}-${target.channelIndex}`;
 }
 
 const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
@@ -49,9 +57,23 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   mixer: defaultMixerOutput,
 };
 
-export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeMixerType, pathPrefix, jumpTarget, onRevealSecret }: OutputEditorProps) {
+export function OutputEditor({
+  output,
+  onChange,
+  onRemove,
+  onDuplicate,
+  excludeMixerType,
+  pathPrefix,
+  jumpTarget,
+  onRevealSecret,
+  channelTargets,
+  onCopyToChannel,
+}: OutputEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const revealField = onRevealSecret ? (suffix: string) => () => onRevealSecret(`${pathPrefix}.${suffix}`) : undefined;
+  const hasCopyTargets = channelTargets !== undefined && channelTargets.length > 0;
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyTargetKey, setCopyTargetKey] = useState<string>(() => (channelTargets?.[0] ? channelTargetKey(channelTargets[0]) : ""));
   // Remembers the last-edited values for each output type the user has visited in this
   // editing session, so switching the type dropdown away and back restores what was there
   // instead of resetting to defaults. Session-only (a ref, not part of the saved config) —
@@ -69,6 +91,20 @@ export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeM
     onChange(withSameUiKey(next, output));
   };
 
+  function handleOpenCopy() {
+    // Re-anchor the selection to the current first target every time the row opens,
+    // rather than trusting whatever was selected last time -- channelTargets can
+    // shift (channels added/removed elsewhere) while this card sat collapsed.
+    if (channelTargets?.[0]) setCopyTargetKey(channelTargetKey(channelTargets[0]));
+    setCopyOpen(true);
+  }
+
+  function handleConfirmCopy() {
+    const target = channelTargets?.find((t) => channelTargetKey(t) === copyTargetKey);
+    if (target && onCopyToChannel) onCopyToChannel(target);
+    setCopyOpen(false);
+  }
+
   return (
     <Collapsible
       openSignal={openSignal}
@@ -76,25 +112,49 @@ export function OutputEditor({ output, onChange, onRemove, onDuplicate, excludeM
       titleClassName="text-sm font-medium text-slate-200"
       title={`Output — ${output.type}`}
       headerActions={
-        <div className="flex items-center gap-3">
-          <BoolField
-            label="Disable"
-            tooltip={OUTPUT_TOOLTIPS.disable}
-            checked={output.disable}
-            onChange={(v) => onChange({ ...output, disable: v } as Output)}
-          />
-          <button type="button" onClick={onDuplicate} className={addButtonClass}>
-            Duplicate output
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Remove ${output.type} output?`)) onRemove();
-            }}
-            className={removeButtonClass}
-          >
-            Remove output
-          </button>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <BoolField
+              label="Disable"
+              tooltip={OUTPUT_TOOLTIPS.disable}
+              checked={output.disable}
+              onChange={(v) => onChange({ ...output, disable: v } as Output)}
+            />
+            <button type="button" onClick={onDuplicate} className={addButtonClass}>
+              Duplicate output
+            </button>
+            {hasCopyTargets && (
+              <button type="button" onClick={copyOpen ? () => setCopyOpen(false) : handleOpenCopy} className={addButtonClass}>
+                Copy to channel…
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Remove ${output.type} output?`)) onRemove();
+              }}
+              className={removeButtonClass}
+            >
+              Remove output
+            </button>
+          </div>
+          {copyOpen && hasCopyTargets && (
+            <div className="flex items-center gap-2">
+              <select className={`${inputClass} w-64`} value={copyTargetKey} onChange={(e) => setCopyTargetKey(e.target.value)}>
+                {channelTargets.map((target) => (
+                  <option key={channelTargetKey(target)} value={channelTargetKey(target)}>
+                    {target.label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={handleConfirmCopy} className={addButtonClass}>
+                Copy
+              </button>
+              <button type="button" onClick={() => setCopyOpen(false)} className="text-sm text-slate-400 hover:text-slate-300">
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       }
     >
