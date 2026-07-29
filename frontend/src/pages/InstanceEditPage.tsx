@@ -262,9 +262,13 @@ export function InstanceEditPage() {
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>
       )}
 
-      <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} onRevealSecret={revealSecret} />
-
-      {name && <InstanceLogs name={name} />}
+      <ConfigEditor
+        config={config}
+        onChange={setConfig}
+        jumpTarget={jumpTarget}
+        onRevealSecret={revealSecret}
+        afterGlobalSettings={name && <InstanceLogs name={name} />}
+      />
 
       <div className="flex justify-end gap-3">
         <button

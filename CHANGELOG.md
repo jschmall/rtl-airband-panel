@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.40] - 2026-07-29
+
+### Changed
+
+- **Moved the Logs section above the device list.** It now renders between
+  the global settings grid and "Devices" (previously it sat below the
+  whole config editor, after Mixers). `ConfigEditor` gained an
+  `afterGlobalSettings` slot so it stays purely about rendering the
+  config model, without needing to know about the log viewer itself.
+
 ## [0.4.39] - 2026-07-29
 
 ### Changed

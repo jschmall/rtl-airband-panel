@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
@@ -17,9 +17,11 @@ interface ConfigEditorProps {
   /** A validation issue the user clicked, to auto-expand and scroll to. See InstanceEditPage. */
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
+  /** Rendered between the global settings grid and the device list -- e.g. InstanceEditPage's log viewer. */
+  afterGlobalSettings?: ReactNode;
 }
 
-export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: ConfigEditorProps) {
+export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, afterGlobalSettings }: ConfigEditorProps) {
   const channelTargets = useMemo(() => buildChannelTargets(config.devices), [config.devices]);
 
   // Appends a copy of `output` onto the target channel's outputs -- used by the
@@ -105,6 +107,8 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret }: C
           />
         </div>
       </div>
+
+      {afterGlobalSettings}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
