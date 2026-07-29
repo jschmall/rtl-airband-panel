@@ -1,5 +1,5 @@
-import type { SystemdAdapter, UnitActiveState, UnitStatus } from "./types.js";
-import { runCommand } from "./run-command.js";
+import type { LogLine, SystemdAdapter, UnitActiveState, UnitStatus } from "./types.js";
+import { CommandError, runCommand } from "./run-command.js";
 
 const ACTIVE_STATES: readonly UnitActiveState[] = ["active", "inactive", "activating", "deactivating", "failed"];
 
@@ -115,6 +115,27 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
 
   async daemonReload(): Promise<void> {
     await systemctl(["daemon-reload"]);
+  }
+
+  async getLogs(unit: string, lines: number): Promise<LogLine[]> {
+    this.assertScoped(unit);
+    let output: string;
+    try {
+      output = await runCommand("sudo", ["journalctl", "-u", unit, "-n", String(lines), "--no-pager", "-o", "short-iso"]);
+    } catch (err) {
+      // Consistent with status()'s "never throws on not found" behavior --
+      // an unrecognized/never-started unit is reported as having no logs,
+      // not treated as a request-level failure.
+      if (err instanceof CommandError) return [];
+      throw err;
+    }
+    return output
+      .split("\n")
+      .filter((line) => line !== "")
+      .map((line) => {
+        const match = /^(\S+)\s+(.*)$/.exec(line);
+        return match ? { timestamp: match[1]!, message: match[2]! } : { timestamp: "", message: line };
+      });
   }
 
   async installUnitFile(unitName: string, contents: string): Promise<void> {

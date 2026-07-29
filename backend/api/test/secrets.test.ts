@@ -22,6 +22,26 @@ function configWithOutputs(outputs: RtlAirbandConfig["devices"][number]["channel
   };
 }
 
+function configWithChannels(channels: RtlAirbandConfig["devices"][number]["channels"]): RtlAirbandConfig {
+  return {
+    multiple_demod_threads: true,
+    multiple_output_threads: true,
+    stats_filepath: "/tmp/stats.txt",
+    localtime: true,
+    devices: [
+      {
+        type: "rtlsdr",
+        serial: "1",
+        gain: 29,
+        centerfreq: 100_000_000,
+        sample_rate: 1_400_000,
+        correction: 0,
+        channels,
+      },
+    ],
+  };
+}
+
 describe("redactSecrets", () => {
   it("masks an icecast output's password", () => {
     const config = configWithOutputs([{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: "hunter2" }]);
@@ -95,5 +115,68 @@ describe("restoreSecrets", () => {
 
     const restored = restoreSecrets(incoming, undefined);
     expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "" });
+  });
+
+  it("restores the correct password after channels are reordered (matched by frequency, not array index)", () => {
+    const icecastOutput = (password: string): RtlAirbandConfig["devices"][number]["channels"][number]["outputs"][number] => ({
+      type: "icecast",
+      server: "s",
+      port: 8000,
+      mountpoint: "/m",
+      username: "source",
+      password,
+    });
+    const existing = configWithChannels([
+      { freq: 100_000_000, afc: 0, modulation: "nfm", outputs: [icecastOutput("pwA")] },
+      { freq: 200_000_000, afc: 0, modulation: "nfm", outputs: [icecastOutput("pwB")] },
+    ]);
+    // Client reordered the channels (B first, A second) and echoed back the redacted sentinel for both.
+    const incoming = configWithChannels([
+      { freq: 200_000_000, afc: 0, modulation: "nfm", outputs: [icecastOutput(REDACTED_SECRET)] },
+      { freq: 100_000_000, afc: 0, modulation: "nfm", outputs: [icecastOutput(REDACTED_SECRET)] },
+    ]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "pwB" });
+    expect(restored.devices[0]!.channels[1]!.outputs[0]).toMatchObject({ password: "pwA" });
+  });
+
+  it("falls back to positional pairing when two channels share a frequency", () => {
+    const icecastOutput = (password: string): RtlAirbandConfig["devices"][number]["channels"][number]["outputs"][number] => ({
+      type: "icecast",
+      server: "s",
+      port: 8000,
+      mountpoint: "/m",
+      username: "source",
+      password,
+    });
+    const existing = configWithChannels([
+      { freq: 100_000_000, ctcss: 100, afc: 0, modulation: "nfm", outputs: [icecastOutput("pwA")] },
+      { freq: 100_000_000, ctcss: 200, afc: 0, modulation: "nfm", outputs: [icecastOutput("pwB")] },
+    ]);
+    const incoming = configWithChannels([
+      { freq: 100_000_000, ctcss: 100, afc: 0, modulation: "nfm", outputs: [icecastOutput(REDACTED_SECRET)] },
+      { freq: 100_000_000, ctcss: 200, afc: 0, modulation: "nfm", outputs: [icecastOutput(REDACTED_SECRET)] },
+    ]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "pwA" });
+    expect(restored.devices[0]!.channels[1]!.outputs[0]).toMatchObject({ password: "pwB" });
+  });
+
+  it("restores secrets for scan-mode channels keyed by their freqs list", () => {
+    const icecastOutput = (password: string): RtlAirbandConfig["devices"][number]["channels"][number]["outputs"][number] => ({
+      type: "icecast",
+      server: "s",
+      port: 8000,
+      mountpoint: "/m",
+      username: "source",
+      password,
+    });
+    const existing = configWithChannels([{ freqs: [100_000_000, 200_000_000, 300_000_000], outputs: [icecastOutput("scankey")] }]);
+    const incoming = configWithChannels([{ freqs: [100_000_000, 200_000_000, 300_000_000], outputs: [icecastOutput(REDACTED_SECRET)] }]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "scankey" });
   });
 });

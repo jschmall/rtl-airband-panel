@@ -6,6 +6,7 @@ import { api, ApiError } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
+import { InstanceLogs } from "../components/InstanceLogs.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep } from "../lib/keys.js";
@@ -262,6 +263,8 @@ export function InstanceEditPage() {
       )}
 
       <ConfigEditor config={config} onChange={setConfig} jumpTarget={jumpTarget} onRevealSecret={revealSecret} />
+
+      {name && <InstanceLogs name={name} />}
 
       <div className="flex justify-end gap-3">
         <button

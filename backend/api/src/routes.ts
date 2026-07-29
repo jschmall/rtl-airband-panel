@@ -62,6 +62,11 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return service.getHealth(request.params.name);
   });
 
+  app.get<{ Params: { name: string }; Querystring: { lines?: string } }>("/instances/:name/logs", async (request) => {
+    const lines = request.query.lines !== undefined ? Number(request.query.lines) : undefined;
+    return { lines: await service.getLogs(request.params.name, lines) };
+  });
+
   app.post<{ Params: { name: string } }>("/instances/:name/validate", async (request) => {
     const config = parseRtlAirbandConfigBody(request.body);
     return service.validateOnly(request.params.name, config);

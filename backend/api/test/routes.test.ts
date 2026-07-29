@@ -505,6 +505,38 @@ describe("GET /instances/:name/health", () => {
   });
 });
 
+describe("GET /instances/:name/logs", () => {
+  it("returns the unit's recent journal lines", async () => {
+    await seedFixture(h.instancesDir);
+    h.systemd.logLines.set(`${FIXTURE_INSTANCE_NAME}.service`, [
+      { timestamp: "2026-07-29T14:00:00+0000", message: "rtl_airband[1]: Started" },
+      { timestamp: "2026-07-29T14:00:01+0000", message: "rtl_airband[1]: All channels loaded" },
+    ]);
+    const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/logs` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      lines: [
+        { timestamp: "2026-07-29T14:00:00+0000", message: "rtl_airband[1]: Started" },
+        { timestamp: "2026-07-29T14:00:01+0000", message: "rtl_airband[1]: All channels loaded" },
+      ],
+    });
+  });
+
+  it("clamps an out-of-range lines query before it reaches the systemd adapter", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/logs?lines=999999` });
+    expect(res.statusCode).toBe(200);
+    expect(h.systemd.calls).toContain(`logs ${FIXTURE_INSTANCE_NAME}.service 2000`);
+  });
+
+  it("defaults to 200 lines when none is specified", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/logs` });
+    expect(res.statusCode).toBe(200);
+    expect(h.systemd.calls).toContain(`logs ${FIXTURE_INSTANCE_NAME}.service 200`);
+  });
+});
+
 describe("POST /instances/:name/validate", () => {
   it("returns no errors for a valid config and doesn't write or restart anything", async () => {
     await seedFixture(h.instancesDir);

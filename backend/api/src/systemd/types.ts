@@ -6,6 +6,12 @@ export interface UnitStatus {
   subState: string;
 }
 
+export interface LogLine {
+  /** journalctl's own timestamp for the entry, as printed by `-o short-iso`. */
+  timestamp: string;
+  message: string;
+}
+
 /**
  * Everything backend/api needs to control a single systemd unit. Kept
  * narrow and swappable so the real (sudo-based) implementation can later
@@ -21,4 +27,6 @@ export interface SystemdAdapter {
   daemonReload(): Promise<void>;
   installUnitFile(unitName: string, contents: string): Promise<void>;
   removeUnitFile(unitName: string): Promise<void>;
+  /** Most recent `lines` journal entries for `unit`, oldest first. */
+  getLogs(unit: string, lines: number): Promise<LogLine[]>;
 }

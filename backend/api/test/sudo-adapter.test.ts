@@ -47,6 +47,7 @@ describe("SudoSystemctlAdapter unit scoping", () => {
     await expect(adapter.status(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.installUnitFile(unit, "contents")).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.removeUnitFile(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
+    await expect(adapter.getLogs(unit, 200)).rejects.toBeInstanceOf(UnitOutOfScopeError);
   });
 
   it("constructing with an invalid prefix fails fast instead of silently misscoping", () => {

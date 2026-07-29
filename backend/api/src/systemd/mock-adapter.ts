@@ -1,4 +1,4 @@
-import type { SystemdAdapter, UnitStatus } from "./types.js";
+import type { LogLine, SystemdAdapter, UnitStatus } from "./types.js";
 
 /**
  * Records every call it receives instead of touching the system. Default
@@ -7,6 +7,8 @@ import type { SystemdAdapter, UnitStatus } from "./types.js";
 export class MockSystemdAdapter implements SystemdAdapter {
   readonly calls: string[] = [];
   readonly unitFiles = new Map<string, string>();
+  /** Seed a unit's canned journal output here before exercising getLogs() in tests. */
+  readonly logLines = new Map<string, LogLine[]>();
   private readonly states = new Map<string, UnitStatus>();
 
   async restart(unit: string): Promise<void> {
@@ -51,5 +53,10 @@ export class MockSystemdAdapter implements SystemdAdapter {
     this.calls.push(`remove-unit ${unitName}`);
     this.unitFiles.delete(unitName);
     this.states.delete(unitName);
+  }
+
+  async getLogs(unit: string, lines: number): Promise<LogLine[]> {
+    this.calls.push(`logs ${unit} ${lines}`);
+    return (this.logLines.get(unit) ?? []).slice(-lines);
   }
 }

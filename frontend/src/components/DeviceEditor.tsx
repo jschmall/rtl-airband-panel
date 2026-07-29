@@ -1,17 +1,41 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
-import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
+import { appendItem, duplicateAt, moveAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 import { isMultichannelChannel, isScanChannel, type ChannelTarget } from "../lib/channel-targets.js";
+
+/** Wraps a channel row with a drag handle for reordering -- outputs within a channel are never draggable, so this only ever wraps a whole ChannelEditor. */
+function SortableChannelRow({ id, children }: { id: string | number; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-2">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="mt-3 cursor-grab select-none text-lg leading-none text-slate-500 hover:text-slate-300 active:cursor-grabbing"
+        aria-label="Drag to reorder channel"
+        title="Drag to reorder"
+      >
+        ⠿
+      </button>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
 
 /** Matches a channel search filter against frequency (MHz or raw Hz), label, and modulation. */
 function channelMatchesFilter(channel: MultichannelChannel, filter: string): boolean {
@@ -92,6 +116,20 @@ export function DeviceEditor({
     .map((channel, i) => ({ channel, i }))
     .filter((entry): entry is { channel: MultichannelChannel; i: number } => isMultichannelChannel(entry.channel));
   const visibleChannels = indexedChannels.filter(({ channel }) => channelMatchesFilter(channel, channelFilter));
+
+  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // Drag-and-drop reorders device.channels itself (by real index), not the currently-
+  // rendered/filtered view -- so a reorder is well-defined even while a filter narrows
+  // which rows are shown.
+  function handleChannelDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = visibleChannels.find(({ channel, i }) => uiKeyOf(channel, i) === active.id);
+    const to = visibleChannels.find(({ channel, i }) => uiKeyOf(channel, i) === over.id);
+    if (!from || !to) return;
+    onChange({ ...device, channels: moveAt(device.channels, from.i, to.i) });
+  }
 
   return (
     <Collapsible
@@ -310,22 +348,27 @@ export function DeviceEditor({
                 Showing {visibleChannels.length} of {indexedChannels.length} channels.
               </p>
             )}
-            {visibleChannels.map(({ channel, i }) => (
-              <ChannelEditor
-                key={uiKeyOf(channel, i)}
-                channel={channel}
-                deviceIndex={deviceIndex}
-                channelIndex={i}
-                onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
-                onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
-                onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
-                pathPrefix={`${pathPrefix}.channels[${i}]`}
-                jumpTarget={jumpTarget}
-                onRevealSecret={onRevealSecret}
-                channelTargets={channelTargets}
-                onCopyOutputToChannel={onCopyOutputToChannel}
-              />
-            ))}
+            <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragEnd={handleChannelDragEnd}>
+              <SortableContext items={visibleChannels.map(({ channel, i }) => uiKeyOf(channel, i))} strategy={verticalListSortingStrategy}>
+                {visibleChannels.map(({ channel, i }) => (
+                  <SortableChannelRow key={uiKeyOf(channel, i)} id={uiKeyOf(channel, i)}>
+                    <ChannelEditor
+                      channel={channel}
+                      deviceIndex={deviceIndex}
+                      channelIndex={i}
+                      onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
+                      onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
+                      onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
+                      pathPrefix={`${pathPrefix}.channels[${i}]`}
+                      jumpTarget={jumpTarget}
+                      onRevealSecret={onRevealSecret}
+                      channelTargets={channelTargets}
+                      onCopyOutputToChannel={onCopyOutputToChannel}
+                    />
+                  </SortableChannelRow>
+                ))}
+              </SortableContext>
+            </DndContext>
           </>
         )}
       </div>

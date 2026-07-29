@@ -2,7 +2,7 @@ import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { validateConfig, type ValidationIssue, type ValidationResult } from "@rtl-airband-panel/validate";
 import type { ConfigStore } from "./config-store.js";
 import type { PendingRestartStore } from "./pending-restart-store.js";
-import type { SystemdAdapter, UnitStatus } from "./systemd/types.js";
+import type { LogLine, SystemdAdapter, UnitStatus } from "./systemd/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
 import { redactSecrets, restoreSecrets } from "./secrets.js";
@@ -166,6 +166,21 @@ export class InstanceService {
   async getHealth(name: string): Promise<UnitStatus> {
     assertValidInstanceName(name);
     return this.systemd.status(unitFileName(name));
+  }
+
+  private static readonly MIN_LOG_LINES = 10;
+  private static readonly MAX_LOG_LINES = 2000;
+  private static readonly DEFAULT_LOG_LINES = 200;
+
+  /** Clamps an arbitrary client-supplied "how many lines" request into a sane range before it ever reaches a shelled-out journalctl invocation. */
+  private static clampLogLines(lines: number | undefined): number {
+    if (lines === undefined || !Number.isFinite(lines)) return InstanceService.DEFAULT_LOG_LINES;
+    return Math.min(InstanceService.MAX_LOG_LINES, Math.max(InstanceService.MIN_LOG_LINES, Math.trunc(lines)));
+  }
+
+  async getLogs(name: string, lines?: number): Promise<LogLine[]> {
+    assertValidInstanceName(name);
+    return this.systemd.getLogs(unitFileName(name), InstanceService.clampLogLines(lines));
   }
 
   /**

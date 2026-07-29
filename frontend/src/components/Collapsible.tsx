@@ -15,16 +15,26 @@ interface CollapsibleProps {
    * open, so clicking the same error twice still re-locates it.
    */
   openSignal?: number;
+  /** Called the first time this section transitions from closed to open -- never again after. Omit for no such behavior. */
+  onFirstOpen?: () => void;
 }
 
-export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal }: CollapsibleProps) {
+export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onFirstOpen }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
+  const firstOpenFired = useRef(false);
+
+  function fireFirstOpen(): void {
+    if (firstOpenFired.current) return;
+    firstOpenFired.current = true;
+    onFirstOpen?.();
+  }
 
   useEffect(() => {
     if (!openSignal) return;
     setOpen(true);
+    fireFirstOpen();
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [openSignal]);
 
@@ -33,7 +43,13 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() =>
+            setOpen((o) => {
+              const next = !o;
+              if (next) fireFirstOpen();
+              return next;
+            })
+          }
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           aria-expanded={open}
           aria-controls={contentId}

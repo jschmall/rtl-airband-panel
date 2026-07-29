@@ -15,3 +15,12 @@ export function duplicateAt<T>(arr: T[], index: number, clone: (item: T) => T): 
   const copy = clone(arr[index]!);
   return [...arr.slice(0, index + 1), copy, ...arr.slice(index + 1)];
 }
+
+/** Moves the item at `from` to `to`, shifting everything in between -- used for drag-and-drop reordering. No-op if from === to or either index is out of range. */
+export function moveAt<T>(arr: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= arr.length || to < 0 || to >= arr.length) return arr;
+  const copy = arr.slice();
+  const [item] = copy.splice(from, 1);
+  copy.splice(to, 0, item!);
+  return copy;
+}

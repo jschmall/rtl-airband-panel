@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.38] - 2026-07-29
+
+### Added
+
+- **Drag-and-drop channel reordering.** Channels within a device can now be
+  dragged into a new order via a grip handle, which rewrites the order
+  channels appear in the written `.conf` file (FFT bin assignment is purely
+  a function of frequency/centerfreq/sample_rate, so reordering never
+  requires bin recomputation). Outputs are not draggable, only channels.
+  Fixed a related bug this surfaced: secret restoration on save
+  (`restoreSecrets`) paired channels against the previous on-disk config by
+  raw array index, so reordering channels before saving could splice an
+  icecast password or rdio-scanner API key onto the wrong channel. Channels
+  are now matched by frequency first, falling back to positional pairing
+  only when a frequency isn't uniquely resolvable.
+- **Per-instance journal log viewer.** A new "Logs" section on the instance
+  edit page fetches the unit's recent `journalctl` output (via a new
+  `GET /instances/:name/logs` endpoint, reusing the existing sudo-scoped
+  systemd adapter) so you can confirm a device/channel loaded correctly
+  after a restart. Fetches once when first expanded plus a manual Refresh
+  button — no background polling.
+
 ## [0.4.37] - 2026-07-28
 
 ### Fixed
