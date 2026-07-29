@@ -29,4 +29,11 @@ export interface SystemdAdapter {
   removeUnitFile(unitName: string): Promise<void>;
   /** Most recent `lines` journal entries for `unit`, oldest first. */
   getLogs(unit: string, lines: number): Promise<LogLine[]>;
+  /**
+   * Streams `lines` of backlog followed by live journal entries for `unit`,
+   * until `signal` aborts. Backed by `journalctl -f`, which prints the
+   * requested backlog and then keeps following in one invocation, so there
+   * is no separate backlog/live reconciliation step for a caller to do.
+   */
+  followLogs(unit: string, lines: number, signal: AbortSignal): AsyncGenerator<LogLine>;
 }

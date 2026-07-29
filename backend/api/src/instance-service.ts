@@ -183,6 +183,11 @@ export class InstanceService {
     return this.systemd.getLogs(unitFileName(name), InstanceService.clampLogLines(lines));
   }
 
+  followLogs(name: string, lines: number | undefined, signal: AbortSignal): AsyncGenerator<LogLine> {
+    assertValidInstanceName(name);
+    return this.systemd.followLogs(unitFileName(name), InstanceService.clampLogLines(lines), signal);
+  }
+
   /**
    * Runs the same validation updateConfig would, without writing anything or
    * touching systemd — lets a client check "would this save?" (e.g. before

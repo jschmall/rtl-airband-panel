@@ -105,6 +105,22 @@ Then open `http://<this-machine's-LAN-IP>:3000` from another device.
 
 There is no authentication on this API. Binding to `0.0.0.0` means anyone on your network can read and write instance configs and trigger restarts (and, in `sudo` systemd mode, real `systemctl` actions). `127.0.0.1` is the default specifically so that reaching a wider network is a choice you make on purpose.
 
+### Running behind a reverse proxy
+
+The live log viewer (the "Logs" section on an instance's edit page) streams via Server-Sent Events — a single long-lived HTTP response. nginx (and most reverse proxies) buffer a proxied response by default, which breaks this: instead of arriving live, log lines get held back and delivered in delayed bursts, or not at all until the connection eventually closes. If you're putting this panel behind nginx, disable buffering and raise the read timeout for its API traffic:
+
+```nginx
+location /api/instances/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    chunked_transfer_encoding on;
+}
+```
+
+The backend also sends `X-Accel-Buffering: no` on the stream response itself (nginx's own opt-out header), so no operator action is needed for that specific piece — but `proxy_buffering off` above is still the primary fix, and the only one that also helps with other proxies that don't honor that header. The stream sends a small heartbeat comment every 15 seconds as a second line of defense against any intermediary timing out an idle-looking connection, but `proxy_read_timeout` is the right place to fix that for nginx specifically.
+
 ### Running the panel as a systemd service
 
 Running the panel process directly in a terminal (or backgrounded with `&`/`nohup`) means it doesn't survive a reboot or restart itself if it crashes. An example unit file is provided at [`deploy/rtl-airband-panel.service`](./deploy/rtl-airband-panel.service) — this manages the *panel's own* process, separate from the per-instance `rtl_<name>.service` units the panel itself creates and controls for each RTLSDR-Airband instance.

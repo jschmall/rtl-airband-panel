@@ -537,6 +537,37 @@ describe("GET /instances/:name/logs", () => {
   });
 });
 
+describe("GET /instances/:name/logs/stream", () => {
+  it("streams SSE frames for backlog and live-pushed lines, then ends when the source ends", async () => {
+    await seedFixture(h.instancesDir);
+    const unit = `${FIXTURE_INSTANCE_NAME}.service`;
+    h.systemd.logLines.set(unit, [{ timestamp: "2026-07-29T14:00:00+0000", message: "Started" }]);
+
+    const injected = app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/logs/stream` });
+
+    const stream = await h.systemd.waitForLogStream(unit);
+    stream.push({ timestamp: "2026-07-29T14:00:01+0000", message: "All channels loaded" });
+    stream.end();
+
+    const res = await injected;
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+    expect(res.body).toContain(`data: ${JSON.stringify({ timestamp: "2026-07-29T14:00:00+0000", message: "Started" })}\n\n`);
+    expect(res.body).toContain(`data: ${JSON.stringify({ timestamp: "2026-07-29T14:00:01+0000", message: "All channels loaded" })}\n\n`);
+    expect(h.systemd.calls).toContain(`follow-logs ${unit} 200`);
+  });
+
+  it("clamps an out-of-range lines query before it reaches the systemd adapter", async () => {
+    await seedFixture(h.instancesDir);
+    const unit = `${FIXTURE_INSTANCE_NAME}.service`;
+    const injected = app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/logs/stream?lines=999999` });
+    const stream = await h.systemd.waitForLogStream(unit);
+    stream.end();
+    await injected;
+    expect(h.systemd.calls).toContain(`follow-logs ${unit} 2000`);
+  });
+});
+
 describe("POST /instances/:name/validate", () => {
   it("returns no errors for a valid config and doesn't write or restart anything", async () => {
     await seedFixture(h.instancesDir);

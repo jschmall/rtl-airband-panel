@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError, InstanceService, ValidationFailedError } from "../src/instance-service.js";
+import { InvalidInstanceNameError } from "../src/instance-name.js";
 import { ConfigStore } from "../src/config-store.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
@@ -579,6 +580,34 @@ describe("restartInstance", () => {
     const status = await h.service.restartInstance(FIXTURE_INSTANCE_NAME);
     expect(status.activeState).toBe("active");
     expect(h.systemd.calls).toEqual([`restart ${FIXTURE_INSTANCE_NAME}.service`, `status ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
+});
+
+describe("getLogs / followLogs", () => {
+  it("getLogs clamps an out-of-range lines request before it reaches the systemd adapter", async () => {
+    await seedFixture(h.instancesDir);
+    await h.service.getLogs(FIXTURE_INSTANCE_NAME, 999_999);
+    expect(h.systemd.calls).toContain(`logs ${FIXTURE_INSTANCE_NAME}.service 2000`);
+  });
+
+  it("getLogs rejects an invalid instance name before touching the systemd adapter", async () => {
+    await expect(h.service.getLogs("../etc", 200)).rejects.toBeInstanceOf(InvalidInstanceNameError);
+    expect(h.systemd.calls).toEqual([]);
+  });
+
+  it("followLogs clamps an out-of-range lines request before it reaches the systemd adapter", async () => {
+    await seedFixture(h.instancesDir);
+    const controller = new AbortController();
+    const iterator = h.service.followLogs(FIXTURE_INSTANCE_NAME, 999_999, controller.signal);
+    const first = iterator.next();
+    controller.abort();
+    await first;
+    expect(h.systemd.calls).toContain(`follow-logs ${FIXTURE_INSTANCE_NAME}.service 2000`);
+  });
+
+  it("followLogs rejects an invalid instance name synchronously, before any adapter call", () => {
+    expect(() => h.service.followLogs("../etc", 200, new AbortController().signal)).toThrow(InvalidInstanceNameError);
+    expect(h.systemd.calls).toEqual([]);
   });
 });
 

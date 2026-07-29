@@ -67,6 +67,64 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return { lines: await service.getLogs(request.params.name, lines) };
   });
 
+  // Read-only, same as /logs above -- stays under the global rate-limit default
+  // rather than MUTATING_ROUTE_OPTS, which exists specifically for actions that
+  // can restart-storm units. A long-lived connection only ever counts as the one
+  // request that opened it, regardless of how long it stays open.
+  app.get<{ Params: { name: string }; Querystring: { lines?: string } }>("/instances/:name/logs/stream", async (request, reply) => {
+    const lines = request.query.lines !== undefined ? Number(request.query.lines) : undefined;
+
+    // Fastify stops managing this reply after hijack() -- its own onSend hooks
+    // (helmet headers, x-request-id) no longer run, so anything that matters
+    // gets written manually below.
+    reply.hijack();
+    reply.raw.setHeader("x-request-id", request.id);
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      // nginx-specific opt-out of response buffering -- defense-in-depth
+      // alongside the reverse-proxy config documented in the README; without
+      // one or the other, a proxied deployment gets delayed bursts instead
+      // of a live stream.
+      "X-Accel-Buffering": "no",
+    });
+    // Node doesn't send headers until the first write() otherwise -- without this,
+    // a quiet unit with no backlog would leave the client's connection looking
+    // unopened (no onopen/response headers) until the first heartbeat.
+    reply.raw.flushHeaders();
+
+    const controller = new AbortController();
+    reply.raw.on("close", () => controller.abort());
+    reply.raw.on("error", () => controller.abort());
+
+    // Keeps any intermediary (proxy, load balancer) that treats a quiet
+    // connection as dead from closing it during a lull in journal activity.
+    const heartbeat = setInterval(() => {
+      if (!reply.raw.writableEnded) reply.raw.write(": ping\n\n");
+    }, 15_000);
+
+    try {
+      for await (const line of service.followLogs(request.params.name, lines, controller.signal)) {
+        if (reply.raw.writableEnded) break;
+        reply.raw.write(`data: ${JSON.stringify(line)}\n\n`);
+      }
+    } catch (err) {
+      // Named "stream-error" rather than the bare SSE default -- EventSource's
+      // own connection-failure event is also called "error", so reusing that
+      // name here would make a single client-side listener receive both native
+      // transport failures and this application-level message, indistinguishable
+      // without extra checks.
+      if (!reply.raw.writableEnded) {
+        reply.raw.write(`event: stream-error\ndata: ${JSON.stringify({ message: errorMessage(err) })}\n\n`);
+      }
+    } finally {
+      clearInterval(heartbeat);
+      controller.abort();
+      if (!reply.raw.writableEnded) reply.raw.end();
+    }
+  });
+
   app.post<{ Params: { name: string } }>("/instances/:name/validate", async (request) => {
     const config = parseRtlAirbandConfigBody(request.body);
     return service.validateOnly(request.params.name, config);

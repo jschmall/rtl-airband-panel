@@ -72,6 +72,11 @@ export class ApiError extends Error {
 
 const API_BASE = "/api";
 
+/** URL for the live-follow log stream (SSE) -- an EventSource connects here directly, so it needs a plain URL rather than the `request` helper's fetch-and-parse shape. */
+export function logsStreamUrl(name: string): string {
+  return `${API_BASE}/instances/${encodeURIComponent(name)}/logs/stream`;
+}
+
 async function requestRaw(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -99,9 +104,6 @@ export const api = {
   },
 
   getHealth: (name: string): Promise<UnitStatus> => request(`/instances/${encodeURIComponent(name)}/health`),
-
-  getLogs: (name: string, lines?: number): Promise<{ lines: LogLine[] }> =>
-    request(`/instances/${encodeURIComponent(name)}/logs${lines !== undefined ? `?lines=${lines}` : ""}`),
 
   /** Unredacted config -- only ever called when the user clicks "Show" on a field still holding the redaction sentinel. */
   getSecrets: (name: string): Promise<RtlAirbandConfig> => request(`/instances/${encodeURIComponent(name)}/secrets`),

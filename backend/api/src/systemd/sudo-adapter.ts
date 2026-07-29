@@ -1,5 +1,8 @@
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import type { LogLine, SystemdAdapter, UnitActiveState, UnitStatus } from "./types.js";
 import { CommandError, runCommand } from "./run-command.js";
+import { parseShortIsoLine } from "./log-line-parse.js";
 
 const ACTIVE_STATES: readonly UnitActiveState[] = ["active", "inactive", "activating", "deactivating", "failed"];
 
@@ -132,10 +135,46 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     return output
       .split("\n")
       .filter((line) => line !== "")
-      .map((line) => {
-        const match = /^(\S+)\s+(.*)$/.exec(line);
-        return match ? { timestamp: match[1]!, message: match[2]! } : { timestamp: "", message: line };
-      });
+      .map(parseShortIsoLine);
+  }
+
+  /**
+   * Spawns `journalctl -f` directly rather than going through runCommand --
+   * runCommand only resolves once, on process exit, and buffers all output
+   * in memory, neither of which works for a command that runs indefinitely
+   * and needs to be consumed line-by-line as it's produced.
+   */
+  async *followLogs(unit: string, lines: number, signal: AbortSignal): AsyncGenerator<LogLine> {
+    this.assertScoped(unit);
+    if (signal.aborted) return;
+
+    const child = spawn("sudo", ["journalctl", "-u", unit, "-n", String(lines), "-f", "-o", "short-iso", "--no-pager"], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let spawnError: Error | null = null;
+    // Without this listener, a failed spawn (e.g. "sudo" missing) would surface
+    // as an uncaught "error" event instead of propagating to the caller.
+    child.once("error", (err) => {
+      spawnError = err;
+    });
+    const onAbort = () => child.kill("SIGTERM");
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    // readline handles lines split across stdout chunk boundaries -- a
+    // manual chunk-splitting loop over the Readable would have to
+    // reimplement that itself.
+    const rl = createInterface({ input: child.stdout, crlfDelay: Infinity });
+    try {
+      for await (const line of rl) {
+        if (line !== "") yield parseShortIsoLine(line);
+      }
+    } finally {
+      rl.close();
+      signal.removeEventListener("abort", onAbort);
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+      child.stderr.resume(); // drain, never inspected -- journalctl -f only ever ends via kill or a genuine crash
+    }
+    if (spawnError && !signal.aborted) throw spawnError;
   }
 
   async installUnitFile(unitName: string, contents: string): Promise<void> {

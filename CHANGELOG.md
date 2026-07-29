@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.39] - 2026-07-29
+
+### Changed
+
+- **Log viewer now streams live instead of manual-refresh-only.** The
+  "Logs" section on an instance's edit page now tails `journalctl -u
+  <unit> -f` over Server-Sent Events, appending new lines as they're
+  written instead of requiring a click to refresh. Backed by a new
+  `GET /instances/:name/logs/stream` endpoint; the existing one-shot
+  `GET /instances/:name/logs` is unchanged for anything still using it
+  directly. The panel auto-scrolls to the newest line unless you've
+  scrolled up to read history, and caps the in-browser buffer at 500
+  lines. If you run this behind nginx or a similar reverse proxy, see
+  the new "Running behind a reverse proxy" section in the README —
+  proxy response buffering needs to be disabled for the stream to
+  actually arrive live rather than in delayed bursts.
+
 ## [0.4.38] - 2026-07-29
 
 ### Added

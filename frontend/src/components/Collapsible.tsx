@@ -15,26 +15,21 @@ interface CollapsibleProps {
    * open, so clicking the same error twice still re-locates it.
    */
   openSignal?: number;
-  /** Called the first time this section transitions from closed to open -- never again after. Omit for no such behavior. */
-  onFirstOpen?: () => void;
+  /** Called on every open/close transition, including a programmatic force-open via openSignal, with the new state. Omit for no such behavior. */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onFirstOpen }: CollapsibleProps) {
+export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onOpenChange }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
-  const firstOpenFired = useRef(false);
-
-  function fireFirstOpen(): void {
-    if (firstOpenFired.current) return;
-    firstOpenFired.current = true;
-    onFirstOpen?.();
-  }
 
   useEffect(() => {
     if (!openSignal) return;
-    setOpen(true);
-    fireFirstOpen();
+    setOpen((o) => {
+      if (!o) onOpenChange?.(true);
+      return true;
+    });
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [openSignal]);
 
@@ -46,7 +41,7 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
           onClick={() =>
             setOpen((o) => {
               const next = !o;
-              if (next) fireFirstOpen();
+              onOpenChange?.(next);
               return next;
             })
           }
