@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.46] - 2026-07-30
+
+### Changed
+
+- **Documented why the panel doesn't use the fork's new SIGHUP reload.**
+  The jschmall/RTLSDR-Airband fork added a re-exec-based SIGHUP reload in
+  some builds, but the panel has no way to know which binary a given
+  instance is actually running -- sending SIGHUP (or adding `ExecReload=`)
+  on that assumption would kill a vanilla-upstream instance outright, since
+  units are `Restart=no`. CLAUDE.md's existing "never assume a signal or
+  socket-based reload path exists" architecture constraint now says so
+  explicitly, so the reasoning stays discoverable instead of only living in
+  this version's PR history. No code changes -- restart-only remains the
+  only lifecycle operation the panel performs, for every instance
+  regardless of build.
+
 ## [0.4.45] - 2026-07-30
 
 ### Added

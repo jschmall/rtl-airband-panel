@@ -12,7 +12,11 @@ systemd unit — there is no live-reload in RTLSDR-Airband itself.
   fixed-size arrays (devices, channels, FFT bins). There is no
   in-process reload path in upstream. Any config change requires a
   restart of that instance's systemd unit — never assume a signal or
-  socket-based reload exists.
+  socket-based reload exists. (The jschmall/RTLSDR-Airband fork added a
+  re-exec-based SIGHUP reload in some builds, but the panel has no way
+  to know which binary a given instance is actually running, so it
+  deliberately never sends SIGHUP or relies on this — every instance,
+  regardless of build, still only gets full systemd-unit restarts.)
 - FFT bin assignment is a function of a device's centerfreq,
   correction, and sample_rate. Adding/moving a channel can require
   recomputing bin occupancy for the whole device, not just one entry
