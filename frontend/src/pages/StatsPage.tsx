@@ -29,6 +29,11 @@ function canonicalizeLabels(labels: Record<string, string>): string {
 }
 
 function discoverChannels(latest: StatSample[]): ChannelOption[] {
+  // Preserve first-seen order rather than sorting by frequency: RTLSDR-Airband
+  // writes stats samples in the same order channels are defined in the config
+  // (output.cpp iterates the channels array), which is the same order the
+  // instance view's channel list/reorder UI uses. Sorting here would make this
+  // dropdown disagree with that order after a channel reorder + restart.
   const byKey = new Map<string, ChannelOption>();
   for (const sample of latest) {
     if (!sample.metric.startsWith("channel_")) continue;
@@ -39,7 +44,7 @@ function discoverChannels(latest: StatSample[]): ChannelOption[] {
       byKey.set(key, { key, freq, label: sample.labels["label"], labels: sample.labels });
     }
   }
-  return [...byKey.values()].sort((a, b) => Number(a.freq) - Number(b.freq));
+  return [...byKey.values()];
 }
 
 function findValue(samples: StatSample[], metric: string): number | undefined {

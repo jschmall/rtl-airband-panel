@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.47] - 2026-07-30
+
+### Fixed
+
+- **Stats-page channel dropdown now matches the instance view's channel
+  order.** `discoverChannels` in `StatsPage.tsx` was re-sorting the channel
+  list by ascending frequency, so a channel reorder made in the instance
+  editor (which is array-order, saved and serialized to the `.conf` file
+  as-is -- see `DeviceEditor.tsx`'s drag-and-drop and the parser's
+  `serializeList`) would never be reflected in the stats dropdown even
+  after saving and restarting. The stats samples RTLSDR-Airband writes are
+  already in the process's channel-definition order, so the fix is to stop
+  re-sorting and just preserve first-seen sample order.
+
 ## [0.4.46] - 2026-07-30
 
 ### Changed
