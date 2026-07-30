@@ -31,7 +31,7 @@ them, with validation before anything is written to disk.
 - Editor for devices, channels, mixers, and all six RTLSDR-Airband output
   types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
   including rdio-scanner call uploads — that output type requires the
-  [`rdio_api`](https://github.com/jschmall/RTLSDR-Airband/tree/rdio_api)
+  [`rdio_api`](https://github.com/jschmall/RTLSDR-Airband)
   branch of RTLSDR-Airband, which hasn't been submitted upstream
 - Drag-and-drop channel reordering
 - Duplicate/clone buttons, and a "copy to channel" action for outputs
