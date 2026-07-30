@@ -2,6 +2,14 @@ export interface UnitTemplateOptions {
   description: string;
   binaryPath: string;
   confPath: string;
+  /**
+   * Adds -j to ExecStart, requesting single-line JSON log output instead of
+   * plain text. Fork-only (requires RTLSDR-Airband built from
+   * jschmall/RTLSDR-Airband); a vanilla-upstream binary doesn't recognize -j
+   * and would refuse to start, so this must stay opt-in and default to
+   * false/undefined — see InstanceOptionsStore.
+   */
+  jsonLogging?: boolean;
 }
 
 /**
@@ -12,6 +20,7 @@ export interface UnitTemplateOptions {
  * wouldn't fix either. Explicit restarts go through this API instead.
  */
 export function renderUnitFile(options: UnitTemplateOptions): string {
+  const flags = ["-F", "-e", ...(options.jsonLogging ? ["-j"] : [])];
   return `[Unit]
 Description=${options.description}
 Documentation=https://github.com/rtl-airband/RTLSDR-Airband/wiki
@@ -20,7 +29,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${options.binaryPath} -F -e -c ${options.confPath}
+ExecStart=${options.binaryPath} ${flags.join(" ")} -c ${options.confPath}
 Restart=no
 
 [Install]

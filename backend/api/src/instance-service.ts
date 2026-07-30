@@ -2,6 +2,7 @@ import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { validateConfig, type ValidationIssue, type ValidationResult } from "@rtl-airband-panel/validate";
 import type { ConfigStore } from "./config-store.js";
 import type { PendingRestartStore } from "./pending-restart-store.js";
+import type { InstanceOptions, InstanceOptionsStore } from "./instance-options-store.js";
 import type { LogLine, SystemdAdapter, UnitStatus } from "./systemd/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
@@ -42,6 +43,8 @@ export interface InstanceSummary {
   unit: string;
   /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
   pendingRestart: boolean;
+  /** See InstanceOptions.jsonLogging. */
+  jsonLogging: boolean;
   /**
    * Every free-text term worth matching a global search against: channel
    * labels (multichannel `label` and scan-mode `labels[]`), each channel's
@@ -112,6 +115,7 @@ export class InstanceService {
     private readonly configStore: ConfigStore,
     private readonly systemd: SystemdAdapter,
     private readonly pendingRestartStore: PendingRestartStore,
+    private readonly instanceOptionsStore: InstanceOptionsStore,
     private readonly options: InstanceServiceOptions
   ) {}
 
@@ -123,6 +127,7 @@ export class InstanceService {
         confPath: info.confPath,
         unit: unitFileName(info.name),
         pendingRestart: await this.pendingRestartStore.has(info.name),
+        jsonLogging: (await this.instanceOptionsStore.get(info.name)).jsonLogging,
         searchFields: await this.getSearchFields(info.name),
       }))
     );
@@ -241,6 +246,42 @@ export class InstanceService {
       }
       const status = await this.systemd.status(unit);
       return { warnings, status, version: newVersion };
+    });
+  }
+
+  /**
+   * Updates panel-only, non-.conf per-instance settings that affect the
+   * generated unit's ExecStart (currently just jsonLogging, i.e. -j) --
+   * regenerates and reinstalls the unit file with the new flag(s), then
+   * behaves like updateConfig's restart handling: marks pending-restart
+   * immediately (an ExecStart change needs a restart to take effect, same
+   * as a .conf write), and restarts unless `restart: false` is passed.
+   */
+  async updateInstanceOptions(
+    name: string,
+    patch: Partial<InstanceOptions>,
+    opts: { restart?: boolean } = {}
+  ): Promise<{ status: UnitStatus; options: InstanceOptions }> {
+    return this.mutex.run(name, async () => {
+      await this.requireExists(name);
+      const restart = opts.restart ?? true;
+      const merged = await this.instanceOptionsStore.set(name, patch);
+      const unit = unitFileName(name);
+      const unitContents = renderUnitFile({
+        description: `RTLSDR-Airband instance: ${name}`,
+        binaryPath: this.options.rtlAirbandBinary,
+        confPath: confFilePath(this.options.instancesDir, name),
+        jsonLogging: merged.jsonLogging,
+      });
+      await this.systemd.installUnitFile(unit, unitContents);
+      await this.systemd.daemonReload();
+      await this.pendingRestartStore.mark(name);
+      if (restart) {
+        await this.systemd.restart(unit);
+        await this.pendingRestartStore.clear(name);
+      }
+      const status = await this.systemd.status(unit);
+      return { status, options: merged };
     });
   }
 
@@ -379,10 +420,12 @@ export class InstanceService {
     const { config } = await this.configStore.readWithVersion(oldName);
     const oldUnit = unitFileName(oldName);
     const newUnit = unitFileName(newName);
+    const instanceOptions = await this.instanceOptionsStore.get(oldName);
     const newUnitContents = renderUnitFile({
       description: `RTLSDR-Airband instance: ${newName}`,
       binaryPath: this.options.rtlAirbandBinary,
       confPath: confFilePath(this.options.instancesDir, newName),
+      jsonLogging: instanceOptions.jsonLogging,
     });
 
     await this.systemd.stop(oldUnit);
@@ -409,6 +452,7 @@ export class InstanceService {
     // newUnit just started fresh against the current .conf contents, so
     // whatever was pending under oldName is now applied; nothing carries over.
     await this.pendingRestartStore.clear(oldName);
+    await this.instanceOptionsStore.rename(oldName, newName);
 
     const status = await this.systemd.status(newUnit);
     return { warnings: [], status, version };
@@ -425,6 +469,7 @@ export class InstanceService {
       await this.systemd.daemonReload();
       await this.configStore.remove(name);
       await this.pendingRestartStore.clear(name);
+      await this.instanceOptionsStore.remove(name);
     });
   }
 

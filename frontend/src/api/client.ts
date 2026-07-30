@@ -7,8 +7,14 @@ export interface InstanceSummary {
   unit: string;
   /** True if the .conf on disk has been saved since the running unit last (re)started, so it's not live yet. */
   pendingRestart: boolean;
+  /** Whether this instance's unit is started with -j (single-line JSON log output). See InstanceOptions.jsonLogging. */
+  jsonLogging: boolean;
   /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
   searchFields: string[];
+}
+
+export interface InstanceOptions {
+  jsonLogging: boolean;
 }
 
 export type UnitActiveState = "active" | "inactive" | "activating" | "deactivating" | "failed" | "unknown";
@@ -133,6 +139,12 @@ export const api = {
 
   restartInstance: (name: string): Promise<UnitStatus> =>
     request(`/instances/${encodeURIComponent(name)}/restart`, { method: "POST" }),
+
+  updateInstanceOptions: (name: string, patch: Partial<InstanceOptions>): Promise<{ status: UnitStatus; options: InstanceOptions }> =>
+    request(`/instances/${encodeURIComponent(name)}/options`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
 
   renameInstance: (name: string, newName: string): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}/rename`, {

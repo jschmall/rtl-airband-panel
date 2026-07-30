@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ConfigStore } from "../src/config-store.js";
 import { InstanceService } from "../src/instance-service.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
+import { InstanceOptionsStore } from "../src/instance-options-store.js";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
 import { StatsStore } from "../src/stats/store.js";
 import { StatsService } from "../src/stats/stats-service.js";
@@ -30,6 +31,7 @@ export interface TestHarness {
   configStore: ConfigStore;
   systemd: MockSystemdAdapter;
   pendingRestartStore: PendingRestartStore;
+  instanceOptionsStore: InstanceOptionsStore;
   service: InstanceService;
   statsStore: StatsStore;
   statsService: StatsService;
@@ -40,13 +42,14 @@ export async function buildHarness(): Promise<TestHarness> {
   const configStore = new ConfigStore(instancesDir);
   const systemd = new MockSystemdAdapter();
   const pendingRestartStore = new PendingRestartStore(instancesDir);
-  const service = new InstanceService(configStore, systemd, pendingRestartStore, {
+  const instanceOptionsStore = new InstanceOptionsStore(instancesDir);
+  const service = new InstanceService(configStore, systemd, pendingRestartStore, instanceOptionsStore, {
     instancesDir,
     rtlAirbandBinary: "/usr/local/bin/rtl_airband",
   });
   const statsStore = new StatsStore(":memory:");
   const statsService = new StatsService(configStore, statsStore);
-  return { instancesDir, configStore, systemd, pendingRestartStore, service, statsStore, statsService };
+  return { instancesDir, configStore, systemd, pendingRestartStore, instanceOptionsStore, service, statsStore, statsService };
 }
 
 export async function teardownHarness(h: TestHarness): Promise<void> {

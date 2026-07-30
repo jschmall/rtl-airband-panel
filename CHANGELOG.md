@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.44] - 2026-07-30
+
+### Added
+
+- **Structured JSON logging toggle per instance.** Tracks the
+  jschmall/RTLSDR-Airband fork's new opt-in `-j` flag (single-line JSON log
+  records instead of plain text). Since `-j` is a CLI flag, not a `.conf`
+  key, it's tracked in a new panel-only `InstanceOptionsStore` sidecar file
+  (mirroring `PendingRestartStore`'s pattern) rather than the domain model —
+  the panel never reads back an installed unit file's content, so this had
+  to be durable on its own. A new "JSON logging" toggle on the instance edit
+  page's Logs section (`PATCH /instances/:name/options`) regenerates and
+  reinstalls the unit with `-j` added/removed, marks the instance
+  pending-restart, and restarts by default (same as a config save). The log
+  viewer parses each line as the fork's JSON record when enabled, falling
+  back to plain text otherwise — every instance defaults to off, so nothing
+  changes unless explicitly opted into.
+
 ## [0.4.43] - 2026-07-30
 
 ### Added

@@ -149,6 +149,18 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     }
   );
 
+  app.patch<{ Params: { name: string } }>("/instances/:name/options", MUTATING_ROUTE_OPTS, async (request) => {
+    const patch = extractInstanceOptionsPatch(request.body);
+    try {
+      const result = await service.updateInstanceOptions(request.params.name, patch);
+      auditLog(request, "update-options", request.params.name, "success", { ...patch });
+      return result;
+    } catch (err) {
+      auditLog(request, "update-options", request.params.name, "failure", { ...patch, error: errorMessage(err) });
+      throw err;
+    }
+  });
+
   app.post<{ Params: { name: string } }>("/instances/:name/restart", MUTATING_ROUTE_OPTS, async (request) => {
     try {
       const result = await service.restartInstance(request.params.name);
@@ -223,6 +235,18 @@ function extractCreateBody(body: unknown): { name: string; config: RtlAirbandCon
     throw new ShapeValidationError("Expected 'name' to be a string", "$");
   }
   return { name: rec["name"], config: parseRtlAirbandConfigBody(rec["config"]) };
+}
+
+function extractInstanceOptionsPatch(body: unknown): { jsonLogging?: boolean } {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new ShapeValidationError("Expected an object", "$");
+  }
+  const rec = body as Record<string, unknown>;
+  if (rec["jsonLogging"] === undefined) return {};
+  if (typeof rec["jsonLogging"] !== "boolean") {
+    throw new ShapeValidationError("Expected 'jsonLogging' to be a boolean", "$");
+  }
+  return { jsonLogging: rec["jsonLogging"] };
 }
 
 function extractRenameBody(body: unknown): { newName: string } {

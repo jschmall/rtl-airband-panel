@@ -39,4 +39,16 @@ describe("renderUnitFile", () => {
     const unit = renderUnitFile({ description: "d", binaryPath: "/opt/my bin/rtl_airband", confPath: "/etc/my instances/x.conf" });
     expect(unit).toContain("ExecStart=/opt/my bin/rtl_airband -F -e -c /etc/my instances/x.conf");
   });
+
+  it("omits -j when jsonLogging is unset or false", () => {
+    const unset = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf" });
+    const explicitFalse = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf", jsonLogging: false });
+    expect(unset).toContain("ExecStart=/bin/true -F -e -c /x.conf");
+    expect(explicitFalse).toContain("ExecStart=/bin/true -F -e -c /x.conf");
+  });
+
+  it("adds -j to ExecStart when jsonLogging is true", () => {
+    const unit = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf", jsonLogging: true });
+    expect(unit).toContain("ExecStart=/bin/true -F -e -j -c /x.conf");
+  });
 });

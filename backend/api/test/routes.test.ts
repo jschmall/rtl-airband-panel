@@ -70,6 +70,7 @@ describe("GET /instances", () => {
         confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME),
         unit: `${FIXTURE_INSTANCE_NAME}.service`,
         pendingRestart: false,
+        jsonLogging: false,
         searchFields: expect.any(Array),
       },
     ]);
@@ -431,6 +432,36 @@ describe("POST /instances/:name/restart", () => {
   });
 });
 
+describe("PATCH /instances/:name/options", () => {
+  it("sets jsonLogging, reinstalls the unit with -j, and restarts by default", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { jsonLogging: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ options: { jsonLogging: true } });
+    expect(h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`)).toContain("ExecStart=/usr/local/bin/rtl_airband -F -e -j -c");
+    expect(h.systemd.calls).toContain(`restart ${FIXTURE_INSTANCE_NAME}.service`);
+  });
+
+  it("rejects a non-boolean jsonLogging value", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { jsonLogging: "yes" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("404s for a nonexistent instance", async () => {
+    const res = await app.inject({ method: "PATCH", url: "/api/instances/does_not_exist/options", payload: { jsonLogging: true } });
+    expect(res.statusCode).toBe(404);
+  });
+});
+
 describe("POST /instances/restart-pending", () => {
   it("restarts every pending instance and reports per-instance results", async () => {
     await seedFixture(h.instancesDir);
@@ -465,7 +496,7 @@ describe("POST /instances/:name/rename", () => {
     expect(res.statusCode).toBe(200);
     expect(h.systemd.calls).toContain("start rtl_renamed.service");
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, searchFields: expect.any(Array) },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
     ]);
   });
 

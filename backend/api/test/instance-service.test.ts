@@ -6,6 +6,7 @@ import { ConfigConflictError, InstanceAlreadyExistsError, InstanceNotFoundError,
 import { InvalidInstanceNameError } from "../src/instance-name.js";
 import { ConfigStore } from "../src/config-store.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
+import { InstanceOptionsStore } from "../src/instance-options-store.js";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
 import { buildHarness, cleanupScratchDir, FIXTURE_INSTANCE_NAME, makeScratchDir, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
@@ -61,6 +62,7 @@ describe("listInstances / getConfig", () => {
         confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME),
         unit: `${FIXTURE_INSTANCE_NAME}.service`,
         pendingRestart: false,
+        jsonLogging: false,
         searchFields: expect.any(Array),
       },
     ]);
@@ -396,10 +398,16 @@ describe("exportAll / importAll", () => {
 
     const otherDir = await makeScratchDir();
     try {
-      const otherService = new InstanceService(new ConfigStore(otherDir), new MockSystemdAdapter(), new PendingRestartStore(otherDir), {
-        instancesDir: otherDir,
-        rtlAirbandBinary: "/usr/local/bin/rtl_airband",
-      });
+      const otherService = new InstanceService(
+        new ConfigStore(otherDir),
+        new MockSystemdAdapter(),
+        new PendingRestartStore(otherDir),
+        new InstanceOptionsStore(otherDir),
+        {
+          instancesDir: otherDir,
+          rtlAirbandBinary: "/usr/local/bin/rtl_airband",
+        }
+      );
 
       const results = await otherService.importAll(bundle);
       expect(results).toEqual({ rtl_original: { status: "created" } });
@@ -505,7 +513,7 @@ describe("renameInstance", () => {
     expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("Description=RTLSDR-Airband instance: rtl_renamed");
 
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, searchFields: expect.any(Array) },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
     ]);
     const renamed = await h.service.getConfig("rtl_renamed");
     expect(renamed).toEqual(before);
@@ -518,7 +526,7 @@ describe("renameInstance", () => {
     expect(result.status).toBeDefined();
     expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, searchFields: expect.any(Array) },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
     ]);
   });
 
@@ -547,7 +555,7 @@ describe("renameInstance", () => {
 
     // old conf untouched, new conf rolled back, old unit restarted
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, searchFields: expect.any(Array) },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
     ]);
     expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
     expect(h.systemd.unitFiles.has("rtl_renamed.service")).toBe(false);
@@ -716,5 +724,72 @@ describe("pending restart tracking", () => {
 
     const reloaded = new PendingRestartStore(h.instancesDir);
     expect(await reloaded.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+  });
+});
+
+describe("updateInstanceOptions (jsonLogging)", () => {
+  it("defaults jsonLogging to false and omits -j from ExecStart", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+    const [summary] = await h.service.listInstances();
+    expect(summary!.jsonLogging).toBe(false);
+    expect(h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`)).toContain("ExecStart=/usr/local/bin/rtl_airband -F -e -c");
+  });
+
+  it("adds -j to ExecStart, reinstalls the unit, and marks pending-restart, then restarts and clears it", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    const result = await h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true });
+
+    expect(result.options.jsonLogging).toBe(true);
+    expect(h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`)).toContain("ExecStart=/usr/local/bin/rtl_airband -F -e -j -c");
+    const [summary] = await h.service.listInstances();
+    expect(summary!.jsonLogging).toBe(true);
+    // restart defaults to true, so pending should already be cleared again
+    expect(summary!.pendingRestart).toBe(false);
+    expect(h.systemd.calls).toContain(`restart ${FIXTURE_INSTANCE_NAME}.service`);
+  });
+
+  it("marks pending-restart without restarting when restart: false is passed", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    await h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true }, { restart: false });
+
+    const [summary] = await h.service.listInstances();
+    expect(summary!.pendingRestart).toBe(true);
+    expect(h.systemd.calls).not.toContain(`restart ${FIXTURE_INSTANCE_NAME}.service`);
+  });
+
+  it("throws InstanceNotFoundError for a nonexistent instance", async () => {
+    await expect(h.service.updateInstanceOptions("does_not_exist", { jsonLogging: true })).rejects.toBeInstanceOf(InstanceNotFoundError);
+  });
+
+  it("carries jsonLogging forward across a rename", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+    await h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true });
+
+    await h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_renamed");
+
+    expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("ExecStart=/usr/local/bin/rtl_airband -F -e -j -c");
+    const [summary] = await h.service.listInstances();
+    expect(summary!.jsonLogging).toBe(true);
+  });
+
+  it("drops the stored option when the instance is deleted", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+    await h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true });
+
+    await h.service.deleteInstance(FIXTURE_INSTANCE_NAME);
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+
+    const [summary] = await h.service.listInstances();
+    expect(summary!.jsonLogging).toBe(false);
+  });
+
+  it("persists across a fresh InstanceOptionsStore reading the same directory", async () => {
+    await h.service.createInstance(FIXTURE_INSTANCE_NAME, minimalConfig());
+    await h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true });
+
+    const reloaded = new InstanceOptionsStore(h.instancesDir);
+    expect(await reloaded.get(FIXTURE_INSTANCE_NAME)).toEqual({ jsonLogging: true });
   });
 });

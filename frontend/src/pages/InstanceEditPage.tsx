@@ -22,7 +22,7 @@ interface LoadError {
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
-  const { refresh: refreshInstanceList, pollBriefly } = useInstanceList();
+  const { instances, refresh: refreshInstanceList, pollBriefly } = useInstanceList();
   const { setDirty } = useUnsavedChanges();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
   // The last-loaded-or-saved config, compared against the live-edited `config`
@@ -40,6 +40,7 @@ export function InstanceEditPage() {
   // scroll/expand even though the path string didn't change. See Collapsible's
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
+  const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
 
   // Tracks the instance this page is currently showing, so an in-flight
   // save/check for the *previous* instance can tell it's stale once the user
@@ -223,6 +224,29 @@ export function InstanceEditPage() {
     }
   }
 
+  // Toggles the -j (JSON logging) flag on this instance's unit -- a panel-only,
+  // non-.conf setting (see InstanceOptionsStore), so it's applied immediately
+  // via its own endpoint rather than folded into handleSave. Like Save-and-
+  // restart, changing it restarts the running process, so it gets the same
+  // confirm-before-interrupting-audio treatment.
+  async function handleToggleJsonLogging(next: boolean) {
+    if (!name || jsonLoggingPending) return;
+    const verb = next ? "Enable" : "Disable";
+    if (!window.confirm(`${verb} JSON logging for '${name}'? This restarts the instance, interrupting live audio for a few seconds.`)) {
+      return;
+    }
+    setJsonLoggingPending(true);
+    try {
+      await api.updateInstanceOptions(name, { jsonLogging: next });
+      await refreshInstanceList();
+      pollBriefly();
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Failed to update JSON logging");
+    } finally {
+      setJsonLoggingPending(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
@@ -267,7 +291,16 @@ export function InstanceEditPage() {
         onChange={setConfig}
         jumpTarget={jumpTarget}
         onRevealSecret={revealSecret}
-        afterGlobalSettings={name && <InstanceLogs name={name} />}
+        afterGlobalSettings={
+          name && (
+            <InstanceLogs
+              name={name}
+              jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+              jsonLoggingPending={jsonLoggingPending}
+              onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+            />
+          )
+        }
       />
 
       <div className="flex justify-end gap-3">

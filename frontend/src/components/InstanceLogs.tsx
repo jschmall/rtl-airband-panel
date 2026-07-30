@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { logsStreamUrl, type LogLine } from "../api/client.js";
 import { Collapsible } from "./Collapsible.js";
+import { BoolField } from "./Field.js";
+import { INSTANCE_OPTIONS_TOOLTIPS } from "../lib/config-descriptions.js";
 
 type ConnState = "closed" | "connecting" | "live" | "reconnecting" | "error";
 
@@ -17,7 +19,42 @@ const STATE_LABEL: Record<ConnState, string> = {
   error: "Connection failed",
 };
 
-export function InstanceLogs({ name }: { name: string }) {
+/** The fork's -j single-line JSON log record shape (backend/api/src/unit-template.ts, jsonLogging option). */
+interface ForkJsonLogRecord {
+  level?: string;
+  message?: string;
+}
+
+/**
+ * Renders one log line for display. When jsonLogging is on, each journal
+ * line's `message` is itself the fork's JSON-encoded record -- parse it and
+ * show its `level`/`message` instead of the raw JSON text. Falls back to the
+ * raw line on a parse failure (e.g. a line from before a just-toggled -j
+ * flag actually took effect), rather than showing nothing.
+ */
+function formatLine(line: LogLine, jsonLogging: boolean): string {
+  if (jsonLogging) {
+    try {
+      const parsed = JSON.parse(line.message) as ForkJsonLogRecord;
+      if (typeof parsed.message === "string") {
+        const level = typeof parsed.level === "string" ? `[${parsed.level}] ` : "";
+        return `${line.timestamp}  ${level}${parsed.message}`;
+      }
+    } catch {
+      // not JSON -- fall through to the raw line below
+    }
+  }
+  return `${line.timestamp}  ${line.message}`;
+}
+
+interface InstanceLogsProps {
+  name: string;
+  jsonLogging: boolean;
+  jsonLoggingPending: boolean;
+  onToggleJsonLogging: (next: boolean) => void;
+}
+
+export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJsonLogging }: InstanceLogsProps) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [state, setState] = useState<ConnState>("closed");
   const [open, setOpen] = useState(false);
@@ -68,13 +105,19 @@ export function InstanceLogs({ name }: { name: string }) {
       onOpenChange={setOpen}
       headerActions={<span className="text-xs text-slate-400">{STATE_LABEL[state]}</span>}
     >
+      <BoolField
+        label={jsonLoggingPending ? "JSON logging (restarting…)" : "JSON logging"}
+        tooltip={INSTANCE_OPTIONS_TOOLTIPS.jsonLogging}
+        checked={jsonLogging}
+        onChange={onToggleJsonLogging}
+      />
       {lines.length === 0 && state === "live" && <p className="text-sm text-slate-400">No log entries.</p>}
       <pre
         ref={preRef}
         onScroll={handleScroll}
         className="max-h-96 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-300"
       >
-        {lines.map((l) => `${l.timestamp}  ${l.message}`).join("\n")}
+        {lines.map((l) => formatLine(l, jsonLogging)).join("\n")}
       </pre>
     </Collapsible>
   );

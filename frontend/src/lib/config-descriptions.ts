@@ -25,6 +25,11 @@ export const GLOBAL_TOOLTIPS = {
     "Maximum number of pending rdio-scanner uploads queued before new ones are dropped. Defaults to 64 when unset. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband with -DRDIO_SCANNER=ON.",
 } as const;
 
+export const INSTANCE_OPTIONS_TOOLTIPS = {
+  jsonLogging:
+    "Starts this instance with -j, so its journal log lines are single-line JSON instead of plain text; the log viewer below parses them either way. Toggling this restarts the instance. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+} as const;
+
 export const DEVICE_TOOLTIPS = {
   type: "The SDR hardware/driver family. Determines which of the fields below apply — SoapySDR devices are identified by a device string rather than serial/index, for example.",
   mode: "Multichannel mode demodulates several fixed frequencies from one captured window simultaneously. Scan mode retunes the dongle to hop between a list of frequencies one at a time, so they can be arbitrarily far apart.",
