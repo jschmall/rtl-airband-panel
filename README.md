@@ -30,7 +30,9 @@ them, with validation before anything is written to disk.
 **Config editing**
 - Editor for devices, channels, mixers, and all six RTLSDR-Airband output
   types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
-  including rdio-scanner call uploads
+  including rdio-scanner call uploads — that output type requires the
+  [`rdio_api`](https://github.com/jschmall/RTLSDR-Airband/tree/rdio_api)
+  branch of RTLSDR-Airband, which hasn't been submitted upstream
 - Drag-and-drop channel reordering
 - Duplicate/clone buttons, and a "copy to channel" action for outputs
 - Search across all instances by frequency, modulation, or device
@@ -221,7 +223,9 @@ The JSON model covers both `multichannel`- and `scan`-mode devices,
 top-level mixer *definitions* (the `mixers: { ... }` group itself, not just
 a channel routing into one by name), all six RTLSDR-Airband output types
 (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the
-rdio-scanner call-upload block, and per-channel options like
+rdio-scanner call-upload block (see the note under
+[Features](#features) — this requires a non-upstream RTLSDR-Airband
+branch), and per-channel options like
 `highpass`/`lowpass`/`tau`/`label`/`labels`.
 
 ## Learn more
