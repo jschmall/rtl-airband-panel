@@ -17,6 +17,12 @@ export const GLOBAL_TOOLTIPS = {
   multipleOutputThreads: "Runs each output (MP3 encode, Icecast stream, etc.) on its own thread instead of one shared thread. Improves throughput when several outputs are active.",
   localtime: "Use the local timezone for output filename timestamps and logs instead of UTC.",
   logScanActivity: "Logs when a scan-mode channel's squelch opens/closes and which frequency it was on, useful for tuning squelch thresholds.",
+  statsHttpAddress:
+    "IPv4 address to bind an HTTP endpoint that serves the current contents of Stats filepath to any request. Must be set together with Stats HTTP port, and requires Stats filepath to also be set. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+  statsHttpPort:
+    "TCP port for the stats HTTP endpoint, 1-65535. Must be set together with Stats HTTP address. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+  rdioScannerQueueDepth:
+    "Maximum number of pending rdio-scanner uploads queued before new ones are dropped. Defaults to 64 when unset. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband with -DRDIO_SCANNER=ON.",
 } as const;
 
 export const DEVICE_TOOLTIPS = {

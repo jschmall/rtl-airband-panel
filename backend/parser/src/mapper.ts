@@ -74,6 +74,12 @@ export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   if (shoutMetadataDelay !== undefined) config.shout_metadata_delay = shoutMetadataDelay;
   const tau = optionalNumber(root, "tau", path);
   if (tau !== undefined) config.tau = tau;
+  const statsHttpAddress = optionalString(root, "stats_http_address", path);
+  if (statsHttpAddress !== undefined) config.stats_http_address = statsHttpAddress;
+  const statsHttpPort = optionalNumber(root, "stats_http_port", path);
+  if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
+  const rdioScannerQueueDepth = optionalNumber(root, "rdio_scanner_queue_depth", path);
+  if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
 
   const mixersSetting = findSetting(root, "mixers");
   if (mixersSetting) {
@@ -448,6 +454,11 @@ export function fromDomain(config: RtlAirbandConfig): ConfigFile {
     members.push(numberSetting("shout_metadata_delay", config.shout_metadata_delay, "int"));
   }
   if (config.tau !== undefined) members.push(numberSetting("tau", config.tau, "int"));
+  if (config.stats_http_address !== undefined) members.push(stringSetting("stats_http_address", config.stats_http_address));
+  if (config.stats_http_port !== undefined) members.push(numberSetting("stats_http_port", config.stats_http_port, "int"));
+  if (config.rdio_scanner_queue_depth !== undefined) {
+    members.push(numberSetting("rdio_scanner_queue_depth", config.rdio_scanner_queue_depth, "int"));
+  }
   members.push(setting("devices", listNode(config.devices.map(deviceFromDomain))));
   if (config.mixers !== undefined) {
     members.push(setting("mixers", group(config.mixers.map(mixerFromDomain))));

@@ -85,6 +85,32 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        <Field label="Stats HTTP address (optional, fork build only)" tooltip={GLOBAL_TOOLTIPS.statsHttpAddress}>
+          <input
+            className={inputClass}
+            value={config.stats_http_address ?? ""}
+            onChange={(e) => onChange({ ...config, stats_http_address: e.target.value || undefined })}
+          />
+        </Field>
+        <Field label="Stats HTTP port (optional, fork build only)" tooltip={GLOBAL_TOOLTIPS.statsHttpPort}>
+          <input
+            type="number"
+            min="1"
+            max="65535"
+            className={inputClass}
+            value={config.stats_http_port ?? ""}
+            onChange={(e) => onChange({ ...config, stats_http_port: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
+        <Field label="Rdio-scanner queue depth (optional, fork build only, default 64)" tooltip={GLOBAL_TOOLTIPS.rdioScannerQueueDepth}>
+          <input
+            type="number"
+            min="1"
+            className={inputClass}
+            value={config.rdio_scanner_queue_depth ?? ""}
+            onChange={(e) => onChange({ ...config, rdio_scanner_queue_depth: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 self-end">
           <BoolField
             label="Multiple demod threads"

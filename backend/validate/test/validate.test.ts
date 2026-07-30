@@ -27,6 +27,7 @@ import {
   checkSquelchMutualExclusion,
   checkSquelchSnrThreshold,
   checkSquelchThreshold,
+  checkStatsHttp,
   computeBin,
   validateConfig,
 } from "../src/index.js";
@@ -816,6 +817,33 @@ describe("checkFileOutputFlags", () => {
     const issues = checkFileOutputFlags(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "file-output-continuous-and-split-on-transmission" });
+  });
+});
+
+describe("checkStatsHttp", () => {
+  it("does not flag a config with neither stats_http_address nor stats_http_port set", () => {
+    expect(checkStatsHttp(makeConfig([]))).toEqual([]);
+  });
+
+  it("does not flag both set together with a valid port", () => {
+    expect(checkStatsHttp(makeConfig([], { stats_http_address: "127.0.0.1", stats_http_port: 9091 }))).toEqual([]);
+  });
+
+  it("errors when only stats_http_address is set", () => {
+    const issues = checkStatsHttp(makeConfig([], { stats_http_address: "127.0.0.1" }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "stats-http-address-and-port-must-be-set-together" });
+  });
+
+  it("errors when only stats_http_port is set", () => {
+    const issues = checkStatsHttp(makeConfig([], { stats_http_port: 9091 }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "stats-http-address-and-port-must-be-set-together" });
+  });
+
+  it.each([0, -1, 65536])("errors when stats_http_port %d is out of range", (stats_http_port) => {
+    const issues = checkStatsHttp(makeConfig([], { stats_http_address: "127.0.0.1", stats_http_port }));
+    expect(issues.some((i) => i.code === "stats-http-port-out-of-range")).toBe(true);
   });
 });
 

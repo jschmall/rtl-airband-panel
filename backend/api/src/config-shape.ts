@@ -175,6 +175,12 @@ export function parseRtlAirbandConfigBody(input: unknown, path = "$"): RtlAirban
   if (shoutMetadataDelay !== undefined) config.shout_metadata_delay = shoutMetadataDelay;
   const tau = optionalNumber(obj, "tau", path);
   if (tau !== undefined) config.tau = tau;
+  const statsHttpAddress = optionalString(obj, "stats_http_address", path);
+  if (statsHttpAddress !== undefined) config.stats_http_address = statsHttpAddress;
+  const statsHttpPort = optionalNumber(obj, "stats_http_port", path);
+  if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
+  const rdioScannerQueueDepth = optionalNumber(obj, "rdio_scanner_queue_depth", path);
+  if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
   const mixers = optionalArray(obj, "mixers", path);
   if (mixers !== undefined) {
     config.mixers = mixers.map((m, i) => parseMixer(m, `${path}.mixers[${i}]`));

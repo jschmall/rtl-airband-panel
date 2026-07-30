@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.41] - 2026-07-30
+
+### Added
+
+- **New fork-only global config fields: `rdio_scanner_queue_depth` and
+  `stats_http_address`/`stats_http_port`.** Tracks two new features added
+  in the jschmall/RTLSDR-Airband fork: `rdio_scanner_queue_depth` caps the
+  max pending rdio-scanner uploads before new ones are dropped (defaults to
+  64, matching the previous hardcoded constant it replaces); `stats_http_address`
+  + `stats_http_port` (must be set together) enable an HTTP endpoint on the
+  RTLSDR-Airband process itself serving the current contents of
+  `stats_filepath` to any request — a separate mechanism from the panel's own
+  stats polling, which still reads `stats_filepath` off local disk regardless.
+  A new `checkStatsHttp` validation enforces both-set-together and a valid
+  port range. Both fields are optional and omitted from the serialized
+  `.conf` when unset, so vanilla-upstream RTLSDR-Airband deployments are
+  unaffected.
+
 ## [0.4.40] - 2026-07-29
 
 ### Changed

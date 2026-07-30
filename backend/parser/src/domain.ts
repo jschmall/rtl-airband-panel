@@ -36,6 +36,28 @@ export interface RtlAirbandConfig {
   shout_metadata_delay?: number;
   /** Microseconds; global NFM deemphasis time constant. RTLSDR-Airband defaults to 200 when absent. */
   tau?: number;
+  /**
+   * IPv4 address to bind for an HTTP endpoint serving the current contents
+   * of stats_filepath on any request. Must be set together with
+   * stats_http_port, and stats_filepath must also be set. Fork-only;
+   * requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not
+   * available in upstream RTLSDR-Airband.
+   */
+  stats_http_address?: string;
+  /**
+   * TCP port for the stats HTTP endpoint, 1-65535. Must be set together
+   * with stats_http_address, and stats_filepath must also be set.
+   * Fork-only; requires RTLSDR-Airband built from jschmall/RTLSDR-Airband
+   * — not available in upstream RTLSDR-Airband.
+   */
+  stats_http_port?: number;
+  /**
+   * Max number of pending rdio-scanner uploads queued before new ones are
+   * dropped. Must be > 0; RTLSDR-Airband defaults to 64 when absent.
+   * Fork-only; requires RTLSDR-Airband built from jschmall/RTLSDR-Airband
+   * with -DRDIO_SCANNER=ON.
+   */
+  rdio_scanner_queue_depth?: number;
   devices: Device[];
   mixers?: Mixer[];
 }

@@ -17,6 +17,7 @@ import { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkS
 import { checkFileOutputFlags } from "./checks/output-flags.js";
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 import { checkPostWriteScript } from "./checks/post-write-script.js";
+import { checkStatsHttp } from "./checks/stats-http.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -42,6 +43,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkMixerNestedOutputs(config),
     ...checkMixerOutputBalance(config),
     ...checkPostWriteScript(config),
+    ...checkStatsHttp(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -71,3 +73,4 @@ export { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkS
 export { checkFileOutputFlags } from "./checks/output-flags.js";
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 export { checkPostWriteScript } from "./checks/post-write-script.js";
+export { checkStatsHttp } from "./checks/stats-http.js";

@@ -578,6 +578,22 @@ describe("global settings", () => {
     domain.tau = 100;
     expect(roundTripDomain(domain)).toEqual(domain);
   });
+
+  it("round-trips stats_http_address, stats_http_port, and rdio_scanner_queue_depth", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.stats_http_address = "127.0.0.1";
+    domain.stats_http_port = 9091;
+    domain.rdio_scanner_queue_depth = 128;
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("omits stats_http_address, stats_http_port, and rdio_scanner_queue_depth from the serialized .conf when absent", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    const text = serializeConfigFile(domain);
+    expect(text).not.toContain("stats_http_address");
+    expect(text).not.toContain("stats_http_port");
+    expect(text).not.toContain("rdio_scanner_queue_depth");
+  });
 });
 
 describe("mixers", () => {
