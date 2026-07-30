@@ -58,23 +58,25 @@ them, with validation before anything is written to disk.
 
 ## Screenshots
 
-Instance list and config editor, with the cross-instance search and
-pending-restart indicator in the header:
+The instance list, with the cross-instance search bar in the header and
+each instance's live systemd status next to it:
 
-![Instance editor overview](./docs/screenshots/overview.png)
+![Instance list](./docs/screenshots/main_page.png)
 
-A channel expanded showing its outputs, with the channel's label next to
-its frequency in the header:
+An instance's config editor: its one device, and the channels defined on
+it:
 
-![Channel and output editor](./docs/screenshots/channel-editor.png)
+![Device and channel list](./docs/screenshots/instance_example.png)
 
-Per-channel signal history:
+A channel expanded, showing its demodulation settings and its outputs
+(here, a mixer, a file, and a UDP stream):
+
+![Channel and output editor](./docs/screenshots/Individual_channel.png)
+
+The stats page: device counters, a signal-vs-squelch-threshold chart for a
+selected channel, mixer stats, and channel counters:
 
 ![Stats page](./docs/screenshots/stats.png)
-
-(Instance name, frequencies, and labels above are placeholder data from the
-repo's sanitized [test fixture](./fixtures/151719.conf), not a real
-deployment.)
 
 ## Installing
 
