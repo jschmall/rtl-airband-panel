@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.42] - 2026-07-30
+
+### Changed
+
+- **Hardened rdio_scanner validation to match the fork's own startup
+  checks.** The jschmall/RTLSDR-Airband fork now rejects three previously-
+  silently-broken rdio_scanner configurations at process startup:
+  `timeout_ms <= 0` (0 means libcurl never times out, hanging a worker
+  thread indefinitely), `max_retries < 0`, and `rdio_scanner` set on a
+  scan-mode device's channel (talkgroup_id/labels are fixed at config time
+  and can't track which frequency is currently being scanned — mixer-routed
+  rdio_scanner outputs are exempt, since mixers have no scan-mode concept).
+  `checkRdioScanner` now catches all three in the panel UI before ever
+  writing a config that would fail to start, plus a new bounds check on
+  `rdio_scanner_queue_depth`. Purely additive: any config that was already
+  valid stays valid.
+
 ## [0.4.41] - 2026-07-30
 
 ### Added

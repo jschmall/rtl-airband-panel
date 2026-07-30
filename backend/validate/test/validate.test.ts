@@ -530,6 +530,110 @@ describe("checkRdioScanner", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-requires-split-on-transmission", path: "$.mixers[0].outputs[0]" });
   });
+
+  it("errors when timeout_ms is 0", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: { ...rdioScanner, timeout_ms: 0 } },
+        ],
+      }),
+    ]);
+    const issues = checkRdioScanner(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-invalid-timeout" });
+  });
+
+  it("errors when timeout_ms is negative", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: { ...rdioScanner, timeout_ms: -1 } },
+        ],
+      }),
+    ]);
+    expect(checkRdioScanner(makeConfig([device]))[0]).toMatchObject({ code: "rdio-scanner-invalid-timeout" });
+  });
+
+  it("does not flag a positive timeout_ms", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: { ...rdioScanner, timeout_ms: 5000 } },
+        ],
+      }),
+    ]);
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when max_retries is negative", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: { ...rdioScanner, max_retries: -1 } },
+        ],
+      }),
+    ]);
+    const issues = checkRdioScanner(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-invalid-max-retries" });
+  });
+
+  it("does not flag max_retries of 0", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, {
+        outputs: [
+          { type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: { ...rdioScanner, max_retries: 0 } },
+        ],
+      }),
+    ]);
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors when rdio_scanner is set on a scan-mode device's channel", () => {
+    const scanChannel: ScanChannel = {
+      freqs: [100_000_000],
+      outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: rdioScanner }],
+    };
+    const device = makeDevice([scanChannel], { mode: "scan" });
+    const issues = checkRdioScanner(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "rdio-scanner-not-supported-on-scan-mode" });
+  });
+
+  it("does not flag rdio_scanner on a multichannel-mode device's channel", () => {
+    const device = makeDevice(
+      [
+        makeChannel(100_000_000, {
+          outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: rdioScanner }],
+        }),
+      ],
+      { mode: "multichannel" }
+    );
+    expect(checkRdioScanner(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag rdio_scanner on a mixer output even though mixers have no scan-mode concept", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "file", directory: "/tmp", filename_template: "x", split_on_transmission: true, rdio_scanner: rdioScanner }],
+    };
+    expect(checkRdioScanner(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when rdio_scanner_queue_depth is 0 or negative", () => {
+    expect(checkRdioScanner(makeConfig([], { rdio_scanner_queue_depth: 0 }))[0]).toMatchObject({
+      severity: "error",
+      code: "rdio-scanner-invalid-queue-depth",
+    });
+    expect(checkRdioScanner(makeConfig([], { rdio_scanner_queue_depth: -1 }))[0]).toMatchObject({
+      code: "rdio-scanner-invalid-queue-depth",
+    });
+  });
+
+  it("does not flag a positive rdio_scanner_queue_depth", () => {
+    expect(checkRdioScanner(makeConfig([], { rdio_scanner_queue_depth: 128 }))).toEqual([]);
+  });
 });
 
 describe("checkDisableCascade", () => {
