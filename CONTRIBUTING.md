@@ -8,8 +8,8 @@ making the same kind of change).
 
 ## Getting set up
 
-Follow the [Prerequisites](./README.md#prerequisites) and
-[Install](./README.md#install) sections of the README. After that:
+Follow the [Installing](./README.md#installing) section of the README.
+After that:
 
 ```bash
 npm run build:deps   # required before the first run, and after every git pull
@@ -19,19 +19,54 @@ npm test --workspace=backend/api
 npm test --workspace=frontend
 ```
 
-Frontend tests use Vitest + React Testing Library (`frontend/test/`, mirroring
-the `frontend/src/` structure it covers) and run in a jsdom environment —
-coverage is still thin, so growing it as you touch a component is welcome,
-not just required for new ones. `tsc --noEmit` via
-`npm run build --workspace=frontend` catches everything the test suite
-doesn't yet.
+`backend/parser` and `backend/validate` tests run against
+[`fixtures/151719.conf`](./fixtures/151719.conf), a sanitized real-world
+config. `backend/api` tests run entirely against a mock systemd adapter and
+temp scratch directories — nothing in the test suite touches real systemd
+or the configured instances directory. Frontend tests use Vitest + React
+Testing Library (`frontend/test/`, mirroring the `frontend/src/` structure
+it covers) and run in a jsdom environment — coverage is still thin, so
+growing it as you touch a component is welcome, not just required for new
+ones. `tsc --noEmit` via `npm run build --workspace=frontend` catches
+everything the test suite doesn't yet.
+
+### Running the frontend with hot reload
+
+This is only needed if you're actively editing the frontend and want
+changes to show up instantly, without rebuilding. Most users should use the
+single `npm start` step from the README instead.
+
+```bash
+# terminal 1: the API
+npm run build --workspace=backend/api
+npm start --workspace=backend/api
+
+# terminal 2: the frontend, with hot reload
+npm run dev --workspace=frontend
+```
+
+Open `http://localhost:5173`. The Vite dev server proxies `/api/*` requests
+to the backend at `http://127.0.0.1:3000`.
 
 ## How the pieces fit together
 
-See [How it's built](./README.md#how-its-built) in the README for the
-package layout and data flow. The short version: `.conf` file <-> JSON model
-(`backend/parser`) <-> semantic validation (`backend/validate`) <-> HTTP API
-+ systemd control (`backend/api`) <-> React UI (`frontend`).
+The repo is an npm workspace monorepo with four packages, each one layer of
+the pipeline described in [CLAUDE.md](./CLAUDE.md):
+
+| Package | What it does |
+|---|---|
+| [`backend/parser`](./backend/parser) | Hand-rolled libconfig tokenizer/parser/serializer. Converts a `.conf` file to a JSON domain model (`devices` → `channels` → `outputs`) and back, round-trip tested against a real sanitized fixture. |
+| [`backend/validate`](./backend/validate) | Semantic checks on the JSON model, grounded in RTLSDR-Airband's own source: frequency-in-window and FFT bin collisions between distinct frequencies (errors), CTCSS tone validity, filter cutoff ordering, and per-output-type constraints (e.g. rdio-scanner needs `split_on_transmission`, mixer output nesting rules) — plus a standing warning wherever `post_write_script` is set, since it runs an arbitrary command after every write. |
+| [`backend/api`](./backend/api) | Fastify HTTP API: instance CRUD, systemd restart, health checks, and stats history. Also serves the built frontend directly when present, so the whole app can run as one process. Fails closed — a config write that fails validation never touches disk or systemd. |
+| [`frontend`](./frontend) | React + Vite + Tailwind UI: a resizable two-pane layout with the instance list on the left and a form editor or stats/charts view on the right. |
+
+```
+.conf file  <──parse/serialize──>  JSON model  <──validate──>  {errors, warnings}
+                                        │
+                    backend/api (CRUD, systemd, health, stats, serves frontend build)
+                                        │
+                                   frontend (React UI)
+```
 
 ## Architecture constraints (please read before touching parser/validate/api)
 

@@ -3,15 +3,66 @@
 [![CI](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml/badge.svg)](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml)
 [![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)](./LICENSE)
 
-A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-Airband) instances. Each SDR runs as its own systemd-managed `rtl_airband` process with its own `.conf` file (one service per instance). This panel reads and writes those config files through a JSON intermediate model, validates changes before saving, and restarts only the systemd unit it touched — RTLSDR-Airband itself has no live-reload, so a config change always means a targeted restart.
+A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-Airband) instances.
+
+Each SDR runs as its own systemd-managed `rtl_airband` process with its own
+`.conf` file — one service per instance. Editing those files by hand and
+remembering which unit to restart doesn't scale much past a couple of
+instances. This panel gives you one place to view, edit, and restart all of
+them, with validation before anything is written to disk.
+
+## Project goals
+
+- **Safe by default.** A config write that fails validation never touches
+  disk or systemd — nothing runs until it's confirmed valid.
+- **Minimal blast radius.** Editing one instance restarts only that
+  instance's systemd unit, never anything else running on the box.
+- **No pretending upstream can hot-reload.** RTLSDR-Airband reads its
+  config once at startup and has no live-reload path, so the panel is
+  upfront about needing a restart after a change, and tracks which
+  instances are waiting for one instead of hiding it.
+- **Configs stay readable.** Changes go through a JSON model and back out
+  to a normal `.conf` file — not a black box. You can always open the file
+  yourself and see exactly what changed.
+
+## Features
+
+**Config editing**
+- Editor for devices, channels, mixers, and all six RTLSDR-Airband output
+  types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
+  including rdio-scanner call uploads
+- Drag-and-drop channel reordering
+- Duplicate/clone buttons, and a "copy to channel" action for outputs
+- Search across all instances by frequency, modulation, or device
+
+**Safety and validation**
+- Inline validation with human-readable messages before you save
+- Checks for frequency-window and FFT bin collisions, CTCSS tone validity,
+  and per-output-type constraints
+- Secrets (stream passwords, etc.) redacted by default in the UI and API
+- Automatic config backups kept on every save
+
+**Operations**
+- Pending-restart tracking, with one-click bulk restart for everything
+  waiting
+- Config import and export
+- Live, streaming log viewer per instance
+- Per-instance health checks
+
+**Monitoring**
+- Historical charts: signal vs. squelch threshold per channel, buffer and
+  overrun counters, mixer stats
+- A `/metrics` endpoint in Prometheus format
 
 ## Screenshots
 
-Instance list and config editor, with the cross-instance search and pending-restart indicator in the header:
+Instance list and config editor, with the cross-instance search and
+pending-restart indicator in the header:
 
 ![Instance editor overview](./docs/screenshots/overview.png)
 
-A channel expanded showing its outputs, with the channel's label next to its frequency in the header:
+A channel expanded showing its outputs, with the channel's label next to
+its frequency in the header:
 
 ![Channel and output editor](./docs/screenshots/channel-editor.png)
 
@@ -19,179 +70,64 @@ Per-channel signal history:
 
 ![Stats page](./docs/screenshots/stats.png)
 
-(Instance name, frequencies, and labels above are placeholder data from the repo's sanitized [test fixture](./fixtures/151719.conf), not a real deployment.)
+(Instance name, frequencies, and labels above are placeholder data from the
+repo's sanitized [test fixture](./fixtures/151719.conf), not a real
+deployment.)
 
-## Prerequisites
+## Installing
 
-- Node.js 20 or newer, and npm. Check what you have installed:
-
-  ```bash
-  node --version
-  npm --version
-  ```
-
-  This is a hard requirement, not a suggestion — the app will fail to start on Node 18. If you're updating an existing install, upgrade Node on that machine *before* pulling this version.
-
-- To control real systemd units (start/stop/restart actual `rtl_airband` services), the user running the panel needs `sudo` access to `systemctl`. This is optional — see [Systemd control](#systemd-control) below. Without it, the panel still runs fully in a safe simulated mode.
-
-## Install
-
-1. Clone the repository and move into it:
-
-   ```bash
-   git clone https://github.com/jschmall/rtl-airband-panel.git
-   cd rtl-airband-panel
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Build the internal packages. This step is required before the first run, and after every `git pull` — skipping it is the most common cause of "I fixed it but it's still broken":
-
-   ```bash
-   npm run build:deps
-   ```
-
-## Run
-
-1. Build the backend and frontend:
-
-   ```bash
-   npm run build
-   ```
-
-2. Start the server:
-
-   ```bash
-   npm start --workspace=backend/api
-   ```
-
-3. Open `http://localhost:3000` in a browser.
-
-By default:
-
-- The server only listens on `127.0.0.1`, so it's reachable from this machine only.
-- Systemd actions are simulated, not real — the panel logs what it would do instead of calling `systemctl`. Nothing on the real system is touched.
-- It looks for instance `.conf` files in `/etc/rtl-airband-panel/instances`.
-
-All of this is configurable — see [Configuration](#configuration) below.
-
-### Updating to a new version
-
-After every `git pull`, rebuild before starting the server again:
+**Prerequisites:** Node.js 20 or newer, and npm. Check what you have:
 
 ```bash
-git pull
+node --version
+npm --version
+```
+
+This is a hard requirement — the app will fail to start on Node 18.
+
+To control real systemd units (start/stop/restart actual `rtl_airband`
+services), the user running the panel needs `sudo` access to `systemctl`.
+This is optional — see [Systemd control](#systemd-control) below. Without
+it, the panel still runs fully in a safe simulated mode.
+
+Clone the repository and install:
+
+```bash
+git clone https://github.com/jschmall/rtl-airband-panel.git
+cd rtl-airband-panel
 npm install
 npm run build:deps
+```
+
+`npm run build:deps` builds the internal packages the rest of the app
+depends on. It's required before the first run, and after every
+`git pull` — skipping it is the most common cause of "I fixed it but it's
+still broken."
+
+## First run
+
+Build and start the server:
+
+```bash
 npm run build
 npm start --workspace=backend/api
 ```
 
-If you're updating an install from before the Node 20 requirement was added, upgrade Node on this machine first — `npm install` will fail (or the server will fail to start) on Node 18.
+Open `http://localhost:3000` in a browser.
 
-### Making the panel reachable on your network
+By default:
 
-By default the server only listens on `127.0.0.1` (this machine only). To reach it from other devices on your LAN, bind it to all interfaces:
+- The server only listens on `127.0.0.1`, reachable from this machine only.
+- Systemd actions are simulated, not real — the panel logs what it would do
+  instead of calling `systemctl`. Nothing on the real system is touched.
+- It looks for instance `.conf` files in
+  `/etc/rtl-airband-panel/instances`.
 
-```bash
-npm start --workspace=backend/api -- --host 0.0.0.0
-```
+All of this is configurable — see [Configuration](#configuration) below.
 
-Then open `http://<this-machine's-LAN-IP>:3000` from another device.
-
-There is no authentication on this API. Binding to `0.0.0.0` means anyone on your network can read and write instance configs and trigger restarts (and, in `sudo` systemd mode, real `systemctl` actions). `127.0.0.1` is the default specifically so that reaching a wider network is a choice you make on purpose.
-
-### Running behind a reverse proxy
-
-The live log viewer (the "Logs" section on an instance's edit page) streams via Server-Sent Events — a single long-lived HTTP response. nginx (and most reverse proxies) buffer a proxied response by default, which breaks this: instead of arriving live, log lines get held back and delivered in delayed bursts, or not at all until the connection eventually closes. If you're putting this panel behind nginx, disable buffering and raise the read timeout for its API traffic:
-
-```nginx
-location /api/instances/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_buffering off;
-    proxy_read_timeout 3600s;
-    chunked_transfer_encoding on;
-}
-```
-
-The backend also sends `X-Accel-Buffering: no` on the stream response itself (nginx's own opt-out header), so no operator action is needed for that specific piece — but `proxy_buffering off` above is still the primary fix, and the only one that also helps with other proxies that don't honor that header. The stream sends a small heartbeat comment every 15 seconds as a second line of defense against any intermediary timing out an idle-looking connection, but `proxy_read_timeout` is the right place to fix that for nginx specifically.
-
-### Running the panel as a systemd service
-
-Running the panel process directly in a terminal (or backgrounded with `&`/`nohup`) means it doesn't survive a reboot or restart itself if it crashes. An example unit file is provided at [`deploy/rtl-airband-panel.service`](./deploy/rtl-airband-panel.service) — this manages the *panel's own* process, separate from the per-instance `rtl_<name>.service` units the panel itself creates and controls for each RTLSDR-Airband instance.
-
-1. Clone and build the app in its final location, e.g. `/opt/rtl-airband-panel`:
-
-   ```bash
-   sudo git clone https://github.com/jschmall/rtl-airband-panel.git /opt/rtl-airband-panel
-   cd /opt/rtl-airband-panel
-   sudo npm install
-   sudo npm run build:deps
-   sudo npm run build
-   ```
-
-2. Create a dedicated system user to run the panel as (avoid running it as `root`):
-
-   ```bash
-   sudo useradd --system --create-home --home-dir /opt/rtl-airband-panel --shell /usr/sbin/nologin rtl-airband-panel
-   sudo chown -R rtl-airband-panel:rtl-airband-panel /opt/rtl-airband-panel
-   ```
-
-3. Copy your `.env` (see [Configuration](#configuration)) to `/opt/rtl-airband-panel/.env` if you're using one, owned by the same user.
-
-4. Install the unit file, adjusting `WorkingDirectory`, `User`, and `EnvironmentFile` inside it first if your install path or user differs from the example:
-
-   ```bash
-   sudo cp deploy/rtl-airband-panel.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now rtl-airband-panel
-   ```
-
-5. Check it's running and follow its logs:
-
-   ```bash
-   sudo systemctl status rtl-airband-panel
-   sudo journalctl -u rtl-airband-panel -f
-   ```
-
-If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see [Systemd control](#systemd-control)) so the panel can restart real `rtl_airband` instances, the `rtl-airband-panel` system user needs passwordless `sudo` access to `systemctl` — don't grant it blanket `sudo` access. Instance naming is entirely up to you (see [Systemd control](#systemd-control) for how to scope this to only your instances), but even without that extra scoping, the example rule at [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers) still limits the grant to exactly the `systemctl`/`tee`/`rm` commands the sudo adapter issues, never a blanket `sudo systemctl` or `sudo ALL`:
-
-```bash
-sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel
-sudo chmod 0440 /etc/sudoers.d/rtl-airband-panel
-sudo visudo -c -f /etc/sudoers.d/rtl-airband-panel
-```
-
-After a `git pull` on a systemd-managed install, rebuild and restart instead of manually starting the server:
-
-```bash
-cd /opt/rtl-airband-panel
-sudo -u rtl-airband-panel git pull
-sudo -u rtl-airband-panel npm install
-sudo -u rtl-airband-panel npm run build:deps
-sudo -u rtl-airband-panel npm run build
-sudo systemctl restart rtl-airband-panel
-```
-
-### Running the frontend separately (for frontend development)
-
-This is only needed if you're actively editing the frontend and want changes to show up instantly, without rebuilding. Most users should use the single `npm start` step above instead.
-
-```bash
-# terminal 1: the API
-npm run build --workspace=backend/api
-npm start --workspace=backend/api
-
-# terminal 2: the frontend, with hot reload
-npm run dev --workspace=frontend
-```
-
-Open `http://localhost:5173`. The Vite dev server proxies `/api/*` requests to the backend at `http://127.0.0.1:3000`.
+To run this for real — reachable on your network, as a systemd service,
+behind a reverse proxy, or with real systemd control enabled — see
+[DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Configuration
 
@@ -199,13 +135,21 @@ The server can be configured three ways, and they can be mixed:
 
 - Command-line flags, e.g. `npm start --workspace=backend/api -- --port 8080`
 - Environment variables, e.g. `RTL_PANEL_PORT=8080 npm start --workspace=backend/api`
-- A `.env` file in the directory you invoke `npm`/`node` from (or a custom path via `--env-file <path>`)
+- A `.env` file in the directory you invoke `npm`/`node` from (or a custom
+  path via `--env-file <path>`)
 
-If the same setting is given more than one way, the order of precedence, highest first, is: command-line flag, then environment variable, then `.env` file, then the default below. A missing `.env` file is not an error — it's simply skipped.
+If the same setting is given more than one way, the order of precedence,
+highest first, is: command-line flag, then environment variable, then
+`.env` file, then the default below. A missing `.env` file is not an
+error — it's simply skipped.
 
-See [`.env.example`](.env.example) in the repo root for a template covering every setting — copy it to `.env` in the directory you run `npm start --workspace=backend/api` from, and adjust as needed (only the settings you want to override need to be present).
+See [`.env.example`](.env.example) in the repo root for a template covering
+every setting — copy it to `.env` in the directory you run
+`npm start --workspace=backend/api` from, and adjust as needed (only the
+settings you want to override need to be present).
 
-Run `node backend/api/dist/index.js --help` after building to see the full flag list.
+Run `node backend/api/dist/index.js --help` after building to see the full
+flag list.
 
 | Environment variable | Flag | Default | Purpose |
 |---|---|---|---|
@@ -224,63 +168,69 @@ Run `node backend/api/dist/index.js --help` after building to see the full flag 
 
 ### Systemd control
 
-Instance names map to config files and systemd units by a fixed convention: `<name>.conf` ↔ `<name>.service`, matching basenames exactly, no `@` templating. The name itself is entirely up to you — `rtl_151780`, `office-scanner`, `151780`, whatever fits your own systemd units. Setting `RTL_PANEL_SYSTEMD_MODE=sudo` (or `--systemd-mode sudo`) makes the backend shell out to real `sudo systemctl` commands. Only turn this on once you're ready to affect real running instances, and consider testing against a non-critical instance first.
+Instance names map to config files and systemd units by a fixed convention:
+`<name>.conf` ↔ `<name>.service`, matching basenames exactly, no `@`
+templating. The name itself is entirely up to you — `rtl_151780`,
+`office-scanner`, `151780`, whatever fits your own systemd units. Setting
+`RTL_PANEL_SYSTEMD_MODE=sudo` (or `--systemd-mode sudo`) makes the backend
+shell out to real `sudo systemctl` commands. Only turn this on once you're
+ready to affect real running instances, and consider testing against a
+non-critical instance first.
 
-**Scoping sudo access to your instances.** By default (`RTL_PANEL_SUDO_UNIT_PREFIX` unset), `sudo` mode will act on any unit whose name passes the existing safe-name check — there's no naming convention forced on you. That also means, on its own, sudo access isn't scoped by *which* units they are, only by which `systemctl`/`tee`/`rm` commands the adapter is allowed to run at all (see the sudoers rule below). If you'd rather the panel's sudo grant be provably limited to only the units it manages, set `RTL_PANEL_SUDO_UNIT_PREFIX` to a prefix your instance names always start with (e.g. `rtl_` if you name instances `rtl_151780`, `rtl_office`, etc.) — the adapter will then refuse in-process to act on any unit not starting with it, and you write a matching glob into the sudoers rule (see [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers), which uses `rtl_` as its example). The two checks — the adapter's in-process prefix check and the sudoers glob — need to agree for an action to reach systemd; a mismatch fails closed (the adapter rejects, or sudo denies), never open. If your instances don't share a common prefix, leave it unset and rely on the command-scoping alone.
+**Scoping sudo access to your instances.** By default
+(`RTL_PANEL_SUDO_UNIT_PREFIX` unset), `sudo` mode will act on any unit
+whose name passes the existing safe-name check — there's no naming
+convention forced on you. That also means, on its own, sudo access isn't
+scoped by *which* units they are, only by which `systemctl`/`tee`/`rm`
+commands the adapter is allowed to run at all (see the sudoers rule in
+[DEPLOYMENT.md](./DEPLOYMENT.md#running-the-panel-as-a-systemd-service)).
+If you'd rather the panel's sudo grant be provably limited to only the
+units it manages, set `RTL_PANEL_SUDO_UNIT_PREFIX` to a prefix your
+instance names always start with (e.g. `rtl_` if you name instances
+`rtl_151780`, `rtl_office`, etc.) — the adapter will then refuse
+in-process to act on any unit not starting with it, and you write a
+matching glob into the sudoers rule (see
+[`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers),
+which uses `rtl_` as its example). The two checks — the adapter's
+in-process prefix check and the sudoers glob — need to agree for an action
+to reach systemd; a mismatch fails closed (the adapter rejects, or sudo
+denies), never open. If your instances don't share a common prefix, leave
+it unset and rely on the command-scoping alone.
 
 ### Stats & graphing
 
-RTLSDR-Airband writes each instance's `stats_filepath` in real Prometheus text-exposition format (`# HELP`/`# TYPE` comments, `metric{labels}` lines) — per-channel signal/noise/squelch levels and counters, plus device/mixer overrun counters — but it rewrites the file in full on every write (roughly every 15 seconds), so it holds only the latest snapshot, no history.
+RTLSDR-Airband writes each instance's `stats_filepath` in real Prometheus
+text-exposition format (`# HELP`/`# TYPE` comments, `metric{labels}`
+lines) — per-channel signal/noise/squelch levels and counters, plus
+device/mixer overrun counters — but it rewrites the file in full on every
+write (roughly every 15 seconds), so it holds only the latest snapshot, no
+history.
 
-`backend/api` polls each running instance's stats file on that same cadence and records every sample into a local SQLite database (`RTL_PANEL_STATS_DB_PATH`), skipping a read if the file's modification time hasn't changed (a stopped instance doesn't get repeated identical rows). The Stats page charts signal-vs-squelch-threshold per channel over a selectable time window, plus per-channel and per-device counters as tiles. Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days; pruned on every poll cycle).
-
-### Logs & backups
-
-**Panel logs.** The panel's own process writes structured JSON log lines to stdout — it has no log file or rotation of its own. Running it via the [systemd unit](#running-the-panel-as-a-systemd-service) above means journald owns storage and rotation for you (`journalctl -u rtl-airband-panel`, subject to your system's normal journald retention config, e.g. `SystemMaxUse=` in `/etc/systemd/journald.conf`). The example unit also sets `SyslogIdentifier=rtl-airband-panel`, so `journalctl -t rtl-airband-panel` works as an alternative to `-u rtl-airband-panel`. If you instead run the panel directly in a terminal or backgrounded with `nohup`/`&` — the "quick look" path in [Run](#run) above, not recommended for anything long-running — nothing rotates or caps that output for you; redirect it through your own log rotation (e.g. `logrotate`, or pipe through `svlogd`/`multilog`) if you go that route.
-
-By default, the panel logs mutating actions (create/update/delete/rename/restart/import) as one audit line each, plus warnings and errors — it does *not* log a line for every HTTP request, so routine UI polling (the instance list, stats, `/metrics` scrapes) doesn't flood the journal. `RTL_PANEL_LOG_LEVEL` (default `info`) is a further volume knob on top of that default, not the primary fix for request noise: raising it to `warn` also silences the audit lines (they're logged at `info`), including a failed save's validation errors, so an operator who wants "quiet but keep every failed save visible" should leave it at `info` and rely on the request-logging default alone. Lower it to `debug`/`trace` for troubleshooting.
-
-**Stats database.** `RTL_PANEL_STATS_DB_PATH` (default `~/.rtl-airband-panel/stats.db`) is regenerable, not authoritative: it's a rolling window of samples re-derived by polling each instance's stats file, capped at `RTL_PANEL_STATS_RETENTION_DAYS`, not a record of anything RTLSDR-Airband itself persists. Losing it costs you historical charts back to your retention window, not any operational state — the panel starts a fresh one automatically if the file is missing. If you want longer-lived history than your retention setting keeps, back the file up on whatever schedule matches how much history you'd tolerate losing (a plain file copy is safe to take live; SQLite's WAL mode, which this file uses, tolerates being copied while the panel is running, though you may catch a write mid-flight — prefer `sqlite3 stats.db ".backup backup.db"` over `cp` if that matters to you). There's no built-in backup/export for this file today.
-
-## How it's built
-
-The repo is an npm workspace monorepo with four packages, each one layer of the pipeline described in [CLAUDE.md](./CLAUDE.md):
-
-| Package | What it does |
-|---|---|
-| [`backend/parser`](./backend/parser) | Hand-rolled libconfig tokenizer/parser/serializer. Converts a `.conf` file to a JSON domain model (`devices` → `channels` → `outputs`) and back, round-trip tested against a real sanitized fixture. |
-| [`backend/validate`](./backend/validate) | Semantic checks on the JSON model, grounded in RTLSDR-Airband's own source: frequency-in-window and FFT bin collisions between distinct frequencies (errors), CTCSS tone validity, filter cutoff ordering, and per-output-type constraints (e.g. rdio-scanner needs `split_on_transmission`, mixer output nesting rules) — plus a standing warning wherever `post_write_script` is set, since it runs an arbitrary command after every write. |
-| [`backend/api`](./backend/api) | Fastify HTTP API: instance CRUD, systemd restart, health checks, and stats history. Also serves the built frontend directly when present, so the whole app can run as one process. Fails closed — a config write that fails validation never touches disk or systemd. |
-| [`frontend`](./frontend) | React + Vite + Tailwind UI: a resizable two-pane layout with the instance list on the left and a form editor or stats/charts view on the right. |
-
-```
-.conf file  <──parse/serialize──>  JSON model  <──validate──>  {errors, warnings}
-                                        │
-                    backend/api (CRUD, systemd, health, stats, serves frontend build)
-                                        │
-                                   frontend (React UI)
-```
-
-## Testing
-
-Each package has its own test suite (Vitest):
-
-```bash
-npm test --workspace=backend/parser
-npm test --workspace=backend/validate
-npm test --workspace=backend/api
-npm test --workspace=frontend
-```
-
-`backend/parser` and `backend/validate` tests run against [`fixtures/151719.conf`](./fixtures/151719.conf), a sanitized real-world config. `backend/api` tests run entirely against a mock systemd adapter and temp scratch directories — nothing in the test suite touches real systemd or the configured instances directory. `frontend` tests use Vitest + React Testing Library in a jsdom environment (`frontend/test/`, mirroring the `frontend/src/` structure it covers).
+`backend/api` polls each running instance's stats file on that same
+cadence and records every sample into a local SQLite database
+(`RTL_PANEL_STATS_DB_PATH`), skipping a read if the file's modification
+time hasn't changed (a stopped instance doesn't get repeated identical
+rows). The Stats page charts signal-vs-squelch-threshold per channel over a
+selectable time window, plus per-channel and per-device counters as tiles.
+Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days;
+pruned on every poll cycle).
 
 ## Current scope
 
-The JSON model covers both `multichannel`- and `scan`-mode devices, top-level mixer *definitions* (the `mixers: { ... }` group itself, not just a channel routing into one by name), all six RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the rdio-scanner call-upload block, and per-channel options like `highpass`/`lowpass`/`tau`/`label`/`labels`.
+The JSON model covers both `multichannel`- and `scan`-mode devices,
+top-level mixer *definitions* (the `mixers: { ... }` group itself, not just
+a channel routing into one by name), all six RTLSDR-Airband output types
+(`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the
+rdio-scanner call-upload block, and per-channel options like
+`highpass`/`lowpass`/`tau`/`label`/`labels`.
 
-## Contributing
+## Learn more
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how the pieces fit together, test/build commands, and the conventions a change is expected to follow — [CLAUDE.md](./CLAUDE.md) has the fuller list of architectural constraints.
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — running this as a real service:
+  network exposure, reverse proxies, systemd, logs and backups.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — how the pieces fit together, the
+  test suite, and the conventions a change is expected to follow.
+- [CLAUDE.md](./CLAUDE.md) — the fuller set of architectural constraints.
 
 ## License
 
