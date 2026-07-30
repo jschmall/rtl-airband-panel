@@ -313,8 +313,20 @@ export interface UdpStreamOutput {
   dest_address: string;
   /** A port number or a named service, e.g. "5005" or "http" — kept as a string either way. */
   dest_port: string;
-  /** Sample format sent over the wire. RTLSDR-Airband defaults to 32 (float32) when absent. */
+  /**
+   * Sample format sent over the wire. RTLSDR-Airband defaults to 32
+   * (float32) when absent. Fork-only; requires RTLSDR-Airband built from
+   * jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.
+   */
   bit_depth?: 8 | 16 | 32;
+  /**
+   * Resamples this stream to the given rate (Hz) before sending; must be
+   * > 0. Omitted, or set equal to the device's own sample rate, sends
+   * unresampled audio (no extra CPU cost). Fork-only; requires
+   * RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in
+   * upstream RTLSDR-Airband.
+   */
+  sample_rate?: number;
   /** RTLSDR-Airband defaults to false when absent. */
   continuous?: boolean;
   /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */

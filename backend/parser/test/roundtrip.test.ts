@@ -323,6 +323,18 @@ describe("output types", () => {
     expect(roundTrip(output)).toEqual(output);
   });
 
+  it("round-trips a udp_stream output with sample_rate", () => {
+    const output: Output = { type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005", sample_rate: 8000 };
+    expect(roundTrip(output)).toEqual(output);
+  });
+
+  it("omits sample_rate from the serialized .conf when absent", () => {
+    const output: Output = { type: "udp_stream", dest_address: "10.0.0.5", dest_port: "5005" };
+    const domain1 = minimalConfigWithOutput(output);
+    const text = serializeConfigFile(domain1);
+    expect(text).not.toContain("sample_rate");
+  });
+
   it("rejects a udp_stream output with an invalid bit_depth value", () => {
     const source = `
       multiple_demod_threads = true;

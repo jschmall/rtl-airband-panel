@@ -501,6 +501,8 @@ function parseUdpStreamOutput(obj: Record<string, unknown>, path: string): UdpSt
     }
     out.bit_depth = bitDepth as Exclude<UdpStreamOutput["bit_depth"], undefined>;
   }
+  const sampleRate = optionalNumber(obj, "sample_rate", path);
+  if (sampleRate !== undefined) out.sample_rate = sampleRate;
   const continuous = optionalBoolean(obj, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
   parseOutputDisable(obj, path, out);

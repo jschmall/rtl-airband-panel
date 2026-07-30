@@ -409,6 +409,8 @@ function toUdpStreamOutput(g: GroupNode, path: string): UdpStreamOutput {
     }
     out.bit_depth = bitDepth as Exclude<UdpStreamOutput["bit_depth"], undefined>;
   }
+  const sampleRate = optionalNumber(g, "sample_rate", path);
+  if (sampleRate !== undefined) out.sample_rate = sampleRate;
   const continuous = optionalBool(g, "continuous", path);
   if (continuous !== undefined) out.continuous = continuous;
   applyDisable(g, path, out);
@@ -661,6 +663,7 @@ function udpStreamOutputToAst(output: UdpStreamOutput): GroupNode {
     stringSetting("dest_port", output.dest_port),
   ];
   if (output.bit_depth !== undefined) members.push(numberSetting("bit_depth", output.bit_depth, "int"));
+  if (output.sample_rate !== undefined) members.push(numberSetting("sample_rate", output.sample_rate, "int"));
   if (output.continuous !== undefined) members.push(boolSetting("continuous", output.continuous));
   appendDisable(members, output);
   return group(members);

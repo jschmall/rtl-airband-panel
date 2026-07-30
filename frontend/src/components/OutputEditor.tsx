@@ -562,6 +562,15 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
           ))}
         </select>
       </Field>
+      <Field label="Sample rate, Hz (optional, fork build only)" tooltip={OUTPUT_TOOLTIPS.sampleRate}>
+        <input
+          type="number"
+          min="1"
+          className={inputClass}
+          value={output.sample_rate ?? ""}
+          onChange={(e) => onChange({ ...output, sample_rate: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
       <BoolField label="Continuous" tooltip={OUTPUT_TOOLTIPS.continuous} checked={output.continuous} onChange={(v) => onChange({ ...output, continuous: v })} />
     </div>
   );

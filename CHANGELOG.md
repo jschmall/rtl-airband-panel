@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.43] - 2026-07-30
+
+### Added
+
+- **New fork-only `sample_rate` field on `udp_stream` outputs.** Tracks the
+  jschmall/RTLSDR-Airband fork's new configurable udp_stream resampling:
+  omitted (or set equal to the device's own sample rate) sends unresampled
+  audio at no extra cost; setting it to a different rate resamples before
+  sending. Applies to both device/channel-routed and mixer-routed
+  `udp_stream` outputs, since it's a field on the shared output type. A new
+  `checkUdpStreamSampleRate` validation mirrors the fork's own `> 0` check.
+  Optional and omitted from the serialized `.conf` when unset, so
+  vanilla-upstream deployments are unaffected.
+
+### Changed
+
+- **`bit_depth`'s doc comment now flags it as fork-only**, matching
+  `rdio_scanner`'s existing annotation — it previously read as if it were a
+  standard upstream RTLSDR-Airband field, which it isn't.
+
 ## [0.4.42] - 2026-07-30
 
 ### Changed

@@ -14,7 +14,7 @@ import { checkShoutMetadataDelay } from "./checks/shout-metadata-delay.js";
 import { checkFilterCutoffs } from "./checks/filter-cutoffs.js";
 import { checkModulation } from "./checks/modulation.js";
 import { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
-import { checkFileOutputFlags } from "./checks/output-flags.js";
+import { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-flags.js";
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 import { checkPostWriteScript } from "./checks/post-write-script.js";
 import { checkStatsHttp } from "./checks/stats-http.js";
@@ -40,6 +40,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkSquelchMutualExclusion(config),
     ...checkNotchQ(config),
     ...checkFileOutputFlags(config),
+    ...checkUdpStreamSampleRate(config),
     ...checkMixerNestedOutputs(config),
     ...checkMixerOutputBalance(config),
     ...checkPostWriteScript(config),
@@ -70,7 +71,7 @@ export { checkShoutMetadataDelay } from "./checks/shout-metadata-delay.js";
 export { checkFilterCutoffs } from "./checks/filter-cutoffs.js";
 export { checkModulation } from "./checks/modulation.js";
 export { checkAmpfactor, checkSquelchThreshold, checkSquelchSnrThreshold, checkSquelchMutualExclusion, checkNotchQ } from "./checks/channel-ranges.js";
-export { checkFileOutputFlags } from "./checks/output-flags.js";
+export { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-flags.js";
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 export { checkPostWriteScript } from "./checks/post-write-script.js";
 export { checkStatsHttp } from "./checks/stats-http.js";

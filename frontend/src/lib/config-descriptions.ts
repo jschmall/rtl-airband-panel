@@ -94,7 +94,9 @@ export const OUTPUT_TOOLTIPS = {
   tls: "Enables TLS for the Icecast connection, if RTLSDR-Airband was built with libshout TLS support. Leave as default (disabled) otherwise.",
   destAddress: "Destination host or IP address the raw audio/metadata stream is sent to.",
   destPort: "Destination UDP port, as a number or a named service (e.g. '5005' or a service name from /etc/services).",
-  bitDepth: "Sample format sent over the wire: 32-bit float (native), or 16-bit/8-bit signed integer (smaller packets, lower fidelity). Defaults to 32 when unset.",
+  bitDepth: "Sample format sent over the wire: 32-bit float (native), or 16-bit/8-bit signed integer (smaller packets, lower fidelity). Defaults to 32 when unset. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+  sampleRate:
+    "Resamples this stream to the given rate (Hz) before sending. Leave blank to send at the device's own sample rate (no resampling). Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
   mixerName: "The name of the top-level mixer definition this output routes audio into. Must match a mixer's Name field exactly.",
   mixerAmpfactor: "Volume multiplier applied to this channel's contribution to the mixer. Defaults to 1.0.",
   balance: "Stereo balance of this channel's contribution to the mixer, from -1.0 (full left) to 1.0 (full right). Defaults to 0.0 (centered).",

@@ -28,6 +28,7 @@ import {
   checkSquelchSnrThreshold,
   checkSquelchThreshold,
   checkStatsHttp,
+  checkUdpStreamSampleRate,
   computeBin,
   validateConfig,
 } from "../src/index.js";
@@ -921,6 +922,38 @@ describe("checkFileOutputFlags", () => {
     const issues = checkFileOutputFlags(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "file-output-continuous-and-split-on-transmission" });
+  });
+});
+
+describe("checkUdpStreamSampleRate", () => {
+  it("does not flag a udp_stream output with no sample_rate set", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005" }] }),
+    ]);
+    expect(checkUdpStreamSampleRate(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a positive sample_rate", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005", sample_rate: 8000 }] }),
+    ]);
+    expect(checkUdpStreamSampleRate(makeConfig([device]))).toEqual([]);
+  });
+
+  it.each([0, -1])("errors on a non-positive sample_rate value %d", (sample_rate) => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005", sample_rate }] }),
+    ]);
+    const issues = checkUdpStreamSampleRate(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "udp-stream-sample-rate-non-positive" });
+  });
+
+  it("also checks outputs on top-level mixers", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "udp_stream", dest_address: "10.0.0.1", dest_port: "5005", sample_rate: -1 }] };
+    const issues = checkUdpStreamSampleRate(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "udp-stream-sample-rate-non-positive", path: "$.mixers[0].outputs[0].sample_rate" });
   });
 });
 
