@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.45] - 2026-07-30
+
+### Added
+
+- **New `fixtures/fork-features.conf` fixture and round-trip/validate
+  coverage.** The only existing fixture, `151719.conf`, exercised none of
+  `rdio_scanner`, `bit_depth`, or `mixers` -- meaning none of the fork-only
+  config surface (existing or added over the last several versions) had
+  fixture-based round-trip coverage, only inline synthetic TS objects in
+  test files. The new synthetic (not from a real deployment), sanitized
+  fixture exercises an `rdio_scanner` output block, a `udp_stream` output
+  with `bit_depth` and `sample_rate`, a `mixers` block, and the
+  `stats_http_address`/`stats_http_port`/`rdio_scanner_queue_depth` globals
+  together in one config, with matching round-trip tests in
+  `backend/parser` and a `validateConfig` no-errors test in
+  `backend/validate`.
+
 ## [0.4.44] - 2026-07-30
 
 ### Added

@@ -12,6 +12,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.join(here, "../../../fixtures/151719.conf");
 const fixtureSource = readFileSync(fixturePath, "utf8");
 
+// Synthetic (not from a real deployment) -- the real 151719.conf fixture above
+// exercises none of rdio_scanner, bit_depth, sample_rate, mixers, or the
+// stats_http_*/rdio_scanner_queue_depth globals (confirmed via grep), so none
+// of that fork-only surface had fixture-based round-trip coverage until now.
+const forkFeaturesFixturePath = path.join(here, "../../../fixtures/fork-features.conf");
+const forkFeaturesFixtureSource = readFileSync(forkFeaturesFixturePath, "utf8");
+
 describe("generic libconfig layer", () => {
   it("parses the fixture without error", () => {
     const ast = parseConfig(fixtureSource);
@@ -647,5 +654,56 @@ describe("mixers", () => {
       };
     `;
     expect(() => parseConfigFile(source)).toThrow(/cannot themselves be of type 'mixer'/);
+  });
+});
+
+describe("fork-features fixture", () => {
+  it("parses without error", () => {
+    const ast = parseConfig(forkFeaturesFixtureSource);
+    expect(ast.members.length).toBeGreaterThan(0);
+  });
+
+  it("maps the expected fork-only fields", () => {
+    const domain = toDomain(parseConfig(forkFeaturesFixtureSource));
+    expect(domain.stats_http_address).toBe("127.0.0.1");
+    expect(domain.stats_http_port).toBe(9091);
+    expect(domain.rdio_scanner_queue_depth).toBe(128);
+    expect(domain.mixers).toHaveLength(1);
+
+    const channels = domain.devices[0]!.channels;
+    const fileOutput = channels[0]!.outputs[0];
+    if (fileOutput.type !== "file") throw new Error("expected file output");
+    expect(fileOutput.rdio_scanner).toMatchObject({ server: "rdio.example.com", talkgroup_id: 100 });
+
+    const udpOutput = channels[0]!.outputs[1];
+    if (udpOutput.type !== "udp_stream") throw new Error("expected udp_stream output");
+    expect(udpOutput.bit_depth).toBe(16);
+    expect(udpOutput.sample_rate).toBe(8000);
+
+    const mixer = domain.mixers![0]!;
+    expect(mixer.name).toBe("fork_mix");
+    const mixerOutput = mixer.outputs[0]!;
+    if (mixerOutput.type !== "udp_stream") throw new Error("expected udp_stream mixer output");
+    expect(mixerOutput.bit_depth).toBe(8);
+  });
+
+  it("round-trips fixture -> domain -> AST -> domain to an identical domain object", () => {
+    const domain1 = toDomain(parseConfig(forkFeaturesFixtureSource));
+    const domain2 = toDomain(fromDomain(domain1));
+    expect(domain2).toEqual(domain1);
+  });
+
+  it("round-trips fixture -> domain -> text -> domain via the public API", () => {
+    const domain1 = parseConfigFile(forkFeaturesFixtureSource);
+    const text = serializeConfigFile(domain1);
+    const domain2 = parseConfigFile(text);
+    expect(domain2).toEqual(domain1);
+  });
+
+  it("produces text that is itself stable under a further domain round trip", () => {
+    const domain1 = parseConfigFile(forkFeaturesFixtureSource);
+    const text1 = serializeConfigFile(domain1);
+    const text2 = serializeConfigFile(parseConfigFile(text1));
+    expect(text2).toBe(text1);
   });
 });

@@ -36,6 +36,8 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.join(here, "../../../fixtures/151719.conf");
 const fixtureSource = readFileSync(fixturePath, "utf8");
+const forkFeaturesFixturePath = path.join(here, "../../../fixtures/fork-features.conf");
+const forkFeaturesFixtureSource = readFileSync(forkFeaturesFixturePath, "utf8");
 
 function makeChannel(freq: number, overrides: Partial<Channel> = {}): Channel {
   return {
@@ -92,6 +94,14 @@ describe("validateConfig against the real fixture", () => {
     const postWriteScriptCount = (fixtureSource.match(/post_write_script\s*=/g) ?? []).length;
     expect(result.warnings.every((w) => w.code === "post-write-script-runs-arbitrary-command")).toBe(true);
     expect(result.warnings).toHaveLength(postWriteScriptCount);
+  });
+});
+
+describe("validateConfig against the fork-features fixture", () => {
+  it("produces no errors for a known-good config exercising rdio_scanner, bit_depth, sample_rate, mixers, and the stats_http_*/rdio_scanner_queue_depth globals", () => {
+    const config = parseConfigFile(forkFeaturesFixtureSource);
+    const result = validateConfig(config);
+    expect(result.errors).toEqual([]);
   });
 });
 
