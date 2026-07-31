@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.59] - 2026-07-31
+
+Section M, Phase 4 (GitHub issue #2) -- the last phase of the mobile
+layout plan.
+
+### Changed
+
+- **Channel drag-and-drop now has a real touch input path.** Replaced the
+  single `PointerSensor` with separate `MouseSensor`/`TouchSensor`
+  registrations so each input modality gets its own activation
+  constraint -- touch gets a 150ms press-and-hold + 5px tolerance (so a
+  vertical swipe-to-scroll on the channel list isn't mistaken for a
+  drag-start), mouse keeps the existing instant 4px-distance constraint.
+  Registering `PointerSensor` alongside a `TouchSensor` was considered and
+  rejected: modern touchscreens fire both pointer and touch events for
+  the same gesture, so the two sensors would race for the same
+  interaction rather than cleanly dividing the work. Also enlarged the
+  drag handle's padding (`p-2` → `p-3`) closer to the ~44px touch-target
+  guideline. Verified live with both real mouse-drag (regression check)
+  and emulated touch-drag (Chromium touch events via CDP) reordering
+  channels correctly.
+
+This closes out Section M -- all four phases of the mobile-friendly
+layout plan (issue #2) are shipped.
+
 ## [0.4.58] - 2026-07-31
 
 Section M, Phase 3 (GitHub issue #2) -- the largest phase of the mobile

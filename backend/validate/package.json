@@ -1,6 +1,6 @@
 {
   "name": "@rtl-airband-panel/validate",
-  "version": "0.4.58",
+  "version": "0.4.59",
   "private": true,
   "license": "GPL-2.0",
   "description": "Semantic validation for RTLSDR-Airband instance configs (frequency windows, FFT bin collisions, CTCSS tones)",

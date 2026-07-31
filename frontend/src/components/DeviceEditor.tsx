@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
-import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BoolField, Field } from "./Field.js";
@@ -27,7 +27,10 @@ function SortableChannelRow({ id, children }: { id: string | number; children: R
         type="button"
         {...attributes}
         {...listeners}
-        className="mt-2 cursor-grab select-none rounded p-2 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
+        // p-3 (not p-2) brings this closer to the ~44px touch-target guideline that
+        // matters now that touch-drag (TouchSensor, below) is a real, tuned input path,
+        // not just tolerated incidentally by the pointer sensor.
+        className="mt-1.5 cursor-grab select-none rounded p-3 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
         aria-label="Drag to reorder channel, or focus and use arrow keys"
         title="Drag to reorder (or focus and use arrow keys)"
       >
@@ -139,11 +142,18 @@ export function DeviceEditor({
     return () => clearTimeout(timeout);
   }, [justDuplicatedKey]);
 
+  // MouseSensor/TouchSensor (rather than a single PointerSensor for both) so each input
+  // modality gets its own activation constraint -- a touch needs a short press-and-hold
+  // (delay/tolerance) so a vertical swipe-to-scroll on the channel list isn't mistaken
+  // for a drag-start, whereas a mouse can start dragging immediately after a small
+  // move (distance). Registering PointerSensor alongside TouchSensor instead would
+  // double up: modern touchscreens fire both pointer and touch events for the same
+  // gesture, so the two sensors would race for the same interaction.
   // KeyboardSensor makes reordering possible without a mouse/touch at all -- without it,
-  // a keyboard-only user simply has no way to reorder channels (dnd-kit's PointerSensor
-  // alone never fires from Tab/Space/arrow-key input).
+  // a keyboard-only user simply has no way to reorder channels.
   const dragSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
