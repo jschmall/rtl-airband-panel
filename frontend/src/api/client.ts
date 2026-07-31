@@ -58,6 +58,12 @@ export interface HistoryPoint {
   value: number;
 }
 
+export interface InstanceStatsSummary {
+  bufferOverflowTotal: number;
+  outputOverrunTotal: number;
+  inputsDroppingCount: number;
+}
+
 export interface HistoryParams {
   metric: string;
   labels?: Record<string, string>;
@@ -160,6 +166,9 @@ export const api = {
     }),
 
   getLatestStats: (name: string): Promise<StatSample[]> => request(`/instances/${encodeURIComponent(name)}/stats/latest`),
+
+  /** Rolled-up buffer-overflow/output-overrun/dropping-input totals for every instance, keyed by name -- what the landing-page health dashboard polls. */
+  getInstanceStatsSummary: (): Promise<Record<string, InstanceStatsSummary>> => request("/instances/stats-summary"),
 
   getStatsHistory: (name: string, params: HistoryParams): Promise<HistoryPoint[]> => {
     const query = new URLSearchParams({ metric: params.metric });

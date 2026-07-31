@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.67] - 2026-07-31
+
+### Added
+
+- **At-a-glance instance health dashboard on the landing page.** `WelcomePage`
+  now renders `InstanceHealthOverview` -- a table of every managed instance
+  (name, status, uptime, active-since, buffer overflows, output overruns) --
+  instead of a static placeholder, when at least one instance exists (a
+  brand-new deployment with zero instances still sees the original "select
+  an instance"/"+ New instance" hints, centered). Status/uptime ride along
+  on the already-polled shared instance list; the buffer-overflow/output-
+  overrun columns poll the new `GET /instances/stats-summary` on the same
+  `AUTO_REFRESH_MS` cadence used everywhere else. Both count columns render
+  neutral at 0 and amber once nonzero, so problem instances stand out
+  without scanning every row.
+- **`frontend/src/lib/time-format.ts`.** `formatUptime()` (e.g. "3h 22m",
+  "5d 1h", "—" if never active) and `formatDateTime()` (e.g.
+  "2026-07-31 14:03", "Never" if unset) -- small, dependency-free
+  formatters shared by the new dashboard.
+
+This completes the landing-page instance health dashboard (#3) -- sections
+A (v0.4.65) and B (v0.4.66) landed in prior commits.
+
 ## [0.4.66] - 2026-07-31
 
 ### Added
