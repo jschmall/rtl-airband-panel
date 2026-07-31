@@ -30,25 +30,32 @@ them, with validation before anything is written to disk.
 **Config editing**
 - Editor for devices, channels, mixers, and all six RTLSDR-Airband output
   types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
-  including rdio-scanner call uploads — that output type requires the
-  [`rdio_api`](https://github.com/jschmall/RTLSDR-Airband)
-  branch of RTLSDR-Airband, which hasn't been submitted upstream
-- Drag-and-drop channel reordering
+  including rdio-scanner call uploads — that output type requires
+  [this fork](https://github.com/jschmall/RTLSDR-Airband) of
+  RTLSDR-Airband, not the upstream project
+- Drag-and-drop channel reordering (mouse, touch, and keyboard)
 - Duplicate/clone buttons, and a "copy to channel" action for outputs
 - Search across all instances by frequency, modulation, or device
+- Usable on a phone or tablet, not just desktop — the sidebar becomes a
+  slide-out drawer and dense field grids stack to fewer columns below a
+  tablet-ish width
 
 **Safety and validation**
 - Inline validation with human-readable messages before you save
 - Checks for frequency-window and FFT bin collisions, CTCSS tone validity,
-  and per-output-type constraints
+  per-output-type constraints, and RTL-SDR's actual supported sample-rate
+  ranges
 - Secrets (stream passwords, etc.) redacted by default in the UI and API
 - Automatic config backups kept on every save
 
 **Operations**
+- Create, rename, and delete instances — renaming or deleting restarts or
+  stops the underlying systemd unit, and the panel warns you before it does
 - Pending-restart tracking, with one-click bulk restart for everything
   waiting
 - Config import and export
-- Live, streaming log viewer per instance
+- Live, streaming log viewer per instance, with an optional structured
+  JSON log format (requires the same RTLSDR-Airband fork noted above)
 - Per-instance health checks
 
 **Monitoring**
@@ -219,6 +226,13 @@ selectable time window, plus per-channel and per-device counters as tiles.
 Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days;
 pruned on every poll cycle).
 
+The panel's own polling always reads the stats file straight off local
+disk. Separately, on the RTLSDR-Airband fork noted under
+[Features](#features), a device can optionally set `stats_http_address`/
+`stats_http_port` to have RTLSDR-Airband itself serve that same file's
+contents over HTTP — a different mechanism, useful if you want to scrape
+an instance's stats from somewhere other than this panel.
+
 ## Current scope
 
 The JSON model covers both `multichannel`- and `scan`-mode devices,
@@ -226,8 +240,8 @@ top-level mixer *definitions* (the `mixers: { ... }` group itself, not just
 a channel routing into one by name), all six RTLSDR-Airband output types
 (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the
 rdio-scanner call-upload block (see the note under
-[Features](#features) — this requires a non-upstream RTLSDR-Airband
-branch), and per-channel options like
+[Features](#features) — this requires the non-upstream RTLSDR-Airband
+fork), and per-channel options like
 `highpass`/`lowpass`/`tau`/`label`/`labels`.
 
 ## Learn more

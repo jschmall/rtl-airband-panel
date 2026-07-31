@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.61] - 2026-07-31
+
+### Changed
+
+- **README caught up to recent functionality.** Added: the mobile/tablet
+  responsive layout (Section M), instance create/rename/delete as an
+  Operations feature (renaming/deleting restarts or stops the unit, and
+  the panel warns first), the structured JSON log format toggle, the
+  RTL-SDR sample-rate range check, and the fork's optional
+  `stats_http_address`/`stats_http_port` HTTP endpoint (a separate
+  mechanism from the panel's own disk-polling). Also fixed two stale
+  "requires the `rdio_api` branch" references — that branch was merged to
+  the fork's `main` a while ago; it now just says "this fork" (which is
+  what the link already pointed to).
+
 ## [0.4.60] - 2026-07-31
 
 ### Changed
