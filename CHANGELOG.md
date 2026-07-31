@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.58] - 2026-07-31
+
+Section M, Phase 3 (GitHub issue #2) -- the largest phase of the mobile
+layout plan: the sidebar is now reachable below `md:`.
+
+### Added
+
+- **Sidebar → slide-over drawer below `md:`.** The fixed-width resizable
+  sidebar (`TwoPaneLayout.tsx`) is now entirely absent from the layout
+  below `md:` (not just visually hidden) and replaced by a hamburger
+  button in the header (new, `App.tsx`) that opens `InstanceSidebar.tsx`
+  -- unchanged -- inside a slide-over drawer with a dimming backdrop.
+  Closes three ways: the drawer's own ✕ button, clicking the backdrop, or
+  Escape (which also returns focus to the hamburger, matching
+  `PendingRestartIndicator`'s existing popover convention); also
+  auto-closes on any route change, so picking an instance from the drawer
+  takes you straight to it. New `frontend/src/state/MobileNavContext.tsx`
+  shares the open/closed state between the header (which owns the
+  hamburger) and `TwoPaneLayout` (which owns the drawer) -- they aren't
+  otherwise in a parent/child relationship, since the header sits above
+  the routed `<Outlet>`. No open/close animation for now -- immediate
+  show/hide, kept deliberately simple with no new transition/animation
+  pattern introduced for a single call site.
+
 ## [0.4.57] - 2026-07-31
 
 Section M, Phase 2 (GitHub issue #2): the top header now stacks below
