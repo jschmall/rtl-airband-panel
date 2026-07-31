@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -26,9 +26,9 @@ function SortableChannelRow({ id, children }: { id: string | number; children: R
         type="button"
         {...attributes}
         {...listeners}
-        className="mt-3 cursor-grab select-none text-lg leading-none text-slate-500 hover:text-slate-300 active:cursor-grabbing"
-        aria-label="Drag to reorder channel"
-        title="Drag to reorder"
+        className="mt-2 cursor-grab select-none rounded p-2 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
+        aria-label="Drag to reorder channel, or focus and use arrow keys"
+        title="Drag to reorder (or focus and use arrow keys)"
       >
         ⠿
       </button>
@@ -117,7 +117,13 @@ export function DeviceEditor({
     .filter((entry): entry is { channel: MultichannelChannel; i: number } => isMultichannelChannel(entry.channel));
   const visibleChannels = indexedChannels.filter(({ channel }) => channelMatchesFilter(channel, channelFilter));
 
-  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // KeyboardSensor makes reordering possible without a mouse/touch at all -- without it,
+  // a keyboard-only user simply has no way to reorder channels (dnd-kit's PointerSensor
+  // alone never fires from Tab/Space/arrow-key input).
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Drag-and-drop reorders device.channels itself (by real index), not the currently-
   // rendered/filtered view -- so a reorder is well-defined even while a filter narrows

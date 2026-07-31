@@ -5,7 +5,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
-## [0.4.50] - 2026-07-31
+## [0.4.51] - 2026-07-31
+
+### Fixed
+
+- **Channel drag-and-drop reordering is now keyboard-operable.** The
+  `@dnd-kit` sortable list (added v0.4.38) only registered a
+  `PointerSensor` -- a keyboard-only user had no way to reorder channels
+  at all. Added a `KeyboardSensor` (Tab to a channel's drag handle, Space
+  to pick up, arrow keys to move, Space to drop), verified live end to
+  end. Also enlarged the drag handle's touch/click target with padding,
+  which was previously a bare glyph well under typical hit-target
+  guidance.
 
 ### Added
 
