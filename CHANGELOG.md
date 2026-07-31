@@ -5,6 +5,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.52] - 2026-07-31
+
+### Fixed
+
+- **The streaming log viewer's connection state is now announced to
+  screen readers.** Added `role="status"`/`aria-live="polite"` to the
+  Connecting…/● Live/Reconnecting…/Connection failed label (added
+  v0.4.39), which previously had no ARIA wiring at all. Deliberately not
+  applied to the scrolling log buffer itself, which would announce every
+  streamed line -- it keeps its existing (silent) default and gained only
+  a plain `aria-label` for context.
+
 ## [0.4.51] - 2026-07-31
 
 ### Fixed

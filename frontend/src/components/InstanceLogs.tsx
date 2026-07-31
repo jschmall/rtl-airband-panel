@@ -103,7 +103,14 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
       titleClassName="text-lg font-semibold text-slate-100"
       title="Logs"
       onOpenChange={setOpen}
-      headerActions={<span className="text-xs text-slate-400">{STATE_LABEL[state]}</span>}
+      headerActions={
+        // role="status"/aria-live announces connect/disconnect/error transitions to a
+        // screen reader -- deliberately not applied to the <pre> below, which would
+        // announce every appended line as it streams in.
+        <span className="text-xs text-slate-400" role="status" aria-live="polite">
+          {STATE_LABEL[state]}
+        </span>
+      }
     >
       <BoolField
         label={jsonLoggingPending ? "JSON logging (restarting…)" : "JSON logging"}
@@ -115,6 +122,7 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
       <pre
         ref={preRef}
         onScroll={handleScroll}
+        aria-label="Live log output"
         className="max-h-96 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-300"
       >
         {lines.map((l) => formatLine(l, jsonLogging)).join("\n")}
