@@ -1,3 +1,5 @@
+import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
+
 /**
  * React needs a stable `key` per list item to keep each item's own component
  * state (a Collapsible's open/closed state, OutputEditor/DeviceEditor's
@@ -19,6 +21,16 @@
  * place).
  */
 const UI_KEY = Symbol("uiKey");
+
+/**
+ * A plain (non-symbol) field, unlike UI_KEY -- it has to survive
+ * JSON.stringify to reach the backend, since backend/api/src/secrets.ts
+ * uses it to restore a still-redacted secret onto the right on-disk
+ * output/mixer even when an earlier item in the same list was
+ * duplicated/removed in this editing session. See stampOutputMatchIndices
+ * below.
+ */
+const MATCH_INDEX = "_matchIndex";
 
 let counter = 0;
 
@@ -62,6 +74,29 @@ export function assignUiKeysDeep<T>(value: T): T {
   return value;
 }
 
+/** Set on a copy's `_matchIndex` instead of leaving the original's value in place -- see markCopiedMatchIndicesDeep. Must match backend/api/src/secrets.ts's NO_MATCH. */
+const NO_MATCH = -1;
+
+/**
+ * A duplicate/copy has no on-disk counterpart, so its `_matchIndex` (if the
+ * original had one) must not be left pointing at the original's load-time
+ * position -- restoring a secret from whatever output happens to occupy
+ * that position now would silently steal an unrelated output's password/
+ * api_key. NO_MATCH marks it as "known non-match" instead of just omitting
+ * the field, since an omitted field falls back to positional pairing in
+ * secrets.ts (for callers that never stamp `_matchIndex` at all), which is
+ * exactly the unsafe behavior this needs to avoid for an actual copy.
+ */
+function markCopiedMatchIndicesDeep(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) markCopiedMatchIndicesDeep(item);
+  } else if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (MATCH_INDEX in record) record[MATCH_INDEX] = NO_MATCH;
+    for (const v of Object.values(record)) markCopiedMatchIndicesDeep(v);
+  }
+}
+
 /**
  * Deep-copies an item for a "Duplicate" button, with fresh identity keys
  * throughout (including any nested objects/arrays, e.g. an output's
@@ -70,7 +105,39 @@ export function assignUiKeysDeep<T>(value: T): T {
  * deep copy here since config data is always plain JSON-shaped values, and
  * it naturally drops the original's symbol-keyed identity (symbols aren't
  * serialized), leaving `assignUiKeysDeep` to assign all-new ones.
+ *
+ * Also marks any `_matchIndex` found anywhere in the copy as NO_MATCH
+ * (unlike UI_KEY, it's a plain field the JSON round-trip would otherwise
+ * faithfully carry over) — see markCopiedMatchIndicesDeep.
  */
 export function cloneWithNewUiKeys<T>(item: T): T {
-  return assignUiKeysDeep(JSON.parse(JSON.stringify(item)) as T);
+  const cloned = JSON.parse(JSON.stringify(item)) as T;
+  markCopiedMatchIndicesDeep(cloned);
+  return assignUiKeysDeep(cloned);
+}
+
+/**
+ * Stamps every output (on a channel or a mixer) with its array position at
+ * load time, so that later duplicating/removing/copying an output elsewhere
+ * in the same list doesn't cause backend/api/src/secrets.ts to restore a
+ * still-redacted secret onto the wrong on-disk output. Called once, right
+ * after a config is fetched -- alongside assignUiKeysDeep, since nothing
+ * server-side knows about these indices either. The value is ordinary data
+ * (unlike UI_KEY), so it survives the `{...item, field}` edit pattern used
+ * throughout the editors; cloneWithNewUiKeys strips it from every copy.
+ */
+export function stampOutputMatchIndices(config: RtlAirbandConfig): RtlAirbandConfig {
+  for (const device of config.devices) {
+    for (const channel of device.channels) {
+      channel.outputs.forEach((output, i) => {
+        (output as unknown as Record<string, unknown>)[MATCH_INDEX] = i;
+      });
+    }
+  }
+  for (const mixer of config.mixers ?? []) {
+    mixer.outputs.forEach((output, i) => {
+      (output as unknown as Record<string, unknown>)[MATCH_INDEX] = i;
+    });
+  }
+  return config;
 }

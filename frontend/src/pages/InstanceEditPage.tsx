@@ -9,7 +9,7 @@ import { GuardedLink } from "../components/GuardedLink.js";
 import { InstanceLogs } from "../components/InstanceLogs.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
-import { assignUiKeysDeep } from "../lib/keys.js";
+import { assignUiKeysDeep, stampOutputMatchIndices } from "../lib/keys.js";
 import { getValueAtPath } from "../lib/validation-path.js";
 
 interface LoadError {
@@ -70,8 +70,11 @@ export function InstanceEditPage() {
         // Nothing server-side knows about these keys -- assign them once, here,
         // so every device/channel/output/mixer keeps its own UI state (open/
         // closed, remembered type-cache) even as items before it in a list are
-        // added or removed. See lib/keys.ts.
-        const keyed = assignUiKeysDeep(config);
+        // added or removed. See lib/keys.ts. stampOutputMatchIndices also
+        // records each output's load-time position, so a later save can
+        // restore a still-redacted secret onto the right on-disk output even
+        // if an earlier output in the same list was duplicated or removed.
+        const keyed = stampOutputMatchIndices(assignUiKeysDeep(config));
         setConfig(keyed);
         setSavedConfig(keyed);
         setVersion(version);

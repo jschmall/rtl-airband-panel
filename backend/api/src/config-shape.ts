@@ -343,25 +343,39 @@ function parseOutput(input: unknown, path: string): Output {
   const obj = requireRecord(input, path);
   const type = requireString(obj, "type", path);
 
+  let out: Output;
   switch (type) {
     case "pulse":
-      return parsePulseOutput(obj, path);
+      out = parsePulseOutput(obj, path);
+      break;
     case "file":
-      return parseFileOutput(obj, path);
+      out = parseFileOutput(obj, path);
+      break;
     case "rawfile":
-      return parseRawFileOutput(obj, path);
+      out = parseRawFileOutput(obj, path);
+      break;
     case "icecast":
-      return parseIcecastOutput(obj, path);
+      out = parseIcecastOutput(obj, path);
+      break;
     case "udp_stream":
-      return parseUdpStreamOutput(obj, path);
+      out = parseUdpStreamOutput(obj, path);
+      break;
     case "mixer":
-      return parseMixerOutput(obj, path);
+      out = parseMixerOutput(obj, path);
+      break;
     default:
       throw new ShapeValidationError(
         `Unrecognized output type '${type}' (expected one of: pulse, file, rawfile, icecast, udp_stream, mixer)`,
         path
       );
   }
+  // `_matchIndex` is a frontend-only signal (see frontend/src/lib/keys.ts)
+  // that backend/api/src/secrets.ts uses to restore a still-redacted secret
+  // onto the right on-disk output -- carried through here so it survives
+  // this shape check, then stripped again once secrets.ts has used it.
+  const matchIndex = optionalNumber(obj, "_matchIndex", path);
+  if (matchIndex !== undefined) (out as Output & { _matchIndex?: number })._matchIndex = matchIndex;
+  return out;
 }
 
 function parseOutputDisable(obj: Record<string, unknown>, path: string, out: { disable?: boolean }): void {

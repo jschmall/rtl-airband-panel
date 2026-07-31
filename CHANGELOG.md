@@ -5,7 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
-## [0.4.47] - 2026-07-30
+## [0.4.48] - 2026-07-31
+
+### Fixed
+
+- **Fixed silent secret cross-contamination when an output or mixer was
+  duplicated, copied, or removed.** `backend/api/src/secrets.ts` already
+  paired channels across an edit by frequency (added for channel
+  drag-and-drop) so reordering couldn't misattribute a still-redacted
+  Icecast password or rdio-scanner API key -- but outputs within a
+  channel/mixer, and mixers themselves, were still paired by raw array
+  index. "Duplicate output", "Copy to channel…", and "Remove output" all
+  insert/delete at an index, shifting every later output -- so saving
+  could silently swap an *unrelated, untouched* output's real secret onto
+  the wrong output, or blank it, not just leave the new copy blank as the
+  older known issue (v0.4.32) described. Fixed by having the frontend
+  stamp each output with its load-time array position (`_matchIndex`,
+  `frontend/src/lib/keys.ts`), explicitly marked as "no match" on every
+  duplicate/copy so a copy can never inherit a stranger's secret; mixers
+  are now matched by their real `name` field instead of position, mirroring
+  the channel fix. Backward compatible: a request that omits
+  `_matchIndex` entirely still falls back to today's positional pairing.
 
 ### Fixed
 

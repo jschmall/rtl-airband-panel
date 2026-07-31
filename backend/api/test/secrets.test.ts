@@ -22,6 +22,15 @@ function configWithOutputs(outputs: RtlAirbandConfig["devices"][number]["channel
   };
 }
 
+/** Simulates frontend/src/lib/keys.ts's `_matchIndex` stamp -- a plain field the production types don't declare, so it needs a cast like config-shape.ts's own read of it does. */
+function withMatchIndex<T extends object>(output: T, matchIndex: number): T {
+  return { ...output, _matchIndex: matchIndex } as T;
+}
+
+function configWithMixers(mixers: NonNullable<RtlAirbandConfig["mixers"]>): RtlAirbandConfig {
+  return { ...configWithOutputs([]), mixers };
+}
+
 function configWithChannels(channels: RtlAirbandConfig["devices"][number]["channels"]): RtlAirbandConfig {
   return {
     multiple_demod_threads: true,
@@ -178,5 +187,56 @@ describe("restoreSecrets", () => {
 
     const restored = restoreSecrets(incoming, existing);
     expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "scankey" });
+  });
+
+  it("keeps the original's and a later output's passwords intact -- and blanks the duplicate's -- when a duplicate is inserted between them", () => {
+    const icecastOutput = (password: string) => ({ type: "icecast" as const, server: "s", port: 8000, mountpoint: "/m", username: "source", password });
+    const existing = configWithOutputs([icecastOutput("pwA"), icecastOutput("pwB")]);
+    // Client duplicated output A (inserted right after it), shifting B from index 1 to index 2.
+    const incoming = configWithOutputs([
+      withMatchIndex(icecastOutput(REDACTED_SECRET), 0), // A
+      withMatchIndex(icecastOutput(REDACTED_SECRET), -1), // A's duplicate -- no on-disk counterpart
+      withMatchIndex(icecastOutput(REDACTED_SECRET), 1), // B, shifted to index 2
+    ]);
+
+    const restored = restoreSecrets(incoming, existing);
+    const outputs = restored.devices[0]!.channels[0]!.outputs;
+    expect(outputs[0]).toMatchObject({ password: "pwA" });
+    expect(outputs[1]).toMatchObject({ password: "" });
+    expect(outputs[2]).toMatchObject({ password: "pwB" });
+  });
+
+  it("keeps the remaining output's password intact after an earlier output is removed", () => {
+    const icecastOutput = (password: string) => ({ type: "icecast" as const, server: "s", port: 8000, mountpoint: "/m", username: "source", password });
+    const existing = configWithOutputs([icecastOutput("pwA"), icecastOutput("pwB")]);
+    // Client removed output A -- B is now at index 0 but still carries its original load-time index (1).
+    const incoming = configWithOutputs([withMatchIndex(icecastOutput(REDACTED_SECRET), 1)]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.devices[0]!.channels[0]!.outputs[0]).toMatchObject({ password: "pwB" });
+  });
+
+  it("matches a mixer by name (not array index) and blanks a duplicated mixer's secret, not steal the original's", () => {
+    const icecastOutput = (password: string) => ({ type: "icecast" as const, server: "s", port: 8000, mountpoint: "/m", username: "source", password });
+    const existing = configWithMixers([{ name: "mix1", outputs: [icecastOutput("pwMix")] }]);
+    // Client duplicated the mixer (clone's name is blanked, matching the app's own "Duplicate mixer" behavior).
+    const incoming = configWithMixers([
+      { name: "mix1", outputs: [withMatchIndex(icecastOutput(REDACTED_SECRET), 0)] },
+      { name: "", outputs: [withMatchIndex(icecastOutput(REDACTED_SECRET), -1)] },
+    ]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.mixers![0]!.outputs[0]).toMatchObject({ password: "pwMix" });
+    expect(restored.mixers![1]!.outputs[0]).toMatchObject({ password: "" });
+  });
+
+  it("strips _matchIndex from the restored output so it never reaches validation/serialization", () => {
+    const existing = configWithOutputs([{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: "pwA" }]);
+    const incoming = configWithOutputs([
+      withMatchIndex({ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "source", password: REDACTED_SECRET }, 0),
+    ]);
+
+    const restored = restoreSecrets(incoming, existing);
+    expect(restored.devices[0]!.channels[0]!.outputs[0]).not.toHaveProperty("_matchIndex");
   });
 });
