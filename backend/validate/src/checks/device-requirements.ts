@@ -1,6 +1,6 @@
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "../types.js";
-import { DEFAULT_SAMPLE_RATE_HZ, MIN_SAMPLE_RATE_HZ } from "../rtlsdr-defaults.js";
+import { DEFAULT_SAMPLE_RATE_HZ, MIN_SAMPLE_RATE_HZ, RTLSDR_SAMPLE_RATE_DEAD_ZONE } from "../rtlsdr-defaults.js";
 
 /** The device types this codebase models (rtlsdr/mirisdr-specific buffers fields, soapysdr-specific device_string/channel/antenna) -- anything else is "unsupported device type" upstream (config.cpp), a fatal error(). */
 const KNOWN_DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"];
@@ -83,6 +83,18 @@ export function checkDeviceRequirements(config: RtlAirbandConfig): ValidationIss
         code: "device-sample-rate-too-low",
         path,
         message: `sample_rate ${sampleRate} must be greater than ${MIN_SAMPLE_RATE_HZ}`,
+      });
+    }
+
+    // librtlsdr itself rejects this range at runtime (rtlsdr_set_sample_rate) --
+    // specific to rtlsdr hardware, unlike the floor above. mirisdr/soapysdr have
+    // no documented equivalent range, so this is deliberately isRtl-only.
+    if (isRtl && sampleRate >= RTLSDR_SAMPLE_RATE_DEAD_ZONE.min && sampleRate <= RTLSDR_SAMPLE_RATE_DEAD_ZONE.max) {
+      issues.push({
+        severity: "error",
+        code: "device-sample-rate-unsupported",
+        path,
+        message: `sample_rate ${sampleRate} is outside librtlsdr's supported ranges (225001-300000 or 900001-3200000 Hz)`,
       });
     }
 

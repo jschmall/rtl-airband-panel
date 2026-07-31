@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
+import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -10,7 +11,7 @@ import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
 import { appendItem, duplicateAt, moveAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
-import { numberOrUndefined } from "../lib/number-utils.js";
+import { formatMsps, numberOrUndefined } from "../lib/number-utils.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
@@ -116,6 +117,15 @@ export function DeviceEditor({
     .map((channel, i) => ({ channel, i }))
     .filter((entry): entry is { channel: MultichannelChannel; i: number } => isMultichannelChannel(entry.channel));
   const visibleChannels = indexedChannels.filter(({ channel }) => channelMatchesFilter(channel, channelFilter));
+
+  // Forces the sample-rate field into free-text "Custom" mode even if the user types
+  // their way back to a value that happens to match a curated rate -- otherwise the
+  // input would jump back to dropdown mode mid-edit, which is disorienting. Reset to
+  // false (deriving from the value instead) whenever the dropdown itself picks a
+  // curated rate or "Default".
+  const [forceCustomSampleRate, setForceCustomSampleRate] = useState(false);
+  const isCuratedSampleRate = device.sample_rate === undefined || RTLSDR_COMMON_SAMPLE_RATES_HZ.includes(device.sample_rate);
+  const showCustomSampleRate = forceCustomSampleRate || !isCuratedSampleRate;
 
   // Briefly highlights a just-duplicated channel so it's obvious which one is new,
   // rather than leaving the user to spot it among the rest of the list. Cleared by
@@ -242,15 +252,50 @@ export function DeviceEditor({
             />
           </Field>
         )}
-        <Field label="Sample rate (Hz, blank = default 2,560,000)" tooltip={DEVICE_TOOLTIPS.sampleRate}>
-          <input
-            type="number"
-            min="16001"
-            className={inputClass}
-            value={device.sample_rate ?? ""}
-            onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
-          />
-        </Field>
+        {isRtl ? (
+          <Field label="Sample rate (MSPS, blank = default 2.560)" tooltip={DEVICE_TOOLTIPS.sampleRate}>
+            {showCustomSampleRate ? (
+              <input
+                type="number"
+                min="16001"
+                className={inputClass}
+                value={device.sample_rate ?? ""}
+                onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
+              />
+            ) : (
+              <select
+                className={inputClass}
+                value={device.sample_rate === undefined ? "default" : String(device.sample_rate)}
+                onChange={(e) => {
+                  if (e.target.value === "custom") {
+                    setForceCustomSampleRate(true);
+                    return;
+                  }
+                  setForceCustomSampleRate(false);
+                  onChange({ ...device, sample_rate: e.target.value === "default" ? undefined : Number(e.target.value) });
+                }}
+              >
+                <option value="default">Default (2.560 MSPS)</option>
+                {RTLSDR_COMMON_SAMPLE_RATES_HZ.map((hz) => (
+                  <option key={hz} value={hz}>
+                    {formatMsps(hz)} MSPS
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+            )}
+          </Field>
+        ) : (
+          <Field label="Sample rate (Hz, blank = default 2,560,000)" tooltip={DEVICE_TOOLTIPS.sampleRate}>
+            <input
+              type="number"
+              min="16001"
+              className={inputClass}
+              value={device.sample_rate ?? ""}
+              onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
         <Field
           label={isMiri ? "Correction (Hz, blank = default 0)" : "Correction (ppm, blank = default 0)"}
           tooltip={isMiri ? DEVICE_TOOLTIPS.correctionHz : DEVICE_TOOLTIPS.correctionPpm}

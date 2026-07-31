@@ -5,6 +5,34 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.55] - 2026-07-31
+
+### Added
+
+- **RTL-SDR sample rate is now a dropdown of common rates (in MSPS), not a
+  free-text Hz field.** Researched against librtlsdr's own documented valid
+  ranges (rtl-sdr.h: 225001-300000 Hz or 900001-3200000 Hz, with a dead zone
+  in between that the driver rejects) and RTLSDR-Airband's `input-rtlsdr.cpp`
+  (which does no upfront validation itself -- it just passes the value
+  through to the driver). The dropdown offers a curated list of common
+  in-range rates plus "Default" and "Custom…" (free-text, for any other
+  in-range value); selecting a value outside the curated list keeps the
+  field in Custom mode rather than snapping back. MiriSDR and SoapySDR keep
+  today's plain Hz free-text field unchanged -- MiriSDR has no documented
+  valid-rate range in either this project or the RTLSDR-Airband fork, and
+  SoapySDR's valid rates are proven hardware-dependent
+  (`input-soapysdr.cpp` queries `SoapySDRDevice_getSampleRateRange` against
+  the live connected device), so no fixed list is possible without hardware
+  access this panel doesn't have.
+- **New backend validation: RTL-SDR sample_rate in librtlsdr's dead zone is
+  now a save-blocking error**, not just the existing `> 16000` floor check
+  (which is a RTLSDR-Airband-imposed floor, unrelated to and much looser
+  than librtlsdr's own hardware constraint). `RTLSDR_SAMPLE_RATE_DEAD_ZONE`/
+  `RTLSDR_COMMON_SAMPLE_RATES_HZ` (`backend/validate/src/rtlsdr-defaults.ts`)
+  are shared between this new check and the frontend dropdown, so they can't
+  drift apart. MiriSDR/SoapySDR are deliberately exempt from the new
+  dead-zone check, for the same reason they keep free-text input.
+
 ## [0.4.54] - 2026-07-31
 
 ### Added

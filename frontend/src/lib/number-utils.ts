@@ -1,3 +1,8 @@
+/** Formats a device sample rate (Hz) as MSPS (megasamples/second) -- the unit RTL-SDR tooling/documentation use for sample rate, not MHz, which is a frequency unit. */
+export function formatMsps(hz: number): string {
+  return (hz / 1e6).toFixed(3);
+}
+
 /** Empty or unparseable (e.g. pasted non-numeric text) both become undefined, rather than letting a stray NaN into the saved config. */
 export function numberOrUndefined(value: string): number | undefined {
   if (value === "") return undefined;

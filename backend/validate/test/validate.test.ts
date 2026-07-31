@@ -209,8 +209,10 @@ describe("validateConfig", () => {
       makeChannel(100_000_000 + 300_000, { ctcss: 103.4 }), // out of window warning + ctcss near-miss warning
     ]);
     const result = validateConfig(makeConfig([device]));
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]!.code).toBe("fft-bin-collision");
+    // The device's default sample_rate (512,000, used for this test's bin-collision/
+    // out-of-window math below) also happens to sit in librtlsdr's dead zone -- a
+    // second, genuinely independent error, not a false positive from this change.
+    expect(result.errors.map((e) => e.code).sort()).toEqual(["device-sample-rate-unsupported", "fft-bin-collision"]);
     expect(result.warnings.map((w) => w.code).sort()).toEqual(["ctcss-near-standard-tone", "frequency-out-of-window"]);
   });
 });
@@ -311,7 +313,8 @@ describe("checkScanMode", () => {
 
 describe("checkDeviceRequirements", () => {
   it("errors when a non-soapysdr device omits gain", () => {
-    const device = makeDevice([makeChannel(100_000_000)]);
+    // sample_rate outside the dead zone -- this test is about gain, not sample_rate.
+    const device = makeDevice([makeChannel(100_000_000)], { sample_rate: 1_400_000 });
     delete (device as Partial<Device>).gain;
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues).toHaveLength(1);
@@ -339,7 +342,8 @@ describe("checkDeviceRequirements", () => {
   });
 
   it("does not require centerfreq on a scan-mode device", () => {
-    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined });
+    // sample_rate outside the dead zone -- this test is about centerfreq, not sample_rate.
+    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined, sample_rate: 1_400_000 });
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues).toEqual([]);
   });
@@ -374,6 +378,26 @@ describe("checkDeviceRequirements", () => {
     const { sample_rate: _omitted, ...deviceWithoutSampleRate } = makeDevice([makeChannel(100_000_000)]);
     const issues = checkDeviceRequirements(makeConfig([deviceWithoutSampleRate]));
     expect(issues.some((i) => i.code === "device-sample-rate-too-low")).toBe(false);
+  });
+
+  it("errors when an rtlsdr sample_rate falls inside librtlsdr's dead zone", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { sample_rate: 500_000 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-sample-rate-unsupported")).toBe(true);
+  });
+
+  it("does not flag the same dead-zone sample_rate on mirisdr or soapysdr (no documented range for those)", () => {
+    for (const overrides of [{ type: "mirisdr" as const, sample_rate: 500_000 }, { type: "soapysdr" as const, sample_rate: 500_000, device_string: "driver=rtlsdr" }]) {
+      const device = makeDevice([makeChannel(100_000_000)], overrides);
+      const issues = checkDeviceRequirements(makeConfig([device]));
+      expect(issues.some((i) => i.code === "device-sample-rate-unsupported")).toBe(false);
+    }
+  });
+
+  it("does not flag a curated common rtlsdr sample_rate", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { sample_rate: 2_048_000 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-sample-rate-unsupported")).toBe(false);
   });
 
   it("errors when an rtlsdr device has neither serial nor index", () => {
