@@ -117,6 +117,18 @@ export function DeviceEditor({
     .filter((entry): entry is { channel: MultichannelChannel; i: number } => isMultichannelChannel(entry.channel));
   const visibleChannels = indexedChannels.filter(({ channel }) => channelMatchesFilter(channel, channelFilter));
 
+  // Briefly highlights a just-duplicated channel so it's obvious which one is new,
+  // rather than leaving the user to spot it among the rest of the list. Cleared by
+  // timeout rather than left to fade indefinitely -- matches jumpTarget's "signal
+  // that resolves itself" shape, just kept local since nothing outside this
+  // component needs to know about it.
+  const [justDuplicatedKey, setJustDuplicatedKey] = useState<string | number | null>(null);
+  useEffect(() => {
+    if (justDuplicatedKey === null) return;
+    const timeout = setTimeout(() => setJustDuplicatedKey(null), 2500);
+    return () => clearTimeout(timeout);
+  }, [justDuplicatedKey]);
+
   // KeyboardSensor makes reordering possible without a mouse/touch at all -- without it,
   // a keyboard-only user simply has no way to reorder channels (dnd-kit's PointerSensor
   // alone never fires from Tab/Space/arrow-key input).
@@ -362,9 +374,14 @@ export function DeviceEditor({
                       channel={channel}
                       deviceIndex={deviceIndex}
                       channelIndex={i}
+                      highlighted={justDuplicatedKey !== null && uiKeyOf(channel, i) === justDuplicatedKey}
                       onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
                       onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
-                      onDuplicate={() => onChange({ ...device, channels: duplicateAt(device.channels, i, cloneWithNewUiKeys) })}
+                      onDuplicate={() => {
+                        const nextChannels = duplicateAt(device.channels, i, cloneWithNewUiKeys);
+                        onChange({ ...device, channels: nextChannels });
+                        setJustDuplicatedKey(uiKeyOf(nextChannels[i + 1]!, i + 1));
+                      }}
                       pathPrefix={`${pathPrefix}.channels[${i}]`}
                       jumpTarget={jumpTarget}
                       onRevealSecret={onRevealSecret}

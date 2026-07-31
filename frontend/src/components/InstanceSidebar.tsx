@@ -73,6 +73,13 @@ export function InstanceSidebar() {
   }
 
   async function handleRename(name: string) {
+    const trimmed = renameValue.trim();
+    // A no-op rename (name unchanged) doesn't restart anything server-side either --
+    // see instance-service.ts's own renameInstanceLocked short-circuit -- so only warn
+    // when it's an actual rename.
+    if (trimmed !== name && !window.confirm(`Rename '${name}' to '${trimmed}'? This restarts the instance under its new name, interrupting live audio for a few seconds.`)) {
+      return;
+    }
     setBusy(name);
     try {
       await api.renameInstance(name, renameValue);

@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.54] - 2026-07-31
+
+### Added
+
+- **Duplicating a channel now briefly highlights the new copy.** A bright
+  ring appears around the just-duplicated channel's box so it's obvious
+  which one is new among the rest of the list, fading out after ~2.5s.
+  Scoped to channel duplication only (not device/mixer/output).
+
+### Changed
+
+- **Renaming an instance now warns that it restarts the instance.** Rename
+  had no confirmation at all, unlike every other restart-triggering action
+  in the app (delete, restart, save-and-restart, the JSON-logging toggle) --
+  `renameInstanceLocked` unconditionally stops the old unit and starts the
+  new one whenever the name actually changes. The new confirm only fires
+  when the name is actually changing, matching the backend's own no-op
+  short-circuit for an unchanged name.
+
 ## [0.4.53] - 2026-07-31
 
 ### Fixed

@@ -18,6 +18,8 @@ interface ChannelEditorProps {
   onChange: (channel: MultichannelChannel) => void;
   onRemove: () => void;
   onDuplicate: () => void;
+  /** True for the brief window right after this channel was created by "Duplicate channel" -- see DeviceEditor's justDuplicatedKey. */
+  highlighted?: boolean;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
@@ -33,6 +35,7 @@ export function ChannelEditor({
   onChange,
   onRemove,
   onDuplicate,
+  highlighted,
   pathPrefix,
   jumpTarget,
   onRevealSecret,
@@ -47,7 +50,7 @@ export function ChannelEditor({
   return (
     <Collapsible
       openSignal={openSignal}
-      className="rounded border border-slate-600 bg-slate-800 p-3"
+      className={`rounded border border-slate-600 bg-slate-800 p-3 transition-shadow duration-700 ${highlighted ? "ring-2 ring-sky-400" : ""}`}
       titleClassName="font-medium text-slate-200"
       title={
         // Truncates with an ellipsis when the header is too narrow for the full
