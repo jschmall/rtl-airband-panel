@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { InstanceService } from "./instance-service.js";
 import { parseImportBundle, parseRtlAirbandConfigBody, ShapeValidationError } from "./config-shape.js";
+import { CommandError } from "./systemd/run-command.js";
 
 // Applied to every route that writes a config, restarts/renames/creates/deletes an
 // instance, or otherwise touches systemd — deliberately much tighter than the global
@@ -64,7 +65,9 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
 
   app.get<{ Params: { name: string }; Querystring: { lines?: string } }>("/instances/:name/logs", async (request) => {
     const lines = request.query.lines !== undefined ? Number(request.query.lines) : undefined;
-    return { lines: await service.getLogs(request.params.name, lines) };
+    const result = { lines: await service.getLogs(request.params.name, lines) };
+    auditLog(request, "view-logs", request.params.name, "success");
+    return result;
   });
 
   // Read-only, same as /logs above -- stays under the global rate-limit default
@@ -93,6 +96,7 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     // a quiet unit with no backlog would leave the client's connection looking
     // unopened (no onopen/response headers) until the first heartbeat.
     reply.raw.flushHeaders();
+    auditLog(request, "stream-logs", request.params.name, "success");
 
     const controller = new AbortController();
     reply.raw.on("close", () => controller.abort());
@@ -110,13 +114,24 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
         reply.raw.write(`data: ${JSON.stringify(line)}\n\n`);
       }
     } catch (err) {
+      // A failed journalctl invocation is a routine operational occurrence
+      // (unit removed mid-stream, systemd/sudo denial, ...), same as any
+      // other CommandError -- installErrorHandler can't see this one (the
+      // reply was hijacked before it could throw), so log and shape the
+      // payload the same way it does for every other route.
+      if (err instanceof CommandError) request.log.warn(err);
+      auditLog(request, "stream-logs", request.params.name, "failure", { error: errorMessage(err) });
       // Named "stream-error" rather than the bare SSE default -- EventSource's
       // own connection-failure event is also called "error", so reusing that
       // name here would make a single client-side listener receive both native
       // transport failures and this application-level message, indistinguishable
       // without extra checks.
       if (!reply.raw.writableEnded) {
-        reply.raw.write(`event: stream-error\ndata: ${JSON.stringify({ message: errorMessage(err) })}\n\n`);
+        const detail =
+          err instanceof CommandError
+            ? { message: err.message, exitCode: err.exitCode, stderr: err.stderr }
+            : { message: errorMessage(err) };
+        reply.raw.write(`event: stream-error\ndata: ${JSON.stringify(detail)}\n\n`);
       }
     } finally {
       clearInterval(heartbeat);

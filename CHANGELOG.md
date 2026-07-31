@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.49] - 2026-07-31
+
+### Changed
+
+- **`/logs` and `/logs/stream` now match the audit-logging and
+  error-handling conventions every other route already follows.** Both
+  read a systemd unit's journal, the same sensitivity class as
+  `/instances/:name/secrets`, but neither logged an audit line. Added one
+  on a successful one-shot fetch and on opening/closing the SSE stream
+  (success and failure). `/logs/stream`'s error path was also
+  self-contained by necessity (the reply is hijacked before
+  `installErrorHandler` could ever see a thrown error), so a failed
+  `journalctl` invocation silently lost its exit code/stderr detail that
+  every other route's `CommandError` handling surfaces -- the SSE
+  `stream-error` payload now includes them too, and the failure is logged
+  server-side the same way `installErrorHandler` logs any other
+  `CommandError`.
+
 ## [0.4.48] - 2026-07-31
 
 ### Fixed
