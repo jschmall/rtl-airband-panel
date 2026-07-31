@@ -63,6 +63,7 @@ describe("listInstances / getConfig", () => {
         unit: `${FIXTURE_INSTANCE_NAME}.service`,
         pendingRestart: false,
         jsonLogging: false,
+        status: expect.any(Object),
         searchFields: expect.any(Array),
       },
     ]);
@@ -513,7 +514,7 @@ describe("renameInstance", () => {
     expect(h.systemd.unitFiles.get("rtl_renamed.service")).toContain("Description=RTLSDR-Airband instance: rtl_renamed");
 
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, status: expect.any(Object), searchFields: expect.any(Array) },
     ]);
     const renamed = await h.service.getConfig("rtl_renamed");
     expect(renamed).toEqual(before);
@@ -526,7 +527,7 @@ describe("renameInstance", () => {
     expect(result.status).toBeDefined();
     expect(h.systemd.calls).toEqual([`status ${FIXTURE_INSTANCE_NAME}.service`]);
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, status: expect.any(Object), searchFields: expect.any(Array) },
     ]);
   });
 
@@ -553,13 +554,14 @@ describe("renameInstance", () => {
 
     await expect(h.service.renameInstance(FIXTURE_INSTANCE_NAME, "rtl_renamed")).rejects.toThrow("simulated systemd failure");
 
+    expect(h.systemd.calls.at(-1)).toBe(`start ${FIXTURE_INSTANCE_NAME}.service`);
+
     // old conf untouched, new conf rolled back, old unit restarted
     expect(await h.service.listInstances()).toEqual([
-      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
+      { name: FIXTURE_INSTANCE_NAME, confPath: expect.stringContaining(FIXTURE_INSTANCE_NAME), unit: `${FIXTURE_INSTANCE_NAME}.service`, pendingRestart: false, jsonLogging: false, status: expect.any(Object), searchFields: expect.any(Array) },
     ]);
     expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
     expect(h.systemd.unitFiles.has("rtl_renamed.service")).toBe(false);
-    expect(h.systemd.calls.at(-1)).toBe(`start ${FIXTURE_INSTANCE_NAME}.service`);
   });
 });
 

@@ -9,6 +9,8 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** Whether this instance's unit is started with -j (single-line JSON log output). See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
+  status: UnitStatus;
   /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
   searchFields: string[];
 }
@@ -23,6 +25,8 @@ export interface UnitStatus {
   unit: string;
   activeState: UnitActiveState;
   subState: string;
+  /** ISO 8601 -- when this unit last transitioned to active. Doubles as uptime source and last-(re)started time. Undefined if never active or unparseable. */
+  activeEnterTimestamp?: string;
 }
 
 export interface LogLine {

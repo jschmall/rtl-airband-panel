@@ -61,12 +61,31 @@ function parseProps(block: string): Map<string, string> {
   return props;
 }
 
+/**
+ * Parses systemd's raw `ActiveEnterTimestamp` property (e.g.
+ * "Thu 2026-07-31 14:03:11 UTC") into an ISO 8601 string. Empty (a unit
+ * that has never been active) or anything JS's Date can't parse falls back
+ * to undefined rather than throwing -- callers treat this the same as an
+ * unrecognized ActiveState: unknown, not fatal.
+ */
+export function parseActiveEnterTimestamp(raw: string): string | undefined {
+  if (raw === "") return undefined;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
 function toUnitStatus(unit: string, props: Map<string, string>): UnitStatus {
   const activeStateRaw = props.get("ActiveState") ?? "unknown";
   const activeState: UnitActiveState = (ACTIVE_STATES as readonly string[]).includes(activeStateRaw)
     ? (activeStateRaw as UnitActiveState)
     : "unknown";
-  return { unit, activeState, subState: props.get("SubState") ?? "unknown" };
+  const activeEnterTimestamp = parseActiveEnterTimestamp(props.get("ActiveEnterTimestamp") ?? "");
+  return {
+    unit,
+    activeState,
+    subState: props.get("SubState") ?? "unknown",
+    ...(activeEnterTimestamp !== undefined ? { activeEnterTimestamp } : {}),
+  };
 }
 
 /**
@@ -121,7 +140,13 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     this.assertScoped(unit);
     // `systemctl show` exits 0 even for a unit that doesn't exist (it
     // reports ActiveState=inactive), so this never throws on "not found".
-    const output = await systemctl(["show", unit, "--property=ActiveState", "--property=SubState"]);
+    const output = await systemctl([
+      "show",
+      unit,
+      "--property=ActiveState",
+      "--property=SubState",
+      "--property=ActiveEnterTimestamp",
+    ]);
     return toUnitStatus(unit, parseProps(output));
   }
 
@@ -135,7 +160,13 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     for (const unit of units) this.assertScoped(unit);
     const result = new Map<string, UnitStatus>();
     if (units.length === 0) return result;
-    const output = await systemctl(["show", ...units, "--property=ActiveState", "--property=SubState"]);
+    const output = await systemctl([
+      "show",
+      ...units,
+      "--property=ActiveState",
+      "--property=SubState",
+      "--property=ActiveEnterTimestamp",
+    ]);
     const blocks = output.split("\n\n");
     units.forEach((unit, i) => result.set(unit, toUnitStatus(unit, parseProps(blocks[i] ?? ""))));
     return result;

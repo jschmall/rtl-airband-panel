@@ -36,17 +36,27 @@ export class MockSystemdAdapter implements SystemdAdapter {
 
   async restart(unit: string): Promise<void> {
     this.calls.push(`restart ${unit}`);
-    this.states.set(unit, { unit, activeState: "active", subState: "running" });
+    this.states.set(unit, { unit, activeState: "active", subState: "running", activeEnterTimestamp: new Date().toISOString() });
   }
 
   async start(unit: string): Promise<void> {
     this.calls.push(`start ${unit}`);
-    this.states.set(unit, { unit, activeState: "active", subState: "running" });
+    this.states.set(unit, { unit, activeState: "active", subState: "running", activeEnterTimestamp: new Date().toISOString() });
   }
 
   async stop(unit: string): Promise<void> {
     this.calls.push(`stop ${unit}`);
-    this.states.set(unit, { unit, activeState: "inactive", subState: "dead" });
+    // Real systemd doesn't clear ActiveEnterTimestamp on stop -- it still
+    // reflects the last time the unit *became* active, so a stopped
+    // instance can still show when it was last running. Only the state
+    // fields change here.
+    const previous = this.states.get(unit);
+    this.states.set(unit, {
+      unit,
+      activeState: "inactive",
+      subState: "dead",
+      ...(previous?.activeEnterTimestamp !== undefined ? { activeEnterTimestamp: previous.activeEnterTimestamp } : {}),
+    });
   }
 
   async enable(unit: string): Promise<void> {

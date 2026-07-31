@@ -45,6 +45,8 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
+  status: UnitStatus;
   /**
    * Every free-text term worth matching a global search against: channel
    * labels (multichannel `label` and scan-mode `labels[]`), each channel's
@@ -119,17 +121,30 @@ export class InstanceService {
     private readonly options: InstanceServiceOptions
   ) {}
 
+  /**
+   * Status for every instance comes from one statusMany() call, not one
+   * status() per instance -- same reasoning as getAllHealth()/statusMany's
+   * own doc comment: fanning out N individual `sudo systemctl show` calls
+   * here would reintroduce the per-instance syslog cost that statusMany was
+   * built to avoid. The sidebar reads status straight off this list instead
+   * of polling getAllHealth() separately.
+   */
   async listInstances(): Promise<InstanceSummary[]> {
     const infos = await this.configStore.list();
+    const statuses = await this.systemd.statusMany(infos.map((info) => unitFileName(info.name)));
     return Promise.all(
-      infos.map(async (info) => ({
-        name: info.name,
-        confPath: info.confPath,
-        unit: unitFileName(info.name),
-        pendingRestart: await this.pendingRestartStore.has(info.name),
-        jsonLogging: (await this.instanceOptionsStore.get(info.name)).jsonLogging,
-        searchFields: await this.getSearchFields(info.name),
-      }))
+      infos.map(async (info) => {
+        const unit = unitFileName(info.name);
+        return {
+          name: info.name,
+          confPath: info.confPath,
+          unit,
+          pendingRestart: await this.pendingRestartStore.has(info.name),
+          jsonLogging: (await this.instanceOptionsStore.get(info.name)).jsonLogging,
+          status: statuses.get(unit) ?? { unit, activeState: "unknown", subState: "unknown" },
+          searchFields: await this.getSearchFields(info.name),
+        };
+      })
     );
   }
 

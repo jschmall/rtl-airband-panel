@@ -4,7 +4,22 @@ import {
   UnitOutOfScopeError,
   InvalidUnitNamePrefixError,
   buildScopedUnitPattern,
+  parseActiveEnterTimestamp,
 } from "../src/systemd/sudo-adapter.js";
+
+describe("parseActiveEnterTimestamp", () => {
+  it("parses systemd's raw show-format timestamp into ISO 8601", () => {
+    expect(parseActiveEnterTimestamp("Fri 2026-07-31 06:18:47 UTC")).toBe("2026-07-31T06:18:47.000Z");
+  });
+
+  it("returns undefined for an empty value (unit never active)", () => {
+    expect(parseActiveEnterTimestamp("")).toBeUndefined();
+  });
+
+  it("returns undefined instead of throwing on an unparseable value", () => {
+    expect(parseActiveEnterTimestamp("not a timestamp")).toBeUndefined();
+  });
+});
 
 describe("buildScopedUnitPattern", () => {
   it("with no prefix, matches any unit in the existing safe-name charset", () => {

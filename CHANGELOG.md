@@ -5,6 +5,38 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.65] - 2026-07-31
+
+### Added
+
+- **`UnitStatus.activeEnterTimestamp`.** Both `SudoSystemctlAdapter` and
+  `MockSystemdAdapter` now report when a unit last transitioned to active --
+  the same underlying data point as both "uptime" (`now - this`) and "last
+  (re)started at". `SudoSystemctlAdapter` requests `ActiveEnterTimestamp`
+  alongside the existing `ActiveState`/`SubState` properties and parses
+  systemd's raw timestamp format into ISO 8601, falling back to `undefined`
+  on an empty (never-active) or unparseable value. `MockSystemdAdapter`
+  stamps a fresh timestamp on `start()`/`restart()` and preserves the
+  previous one across `stop()`, matching real systemd (which doesn't clear
+  `ActiveEnterTimestamp` when a unit stops).
+- **`InstanceSummary.status`.** `GET /instances` (`InstanceService.listInstances()`)
+  now includes each instance's systemd status, fetched via one batched
+  `statusMany()` call for the whole list rather than one call per instance --
+  same reasoning as `getAllHealth()`'s existing batching (v0.4.64): avoids
+  reintroducing N `sudo systemctl show` invocations per request.
+
+### Changed
+
+- **`InstanceSidebar` reads status from the shared instance list** instead
+  of polling `GET /instances/health` separately -- now that `GET /instances`
+  carries status directly, the sidebar's own fetch was a redundant second
+  request every refresh cycle. `GET /instances/health` /
+  `InstanceService.getAllHealth()` remain as a standalone endpoint for other
+  callers.
+
+First step of the landing-page instance health dashboard (#3, section A) --
+the dashboard itself lands in a follow-up commit.
+
 ## [0.4.64] - 2026-07-31
 
 ### Added

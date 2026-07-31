@@ -71,6 +71,7 @@ describe("GET /instances", () => {
         unit: `${FIXTURE_INSTANCE_NAME}.service`,
         pendingRestart: false,
         jsonLogging: false,
+        status: expect.any(Object),
         searchFields: expect.any(Array),
       },
     ]);
@@ -512,7 +513,7 @@ describe("POST /instances/:name/rename", () => {
     expect(res.statusCode).toBe(200);
     expect(h.systemd.calls).toContain("start rtl_renamed.service");
     expect(await h.service.listInstances()).toEqual([
-      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, searchFields: expect.any(Array) },
+      { name: "rtl_renamed", confPath: expect.stringContaining("rtl_renamed"), unit: "rtl_renamed.service", pendingRestart: false, jsonLogging: false, status: expect.any(Object), searchFields: expect.any(Array) },
     ]);
   });
 

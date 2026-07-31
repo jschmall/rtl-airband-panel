@@ -4,6 +4,14 @@ export interface UnitStatus {
   unit: string;
   activeState: UnitActiveState;
   subState: string;
+  /**
+   * ISO 8601 timestamp of systemd's `ActiveEnterTimestamp` -- when this unit
+   * last transitioned to active. Doubles as both "uptime" (now - this) and
+   * "last (re)started at", since they're the same underlying data point.
+   * Undefined for a unit that has never been active, or when the adapter
+   * can't parse the value it got back.
+   */
+  activeEnterTimestamp?: string;
 }
 
 export interface LogLine {

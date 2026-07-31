@@ -1,6 +1,42 @@
 import { describe, expect, it } from "vitest";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
 
+describe("MockSystemdAdapter activeEnterTimestamp", () => {
+  it("stamps a fresh activeEnterTimestamp on start and on restart", async () => {
+    const adapter = new MockSystemdAdapter();
+    const unit = "rtl_100000.service";
+
+    await adapter.start(unit);
+    const afterStart = await adapter.status(unit);
+    expect(afterStart.activeEnterTimestamp).toBeDefined();
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await adapter.restart(unit);
+    const afterRestart = await adapter.status(unit);
+    expect(afterRestart.activeEnterTimestamp).toBeDefined();
+    expect(afterRestart.activeEnterTimestamp).not.toBe(afterStart.activeEnterTimestamp);
+  });
+
+  it("preserves the previous activeEnterTimestamp across stop, matching real systemd", async () => {
+    const adapter = new MockSystemdAdapter();
+    const unit = "rtl_100000.service";
+
+    await adapter.start(unit);
+    const { activeEnterTimestamp } = await adapter.status(unit);
+
+    await adapter.stop(unit);
+    const stopped = await adapter.status(unit);
+    expect(stopped.activeState).toBe("inactive");
+    expect(stopped.activeEnterTimestamp).toBe(activeEnterTimestamp);
+  });
+
+  it("a unit that was never started has no activeEnterTimestamp", async () => {
+    const adapter = new MockSystemdAdapter();
+    const status = await adapter.status("rtl_never_started.service");
+    expect(status.activeEnterTimestamp).toBeUndefined();
+  });
+});
+
 describe("MockSystemdAdapter.followLogs", () => {
   it("yields the seeded backlog, then live-pushed lines in order, and ends on end()", async () => {
     const adapter = new MockSystemdAdapter();

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { api, ApiError, type UnitStatus } from "../api/client.js";
+import { api, ApiError } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { HealthBadge } from "./HealthBadge.js";
 import { GuardedNavLink } from "./GuardedLink.js";
@@ -8,9 +8,13 @@ import { GuardedNavLink } from "./GuardedLink.js";
 export function InstanceSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  // Each instance's status now rides along on the shared instance list
+  // (InstanceService.listInstances() folds in one batched statusMany() call
+  // server-side) instead of a separate getAllHealth() poll here -- one
+  // fewer request per refresh cycle, same batching guarantee under
+  // systemd-mode=sudo.
   const { instances, filteredInstances, searchQuery, error: listError, refresh, pollBriefly } = useInstanceList();
 
-  const [health, setHealth] = useState<Record<string, UnitStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   // Separate from `busy`: covers the pollBriefly() window after the restart
@@ -20,30 +24,6 @@ export function InstanceSidebar() {
   const [restarting, setRestarting] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
-  // Re-fetch health whenever the shared instance list changes (navigation,
-  // create/delete/rename/restart, or a save on the edit page). One batched
-  // request for every instance -- not one getHealth() call per instance --
-  // since under systemd-mode=sudo each individual call is its own `sudo
-  // systemctl show` invocation, and fanning out N of those every poll cycle
-  // is what was flooding syslog with PAM session lines.
-  useEffect(() => {
-    if (!instances) return;
-    let cancelled = false;
-    void api
-      .getAllHealth()
-      .catch(() => {
-        const fallback: Record<string, UnitStatus> = {};
-        for (const instance of instances) fallback[instance.name] = { unit: instance.unit, activeState: "unknown", subState: "unknown" };
-        return fallback;
-      })
-      .then((result) => {
-        if (!cancelled) setHealth(result);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [instances]);
 
   async function handleRestart(name: string) {
     setBusy(name);
@@ -136,7 +116,7 @@ export function InstanceSidebar() {
           <p className="p-3 text-sm text-slate-400">No instances match "{searchQuery}".</p>
         ) : (
           (filteredInstances ?? instances).map((instance) => {
-            const status = health[instance.name];
+            const status = instance.status;
             const isRenaming = renaming === instance.name;
             const isBusy = busy === instance.name;
             const query = searchQuery.trim().toLowerCase();
