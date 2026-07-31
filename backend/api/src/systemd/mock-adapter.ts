@@ -62,6 +62,14 @@ export class MockSystemdAdapter implements SystemdAdapter {
     return this.states.get(unit) ?? { unit, activeState: "unknown", subState: "dead" };
   }
 
+  async statusMany(units: string[]): Promise<Map<string, UnitStatus>> {
+    // Mirrors SudoSystemctlAdapter, which never spawns a command for an
+    // empty unit list -- no call recorded means "the adapter did nothing",
+    // not "the adapter was asked to check zero units".
+    if (units.length > 0) this.calls.push(`status-many ${units.join(",")}`);
+    return new Map(units.map((unit) => [unit, this.states.get(unit) ?? { unit, activeState: "unknown", subState: "dead" }]));
+  }
+
   async daemonReload(): Promise<void> {
     this.calls.push("daemon-reload");
   }

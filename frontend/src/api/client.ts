@@ -111,6 +111,9 @@ export const api = {
 
   getHealth: (name: string): Promise<UnitStatus> => request(`/instances/${encodeURIComponent(name)}/health`),
 
+  /** Every instance's health in one request -- what the sidebar polls, instead of fanning out to one getHealth() call per instance. */
+  getAllHealth: (): Promise<Record<string, UnitStatus>> => request("/instances/health"),
+
   /** Unredacted config -- only ever called when the user clicks "Show" on a field still holding the redaction sentinel. */
   getSecrets: (name: string): Promise<RtlAirbandConfig> => request(`/instances/${encodeURIComponent(name)}/secrets`),
 

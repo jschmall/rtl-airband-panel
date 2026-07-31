@@ -552,6 +552,21 @@ describe("GET /instances/:name/health", () => {
   });
 });
 
+describe("GET /instances/health", () => {
+  it("returns every instance's status in one response, keyed by instance name", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: "/api/instances/health" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ [FIXTURE_INSTANCE_NAME]: { unit: `${FIXTURE_INSTANCE_NAME}.service` } });
+  });
+
+  it("with no instances, returns an empty object", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/instances/health" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({});
+  });
+});
+
 describe("GET /instances/:name/logs", () => {
   it("returns the unit's recent journal lines", async () => {
     await seedFixture(h.instancesDir);

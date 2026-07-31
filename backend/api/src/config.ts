@@ -40,6 +40,17 @@ export interface ApiConfig {
    * when Fastify is constructed, so there's no need to duplicate that check.
    */
   logLevel: string;
+  /**
+   * If set, the server's own Pino logger writes NDJSON to this file instead
+   * of stdout (Fastify passes it straight through to pino as its `file`
+   * option). Unset (the default) keeps the existing stdout behavior, which
+   * under a systemd unit ends up in the journal. Note this only affects the
+   * panel's own request/audit logging -- it has no effect on `sudo`'s own
+   * PAM/audit lines, which the OS's sudo/pam_unix write to syslog directly
+   * and which no application-level setting can redirect (see statusMany on
+   * SystemdAdapter for the actual fix to that volume).
+   */
+  logFile: string | undefined;
 }
 
 /**
@@ -58,6 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     port: env.RTL_PANEL_PORT ? Number(env.RTL_PANEL_PORT) : 3000,
     host: env.RTL_PANEL_HOST ?? "127.0.0.1",
     logLevel: env.RTL_PANEL_LOG_LEVEL ?? "info",
+    logFile: env.RTL_PANEL_LOG_FILE,
     statsDbPath: env.RTL_PANEL_STATS_DB_PATH ?? path.join(os.homedir(), ".rtl-airband-panel", "stats.db"),
     statsPollIntervalMs: env.RTL_PANEL_STATS_POLL_INTERVAL_MS ? Number(env.RTL_PANEL_STATS_POLL_INTERVAL_MS) : 15_000,
     statsRetentionDays: env.RTL_PANEL_STATS_RETENTION_DAYS ? Number(env.RTL_PANEL_STATS_RETENTION_DAYS) : 7,

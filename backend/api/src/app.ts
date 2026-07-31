@@ -11,7 +11,7 @@ import { registerFrontend } from "./static-frontend.js";
 export function buildApp(
   service: InstanceService,
   statsService: StatsService,
-  options: { logger?: boolean; logLevel?: string; frontendDistPath?: string } = {}
+  options: { logger?: boolean; logLevel?: string; logFile?: string; frontendDistPath?: string } = {}
 ): FastifyInstance {
   // logController.disableRequestLogging: Fastify's default logger otherwise
   // emits an "incoming request"/"request completed" JSON line for every
@@ -20,8 +20,13 @@ export function buildApp(
   // scraping every ~15-20s). Mutating actions still get their own explicit
   // auditLog line in routes.ts, so nothing about *what happened* is lost --
   // just the per-poll noise.
+  //
+  // `file`, when set, points Fastify's own pino instance at that path
+  // instead of stdout -- see ApiConfig.logFile. This only relocates the
+  // panel's own request/audit/warn/error logging; it has no bearing on
+  // sudo's own PAM/audit lines (see statusMany on SystemdAdapter).
   const app = Fastify({
-    logger: options.logger === false ? false : { level: options.logLevel ?? "info" },
+    logger: options.logger === false ? false : { level: options.logLevel ?? "info", ...(options.logFile ? { file: options.logFile } : {}) },
     logController: new LogController({ disableRequestLogging: true }),
   });
   installErrorHandler(app);

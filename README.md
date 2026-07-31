@@ -172,6 +172,7 @@ flag list.
 | `RTL_PANEL_PORT` | `--port` | `3000` | API listen port |
 | `RTL_PANEL_HOST` | `--host` | `127.0.0.1` | API listen host |
 | `RTL_PANEL_LOG_LEVEL` | `--log-level` | `info` | Pino log level for the panel's own process: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent` |
+| `RTL_PANEL_LOG_FILE` | `--log-file` | unset (stdout) | Write the panel's own logs (NDJSON) to this file instead of stdout. Only affects the panel's own request/audit logging — it does not touch `sudo`'s own PAM/session-accounting lines in syslog, which the OS writes regardless of this setting; see [Systemd control](#systemd-control) for why those exist and how `sudo`-mode health polling minimizes them |
 | `RTL_PANEL_FRONTEND_DIST` | `--frontend-dist` | `frontend/dist` (repo-relative) | Where to look for the frontend's build to serve as a single process; a missing build is not an error, it just falls back to API-only |
 | `RTL_PANEL_STATS_DB_PATH` | `--stats-db-path` | `~/.rtl-airband-panel/stats.db` | SQLite file the stats poller writes historical samples to |
 | `RTL_PANEL_STATS_POLL_INTERVAL_MS` | `--stats-poll-interval-ms` | `15000` | How often each instance's stats file is re-read |
@@ -207,6 +208,16 @@ in-process prefix check and the sudoers glob — need to agree for an action
 to reach systemd; a mismatch fails closed (the adapter rejects, or sudo
 denies), never open. If your instances don't share a common prefix, leave
 it unset and rely on the command-scoping alone.
+
+**Syslog volume from `sudo` mode.** Every `sudo systemctl ...` the adapter
+runs gets its own PAM session-open/close pair and command-audit line from
+`sudo` itself, written straight to syslog by the OS — that's independent
+of the panel's own logger and `RTL_PANEL_LOG_FILE` above has no effect on
+it. The frontend's background health poll (the sidebar's per-instance
+status dots) checks every instance in a single batched `sudo systemctl
+show unit1 unit2 ...` call per poll cycle rather than one call per
+instance, specifically to keep this volume from scaling with instance
+count.
 
 ### Stats & graphing
 

@@ -139,18 +139,31 @@ server will fail to start) on Node 18.
 
 ## Logs & backups
 
-**Panel logs.** The panel's own process writes structured JSON log lines to
-stdout — it has no log file or rotation of its own. Running it via the
-systemd unit above means journald owns storage and rotation for you
+**Panel logs.** By default the panel's own process writes structured JSON
+log lines to stdout — it has no log file or rotation of its own. Running it
+via the systemd unit above means journald owns storage and rotation for you
 (`journalctl -u rtl-airband-panel`, subject to your system's normal
 journald retention config, e.g. `SystemMaxUse=` in
 `/etc/systemd/journald.conf`). The example unit also sets
 `SyslogIdentifier=rtl-airband-panel`, so `journalctl -t rtl-airband-panel`
-works as an alternative to `-u rtl-airband-panel`. If you instead run the
-panel directly in a terminal or backgrounded with `nohup`/`&` — not
-recommended for anything long-running — nothing rotates or caps that output
-for you; redirect it through your own log rotation (e.g. `logrotate`, or
-pipe through `svlogd`/`multilog`) if you go that route.
+works as an alternative to `-u rtl-airband-panel`. Set `RTL_PANEL_LOG_FILE`
+(or `--log-file`) to a path instead if you'd rather the panel write NDJSON
+straight to a dedicated file — rotation of that file is then on you (e.g.
+`logrotate`), same as if you'd run the panel directly in a terminal or
+backgrounded with `nohup`/`&` (not recommended for anything long-running)
+without redirecting its stdout yourself.
+
+`RTL_PANEL_LOG_FILE` only relocates the panel's *own* logging. In `sudo`
+systemd mode, every `sudo systemctl ...` the panel runs also produces its
+own PAM session-open/close and command-audit lines, written by `sudo`
+itself straight to syslog (typically `/var/log/auth.log` or equivalent) —
+independent of the panel's process and unaffected by this setting, since
+it's the OS's `sudo`/PAM stack doing the logging, not the panel. The
+frontend's background health poll batches every instance's status check
+into one `sudo systemctl show` call per poll cycle rather than one call per
+instance specifically to keep that volume from scaling with instance count;
+if you still want to relocate what's left, that's a syslog/rsyslog-side
+routing rule for `sudo`'s facility, not something the panel can configure.
 
 By default, the panel logs mutating actions (create/update/delete/rename/
 restart/import) as one audit line each, plus warnings and errors — it does

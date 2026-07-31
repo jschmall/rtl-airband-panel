@@ -70,6 +70,13 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     return service.getHealth(request.params.name);
   });
 
+  // Static sibling of /instances/:name/health (see instance-name.ts's
+  // RESERVED_NAMES) -- every instance's health in one request, so a client
+  // polling the whole list (the sidebar) doesn't have to fan out to N
+  // per-instance requests, each of which is its own `sudo systemctl show`
+  // invocation under systemd-mode=sudo.
+  app.get("/instances/health", async () => service.getAllHealth());
+
   app.get<{ Params: { name: string }; Querystring: { lines?: string } }>("/instances/:name/logs", async (request) => {
     const lines = request.query.lines !== undefined ? Number(request.query.lines) : undefined;
     const result = { lines: await service.getLogs(request.params.name, lines) };

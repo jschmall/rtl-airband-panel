@@ -591,6 +591,20 @@ describe("restartInstance", () => {
   });
 });
 
+describe("getAllHealth", () => {
+  it("returns every instance's status in one call to the adapter, keyed by instance name", async () => {
+    await seedFixture(h.instancesDir);
+    const result = await h.service.getAllHealth();
+    expect(result).toEqual({ [FIXTURE_INSTANCE_NAME]: expect.objectContaining({ unit: `${FIXTURE_INSTANCE_NAME}.service` }) });
+    expect(h.systemd.calls).toEqual([`status-many ${FIXTURE_INSTANCE_NAME}.service`]);
+  });
+
+  it("with no instances, resolves to an empty object without calling the adapter", async () => {
+    expect(await h.service.getAllHealth()).toEqual({});
+    expect(h.systemd.calls).toEqual([]);
+  });
+});
+
 describe("getLogs / followLogs", () => {
   it("getLogs clamps an out-of-range lines request before it reaches the systemd adapter", async () => {
     await seedFixture(h.instancesDir);

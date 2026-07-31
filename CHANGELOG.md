@@ -5,6 +5,34 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.64] - 2026-07-31
+
+### Added
+
+- **`RTL_PANEL_LOG_FILE` / `--log-file`.** The panel's own Pino logger can
+  now write NDJSON to a definable file path instead of stdout. Only
+  relocates the panel's own request/audit/warn/error logging -- it has no
+  effect on `sudo`'s own PAM session-accounting lines under `sudo` systemd
+  mode, since those are written by the OS's `sudo`/PAM stack directly to
+  syslog, independent of the panel's process.
+
+### Changed
+
+- **Batched the sidebar's background health poll into one `sudo systemctl
+  show` call per cycle instead of one per instance.** Previously, every
+  ~20s refresh fanned out `GET /instances/:name/health` once per instance
+  (`InstanceSidebar.tsx`), and under `sudo` systemd mode each of those was
+  its own `sudo systemctl show <unit>` subprocess -- with N instances, that
+  meant N sudo invocations every poll cycle, each logging its own PAM
+  session-open/session-close pair plus a command-audit line to syslog (3N
+  lines per cycle). `SystemdAdapter` gained `statusMany(units)`, backed in
+  `SudoSystemctlAdapter` by a single `systemctl show unit1 unit2 ...` call
+  (systemd prints each unit's properties back-to-back, in argument order,
+  separated by a blank line), and a new `GET /instances/health` /
+  `InstanceService.getAllHealth()` return every instance's status in one
+  response. The sidebar now calls that once per refresh instead of fanning
+  out -- syslog volume from this path no longer scales with instance count.
+
 ## [0.4.63] - 2026-07-31
 
 ### Reverted

@@ -173,6 +173,25 @@ export class InstanceService {
     return this.systemd.status(unitFileName(name));
   }
 
+  /**
+   * Every instance's health in one shot, keyed by instance name -- for the
+   * sidebar's background poll, which used to call getHealth() once per
+   * instance and, under the "sudo" systemd mode, was spawning one `sudo
+   * systemctl show` per instance every poll cycle (see statusMany's doc
+   * comment on SystemdAdapter). This drives it through a single
+   * systemd.statusMany() call instead.
+   */
+  async getAllHealth(): Promise<Record<string, UnitStatus>> {
+    const infos = await this.configStore.list();
+    const statuses = await this.systemd.statusMany(infos.map((info) => unitFileName(info.name)));
+    const result: Record<string, UnitStatus> = {};
+    for (const info of infos) {
+      const unit = unitFileName(info.name);
+      result[info.name] = statuses.get(unit) ?? { unit, activeState: "unknown", subState: "unknown" };
+    }
+    return result;
+  }
+
   private static readonly MIN_LOG_LINES = 10;
   private static readonly MAX_LOG_LINES = 2000;
   private static readonly DEFAULT_LOG_LINES = 200;

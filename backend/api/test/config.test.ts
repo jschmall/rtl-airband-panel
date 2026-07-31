@@ -10,6 +10,7 @@ describe("loadConfig", () => {
     expect(config.host).toBe("127.0.0.1");
     expect(config.sudoUnitNamePrefix).toBe("");
     expect(config.logLevel).toBe("info");
+    expect(config.logFile).toBeUndefined();
   });
 
   it("RTL_PANEL_LOG_LEVEL sets the pino log level", () => {
@@ -20,6 +21,16 @@ describe("loadConfig", () => {
   it("a CLI override for logLevel wins over the env var", () => {
     const config = loadConfig({ RTL_PANEL_LOG_LEVEL: "debug" }, { logLevel: "warn" });
     expect(config.logLevel).toBe("warn");
+  });
+
+  it("RTL_PANEL_LOG_FILE sets a log file destination, unset by default", () => {
+    const config = loadConfig({ RTL_PANEL_LOG_FILE: "/var/log/rtl-airband-panel/panel.log" });
+    expect(config.logFile).toBe("/var/log/rtl-airband-panel/panel.log");
+  });
+
+  it("a CLI override for logFile wins over the env var", () => {
+    const config = loadConfig({ RTL_PANEL_LOG_FILE: "/env/path.log" }, { logFile: "/cli/path.log" });
+    expect(config.logFile).toBe("/cli/path.log");
   });
 
   it("RTL_PANEL_SUDO_UNIT_PREFIX sets the sudo-mode unit scoping prefix", () => {

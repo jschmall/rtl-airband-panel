@@ -50,6 +50,25 @@ function systemctl(args: string[]): Promise<string> {
   return runCommand("sudo", ["systemctl", ...args]);
 }
 
+/** Parses one unit's `key=value` property block, as printed by `systemctl show`. */
+function parseProps(block: string): Map<string, string> {
+  const props = new Map<string, string>();
+  for (const line of block.split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    props.set(line.slice(0, eq), line.slice(eq + 1));
+  }
+  return props;
+}
+
+function toUnitStatus(unit: string, props: Map<string, string>): UnitStatus {
+  const activeStateRaw = props.get("ActiveState") ?? "unknown";
+  const activeState: UnitActiveState = (ACTIVE_STATES as readonly string[]).includes(activeStateRaw)
+    ? (activeStateRaw as UnitActiveState)
+    : "unknown";
+  return { unit, activeState, subState: props.get("SubState") ?? "unknown" };
+}
+
 /**
  * Real implementation: shells out to `sudo systemctl ...`. This is the
  * stopgap privilege model (see project memory systemd-privilege-model) —
@@ -103,17 +122,23 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     // `systemctl show` exits 0 even for a unit that doesn't exist (it
     // reports ActiveState=inactive), so this never throws on "not found".
     const output = await systemctl(["show", unit, "--property=ActiveState", "--property=SubState"]);
-    const props = new Map<string, string>();
-    for (const line of output.split("\n")) {
-      const eq = line.indexOf("=");
-      if (eq === -1) continue;
-      props.set(line.slice(0, eq), line.slice(eq + 1));
-    }
-    const activeStateRaw = props.get("ActiveState") ?? "unknown";
-    const activeState: UnitActiveState = (ACTIVE_STATES as readonly string[]).includes(activeStateRaw)
-      ? (activeStateRaw as UnitActiveState)
-      : "unknown";
-    return { unit, activeState, subState: props.get("SubState") ?? "unknown" };
+    return toUnitStatus(unit, parseProps(output));
+  }
+
+  /**
+   * One `systemctl show` call for every unit rather than one call each --
+   * see statusMany's doc comment on SystemdAdapter for why. Given multiple
+   * units, systemctl show prints each unit's own property block in the same
+   * order the units were passed, separated by a blank line.
+   */
+  async statusMany(units: string[]): Promise<Map<string, UnitStatus>> {
+    for (const unit of units) this.assertScoped(unit);
+    const result = new Map<string, UnitStatus>();
+    if (units.length === 0) return result;
+    const output = await systemctl(["show", ...units, "--property=ActiveState", "--property=SubState"]);
+    const blocks = output.split("\n\n");
+    units.forEach((unit, i) => result.set(unit, toUnitStatus(unit, parseProps(blocks[i] ?? ""))));
+    return result;
   }
 
   async daemonReload(): Promise<void> {

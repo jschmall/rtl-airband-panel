@@ -24,6 +24,18 @@ export interface SystemdAdapter {
   enable(unit: string): Promise<void>;
   disable(unit: string): Promise<void>;
   status(unit: string): Promise<UnitStatus>;
+  /**
+   * Same as calling status() once per unit, but in a single underlying
+   * call -- e.g. one `sudo systemctl show` invocation covering every unit
+   * instead of one per unit. Exists specifically for status-polling call
+   * sites that check many units at once (the instance-list health poll);
+   * each individual `sudo` invocation logs its own PAM session open/close
+   * to syslog, so polling N units one-by-one on a ~20s cadence generates
+   * 3N syslog lines per cycle -- this collapses that to 3 regardless of N.
+   * Missing/unrecognized units come back the same way status() reports
+   * them (activeState "unknown" or "inactive", never a thrown error).
+   */
+  statusMany(units: string[]): Promise<Map<string, UnitStatus>>;
   daemonReload(): Promise<void>;
   installUnitFile(unitName: string, contents: string): Promise<void>;
   removeUnitFile(unitName: string): Promise<void>;

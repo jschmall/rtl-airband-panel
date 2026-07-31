@@ -45,6 +45,7 @@ describe("SudoSystemctlAdapter unit scoping", () => {
     await expect(adapter.enable(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.disable(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.status(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
+    await expect(adapter.statusMany([unit])).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.installUnitFile(unit, "contents")).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.removeUnitFile(unit)).rejects.toBeInstanceOf(UnitOutOfScopeError);
     await expect(adapter.getLogs(unit, 200)).rejects.toBeInstanceOf(UnitOutOfScopeError);
@@ -53,5 +54,10 @@ describe("SudoSystemctlAdapter unit scoping", () => {
 
   it("constructing with an invalid prefix fails fast instead of silently misscoping", () => {
     expect(() => new SudoSystemctlAdapter("/etc/systemd/system", "rtl*")).toThrow(InvalidUnitNamePrefixError);
+  });
+
+  it("statusMany with an empty unit list resolves to an empty map without spawning a command", async () => {
+    const adapter = new SudoSystemctlAdapter();
+    await expect(adapter.statusMany([])).resolves.toEqual(new Map());
   });
 });

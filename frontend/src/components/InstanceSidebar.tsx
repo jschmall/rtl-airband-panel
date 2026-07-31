@@ -22,21 +22,24 @@ export function InstanceSidebar() {
   const [renameValue, setRenameValue] = useState("");
 
   // Re-fetch health whenever the shared instance list changes (navigation,
-  // create/delete/rename/restart, or a save on the edit page).
+  // create/delete/rename/restart, or a save on the edit page). One batched
+  // request for every instance -- not one getHealth() call per instance --
+  // since under systemd-mode=sudo each individual call is its own `sudo
+  // systemctl show` invocation, and fanning out N of those every poll cycle
+  // is what was flooding syslog with PAM session lines.
   useEffect(() => {
     if (!instances) return;
     let cancelled = false;
-    void Promise.all(
-      instances.map(async (instance) => {
-        try {
-          return [instance.name, await api.getHealth(instance.name)] as const;
-        } catch {
-          return [instance.name, { unit: instance.unit, activeState: "unknown", subState: "unknown" } as UnitStatus] as const;
-        }
+    void api
+      .getAllHealth()
+      .catch(() => {
+        const fallback: Record<string, UnitStatus> = {};
+        for (const instance of instances) fallback[instance.name] = { unit: instance.unit, activeState: "unknown", subState: "unknown" };
+        return fallback;
       })
-    ).then((entries) => {
-      if (!cancelled) setHealth(Object.fromEntries(entries));
-    });
+      .then((result) => {
+        if (!cancelled) setHealth(result);
+      });
     return () => {
       cancelled = true;
     };
