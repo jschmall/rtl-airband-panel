@@ -74,6 +74,29 @@ export function OutputEditor({
   const hasCopyTargets = channelTargets !== undefined && channelTargets.length > 0;
   const [copyOpen, setCopyOpen] = useState(false);
   const [copyTargetKey, setCopyTargetKey] = useState<string>(() => (channelTargets?.[0] ? channelTargetKey(channelTargets[0]) : ""));
+  const copyActionsRef = useRef<HTMLDivElement>(null);
+  const copyTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Mirrors PendingRestartIndicator's popover conventions: Escape closes and returns
+  // focus to the trigger (otherwise a keyboard user closing this loses their place),
+  // and clicking anywhere outside this output's own action row closes it too.
+  useEffect(() => {
+    if (!copyOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (copyActionsRef.current && !copyActionsRef.current.contains(e.target as Node)) setCopyOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setCopyOpen(false);
+      copyTriggerRef.current?.focus();
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [copyOpen]);
   // Remembers the last-edited values for each output type the user has visited in this
   // editing session, so switching the type dropdown away and back restores what was there
   // instead of resetting to defaults. Session-only (a ref, not part of the saved config) —
@@ -103,6 +126,12 @@ export function OutputEditor({
     const target = channelTargets?.find((t) => channelTargetKey(t) === copyTargetKey);
     if (target && onCopyToChannel) onCopyToChannel(target);
     setCopyOpen(false);
+    copyTriggerRef.current?.focus();
+  }
+
+  function handleCancelCopy() {
+    setCopyOpen(false);
+    copyTriggerRef.current?.focus();
   }
 
   return (
@@ -112,7 +141,7 @@ export function OutputEditor({
       titleClassName="text-sm font-medium text-slate-200"
       title={`Output — ${output.type}`}
       headerActions={
-        <div className="flex flex-col gap-2">
+        <div ref={copyActionsRef} className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <BoolField
               label="Disable"
@@ -124,7 +153,14 @@ export function OutputEditor({
               Duplicate output
             </button>
             {hasCopyTargets && (
-              <button type="button" onClick={copyOpen ? () => setCopyOpen(false) : handleOpenCopy} className={addButtonClass}>
+              <button
+                ref={copyTriggerRef}
+                type="button"
+                onClick={copyOpen ? handleCancelCopy : handleOpenCopy}
+                aria-haspopup="true"
+                aria-expanded={copyOpen}
+                className={addButtonClass}
+              >
                 Copy to channel…
               </button>
             )}
@@ -139,7 +175,7 @@ export function OutputEditor({
             </button>
           </div>
           {copyOpen && hasCopyTargets && (
-            <div className="flex items-center gap-2">
+            <div role="group" aria-label="Copy this output to another channel" className="flex items-center gap-2">
               <select className={`${inputClass} w-64`} value={copyTargetKey} onChange={(e) => setCopyTargetKey(e.target.value)}>
                 {channelTargets.map((target) => (
                   <option key={channelTargetKey(target)} value={channelTargetKey(target)}>
@@ -150,7 +186,7 @@ export function OutputEditor({
               <button type="button" onClick={handleConfirmCopy} className={addButtonClass}>
                 Copy
               </button>
-              <button type="button" onClick={() => setCopyOpen(false)} className="text-sm text-slate-400 hover:text-slate-300">
+              <button type="button" onClick={handleCancelCopy} className="text-sm text-slate-400 hover:text-slate-300">
                 Cancel
               </button>
             </div>

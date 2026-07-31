@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.53] - 2026-07-31
+
+### Fixed
+
+- **"Copy to channel…" now matches the Escape-to-dismiss / focus-return
+  convention every other popover in the app follows.** The inline picker
+  (added v0.4.32) had no keyboard dismissal and no `aria-expanded`/
+  `aria-haspopup` on its trigger, unlike the Tooltip and pending-restart
+  popover conventions established in the accessibility pass (v0.4.21).
+  Escape now closes it and returns focus to the "Copy to channel…"
+  button (same as Confirm/Cancel), clicking outside the output's own
+  action row closes it too, and the picker row itself is now an
+  `aria-label`led `role="group"`. Verified live: opens, Escape closes it,
+  and focus lands back on the trigger.
+
 ## [0.4.52] - 2026-07-31
 
 ### Fixed
