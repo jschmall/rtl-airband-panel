@@ -10,7 +10,9 @@ export function InstanceSearchInput() {
       onChange={(e) => setSearchQuery(e.target.value)}
       placeholder="Search instances…"
       aria-label="Search instances"
-      className={`w-48 placeholder:text-slate-500 ${inputClass}`}
+      // flex-1 (fill the actions row's remaining width, next to the pending-restart pill)
+      // below md:, reverting to a fixed compact width alongside the pill at md:+.
+      className={`min-w-0 flex-1 placeholder:text-slate-500 md:w-48 md:flex-none ${inputClass}`}
     />
   );
 }

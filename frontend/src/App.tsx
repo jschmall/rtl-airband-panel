@@ -21,11 +21,15 @@ export function App() {
       <UnsavedChangesProvider>
         <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
           <header className="flex-shrink-0 border-b border-slate-800 bg-slate-900/60">
-            <div className="flex items-center justify-between px-6 py-4">
+            {/* Below md:, the actions row (restart indicator + search) drops to its own
+                full-width line instead of squeezing next to the title -- w-full/md:w-auto
+                forces that split deterministically rather than leaving it to flex-wrap's
+                natural overflow point, matching the rest of the app's single md: breakpoint. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
               <GuardedLink to="/" className="text-lg font-semibold tracking-tight">
                 RTLSDR-Airband Panel
               </GuardedLink>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full items-center gap-3 md:w-auto">
                 <PendingRestartIndicator />
                 <InstanceSearchInput />
               </div>

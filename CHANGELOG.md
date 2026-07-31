@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.57] - 2026-07-31
+
+Section M, Phase 2 (GitHub issue #2): the top header now stacks below
+`md:` instead of squeezing the search box down to nothing.
+
+### Changed
+
+- **Header/search now stack on narrow viewports.** Below `md:`, the
+  actions row (pending-restart pill + search) drops to its own full-width
+  line under the title instead of sharing a row with it; the search input
+  grows to fill that row (`min-w-0 flex-1`) instead of staying pinned at
+  a fixed 192px. Unchanged at `md:` and wider -- single row, search back
+  to its fixed compact width next to the pill. No hamburger/nav control
+  added yet -- that's Phase 3, once there's an actual drawer for it to
+  open.
+
 ## [0.4.56] - 2026-07-31
 
 Section M, Phase 1 (GitHub issue #2): the app's dense field grids are now
