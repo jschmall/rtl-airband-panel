@@ -3,6 +3,11 @@ import { useEffect, useId, useRef, useState } from "react";
 
 interface CollapsibleProps {
   title: ReactNode;
+  /** Rendered before the toggle button, in the same items-center row -- e.g. a drag
+   *  handle. Keeping it in this row (rather than a sibling column outside Collapsible
+   *  entirely) means it's always centered against the title, at any header height,
+   *  with no margin tuning against a guessed row height. */
+  dragHandle?: ReactNode;
   headerActions?: ReactNode;
   defaultOpen?: boolean;
   className?: string;
@@ -19,7 +24,7 @@ interface CollapsibleProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onOpenChange }: CollapsibleProps) {
+export function Collapsible({ title, dragHandle, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onOpenChange }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
@@ -40,6 +45,7 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
           button's flex-1 all the way to zero width instead of just wrapping below --
           found empirically while testing this component's many callers at phone widths. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {dragHandle}
         <button
           type="button"
           onClick={() =>

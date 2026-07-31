@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.62] - 2026-07-31
+
+### Fixed
+
+- **Channel drag handle is now exactly centered against its channel's title,
+  at any header height.** It previously lived in a sibling column outside
+  the channel's card (`DeviceEditor.tsx`), vertically positioned by a
+  hand-tuned margin measured against one specific (collapsed, single-line)
+  row height -- confirmed via real pixel measurement to be off by several
+  pixels, and it would have drifted further whenever a header wrapped to
+  two lines or the channel was expanded, since the margin was fixed but
+  the sibling row's height wasn't. `Collapsible` (shared by every
+  Device/Channel/Output/Mixer header) now takes an optional `dragHandle`
+  slot rendered inside its own header row, so it's `items-center`-aligned
+  with the title by the same flexbox that already aligns everything else
+  in that row -- correct by construction, not by tuning. Verified live:
+  0px difference between the handle's and title's vertical centers, both
+  collapsed and expanded.
+
 ## [0.4.61] - 2026-07-31
 
 ### Changed

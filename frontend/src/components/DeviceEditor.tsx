@@ -17,26 +17,36 @@ import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 import { isMultichannelChannel, isScanChannel, type ChannelTarget } from "../lib/channel-targets.js";
 
-/** Wraps a channel row with a drag handle for reordering -- outputs within a channel are never draggable, so this only ever wraps a whole ChannelEditor. */
-function SortableChannelRow({ id, children }: { id: string | number; children: ReactNode }) {
+/**
+ * Owns the per-row useSortable() call (each row needs its own -- hooks can't run in a
+ * .map() loop directly), and hands the drag handle to its render-prop child instead of
+ * wrapping it in a separate sibling column. The handle needs to live inside
+ * ChannelEditor's own Collapsible header row (see its dragHandle prop) to stay centered
+ * against the title at any header height -- a fixed sibling column can only ever be
+ * centered against one specific height, and drifts the moment the header wraps to two
+ * lines or the channel is expanded.
+ */
+function SortableChannelRow({ id, children }: { id: string | number; children: (dragHandle: ReactNode) => ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  const dragHandle = (
+    <button
+      type="button"
+      {...attributes}
+      {...listeners}
+      // p-3 (not p-2) brings this closer to the ~44px touch-target guideline that
+      // matters now that touch-drag (TouchSensor, below) is a real, tuned input path,
+      // not just tolerated incidentally by the pointer sensor.
+      className="cursor-grab select-none rounded p-3 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
+      aria-label="Drag to reorder channel, or focus and use arrow keys"
+      title="Drag to reorder (or focus and use arrow keys)"
+    >
+      ⠿
+    </button>
+  );
   return (
-    <div ref={setNodeRef} style={style} className="flex items-start gap-2">
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        // p-3 (not p-2) brings this closer to the ~44px touch-target guideline that
-        // matters now that touch-drag (TouchSensor, below) is a real, tuned input path,
-        // not just tolerated incidentally by the pointer sensor.
-        className="mt-1.5 cursor-grab select-none rounded p-3 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
-        aria-label="Drag to reorder channel, or focus and use arrow keys"
-        title="Drag to reorder (or focus and use arrow keys)"
-      >
-        ⠿
-      </button>
-      <div className="min-w-0 flex-1">{children}</div>
+    <div ref={setNodeRef} style={style}>
+      {children(dragHandle)}
     </div>
   );
 }
@@ -425,24 +435,27 @@ export function DeviceEditor({
               <SortableContext items={visibleChannels.map(({ channel, i }) => uiKeyOf(channel, i))} strategy={verticalListSortingStrategy}>
                 {visibleChannels.map(({ channel, i }) => (
                   <SortableChannelRow key={uiKeyOf(channel, i)} id={uiKeyOf(channel, i)}>
-                    <ChannelEditor
-                      channel={channel}
-                      deviceIndex={deviceIndex}
-                      channelIndex={i}
-                      highlighted={justDuplicatedKey !== null && uiKeyOf(channel, i) === justDuplicatedKey}
-                      onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
-                      onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
-                      onDuplicate={() => {
-                        const nextChannels = duplicateAt(device.channels, i, cloneWithNewUiKeys);
-                        onChange({ ...device, channels: nextChannels });
-                        setJustDuplicatedKey(uiKeyOf(nextChannels[i + 1]!, i + 1));
-                      }}
-                      pathPrefix={`${pathPrefix}.channels[${i}]`}
-                      jumpTarget={jumpTarget}
-                      onRevealSecret={onRevealSecret}
-                      channelTargets={channelTargets}
-                      onCopyOutputToChannel={onCopyOutputToChannel}
-                    />
+                    {(dragHandle) => (
+                      <ChannelEditor
+                        channel={channel}
+                        deviceIndex={deviceIndex}
+                        channelIndex={i}
+                        highlighted={justDuplicatedKey !== null && uiKeyOf(channel, i) === justDuplicatedKey}
+                        dragHandle={dragHandle}
+                        onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
+                        onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
+                        onDuplicate={() => {
+                          const nextChannels = duplicateAt(device.channels, i, cloneWithNewUiKeys);
+                          onChange({ ...device, channels: nextChannels });
+                          setJustDuplicatedKey(uiKeyOf(nextChannels[i + 1]!, i + 1));
+                        }}
+                        pathPrefix={`${pathPrefix}.channels[${i}]`}
+                        jumpTarget={jumpTarget}
+                        onRevealSecret={onRevealSecret}
+                        channelTargets={channelTargets}
+                        onCopyOutputToChannel={onCopyOutputToChannel}
+                      />
+                    )}
                   </SortableChannelRow>
                 ))}
               </SortableContext>
