@@ -713,6 +713,37 @@ describe("GET /instances/:name/stats/latest", () => {
   });
 });
 
+describe("GET /instances/stats-summary", () => {
+  it("returns an all-zero summary for a seeded instance with no polled samples", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({ method: "GET", url: "/api/instances/stats-summary" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 0, outputOverrunTotal: 0, inputsDroppingCount: 0 } });
+  });
+
+  it("rolls up buffer overflow and output overrun totals from the latest poll", async () => {
+    await seedFixture(h.instancesDir);
+    h.statsStore.insertBatch(
+      FIXTURE_INSTANCE_NAME,
+      [
+        { metric: "buffer_overflow_count", labels: { device: "0" }, value: 3 },
+        { metric: "output_overrun_count", labels: { mixer: "0" }, value: 2 },
+        { metric: "input_overrun_count", labels: { mixer: "0", input: "0" }, value: 1 },
+      ],
+      Date.now()
+    );
+    const res = await app.inject({ method: "GET", url: "/api/instances/stats-summary" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 3, outputOverrunTotal: 2, inputsDroppingCount: 1 } });
+  });
+
+  it("returns an empty object when there are no instances", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/instances/stats-summary" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({});
+  });
+});
+
 describe("GET /instances/:name/stats/poll-status", () => {
   it("404s for a nonexistent instance", async () => {
     const res = await app.inject({ method: "GET", url: "/api/instances/nope/stats/poll-status" });

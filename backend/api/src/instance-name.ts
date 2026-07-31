@@ -18,7 +18,7 @@ const SAFE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
  * (shadowed by the static route) the moment such a route existed. Reserved
  * outright so that can never happen, regardless of what routes get added later.
  */
-const RESERVED_NAMES = new Set(["export", "import", "restart-pending", "health"]);
+const RESERVED_NAMES = new Set(["export", "import", "restart-pending", "health", "stats-summary"]);
 
 export class InvalidInstanceNameError extends Error {
   constructor(name: string) {

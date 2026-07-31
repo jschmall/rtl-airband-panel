@@ -10,6 +10,21 @@ export interface ReadinessResult {
   checks: Record<string, "ok" | string>;
 }
 
+export interface InstanceStatsSummary {
+  /** Sum of buffer_overflow_count across every device on this instance. */
+  bufferOverflowTotal: number;
+  /**
+   * Sum of output_overrun_count across every device *and* mixer on this
+   * instance -- RTLSDR-Airband's output.cpp emits this metric labeled
+   * either device="N" (a device with no mixer feeding its output) or
+   * mixer="N" (a mixer's own output), so both must be counted, not just
+   * the mixer-labeled ones.
+   */
+  outputOverrunTotal: number;
+  /** Count of input_overrun_count series currently reporting a nonzero value (i.e. mixer inputs actively dropping samples), not a sum of their values. */
+  inputsDroppingCount: number;
+}
+
 export class StatsService {
   constructor(
     private readonly configStore: ConfigStore,
@@ -42,6 +57,38 @@ export class StatsService {
       perInstance.set(name, this.statsStore.latest(name));
     }
     return formatPrometheusMetrics(perInstance);
+  }
+
+  /**
+   * Rolled-up problem-metric totals for every managed instance, keyed by
+   * name -- one JSON sibling of metricsText()'s own per-instance loop, for
+   * an at-a-glance dashboard that wants numbers, not a Prometheus scrape.
+   * An instance with no polled samples yet reports all-zero totals rather
+   * than being omitted, so a brand-new instance still shows up.
+   */
+  async latestSummaries(): Promise<Record<string, InstanceStatsSummary>> {
+    const infos = await this.configStore.list();
+    const result: Record<string, InstanceStatsSummary> = {};
+    for (const { name } of infos) {
+      let bufferOverflowTotal = 0;
+      let outputOverrunTotal = 0;
+      let inputsDroppingCount = 0;
+      for (const sample of this.statsStore.latest(name)) {
+        switch (sample.metric) {
+          case "buffer_overflow_count":
+            bufferOverflowTotal += sample.value;
+            break;
+          case "output_overrun_count":
+            outputOverrunTotal += sample.value;
+            break;
+          case "input_overrun_count":
+            if (sample.value > 0) inputsDroppingCount += 1;
+            break;
+        }
+      }
+      result[name] = { bufferOverflowTotal, outputOverrunTotal, inputsDroppingCount };
+    }
+    return result;
   }
 
   /**

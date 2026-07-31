@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.66] - 2026-07-31
+
+### Added
+
+- **`GET /instances/stats-summary`.** A JSON sibling of `GET /metrics`:
+  one call returns every managed instance's rolled-up problem-metric
+  totals -- `bufferOverflowTotal` (sum of `buffer_overflow_count` across
+  all devices), `outputOverrunTotal` (sum of `output_overrun_count`
+  across *both* device- and mixer-labeled series -- RTLSDR-Airband emits
+  this metric either way depending on whether a mixer feeds that
+  device's output), and `inputsDroppingCount` (count of
+  `input_overrun_count` series currently nonzero, not their sum).
+  `StatsService.latestSummaries()` reuses the same
+  `configStore.list()` + `statsStore.latest(name)` loop `metricsText()`
+  already runs. `stats-summary` is reserved alongside `export`/`import`/
+  `restart-pending`/`health` so it can never collide with a real
+  instance name.
+
+Section B of the landing-page instance health dashboard (#3) -- the
+dashboard UI itself lands in a follow-up commit.
+
 ## [0.4.65] - 2026-07-31
 
 ### Added

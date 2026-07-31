@@ -11,6 +11,11 @@ interface HistoryQuerystring {
 }
 
 export function registerStatsRoutes(app: FastifyInstance, statsService: StatsService): void {
+  // Registered as a literal route ahead of /instances/:name/stats/... --
+  // "stats-summary" is reserved in instance-name.ts so it can never collide
+  // with a real instance name.
+  app.get("/instances/stats-summary", async () => statsService.latestSummaries());
+
   app.get<{ Params: { name: string } }>("/instances/:name/stats/latest", async (request) => {
     return statsService.latest(request.params.name);
   });

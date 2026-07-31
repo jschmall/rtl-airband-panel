@@ -62,7 +62,7 @@ describe("assertValidInstanceName", () => {
     expect(() => assertValidInstanceName("rtl\x00151719")).toThrow(InvalidInstanceNameError);
   });
 
-  it.each(["export", "import", "restart-pending", "health"])("rejects the reserved name '%s' (would be shadowed by a static sibling route)", (name) => {
+  it.each(["export", "import", "restart-pending", "health", "stats-summary"])("rejects the reserved name '%s' (would be shadowed by a static sibling route)", (name) => {
     expect(() => assertValidInstanceName(name)).toThrow(InvalidInstanceNameError);
   });
 
