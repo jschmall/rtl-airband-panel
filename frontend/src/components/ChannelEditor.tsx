@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -21,8 +20,6 @@ interface ChannelEditorProps {
   onDuplicate: () => void;
   /** True for the brief window right after this channel was created by "Duplicate channel" -- see DeviceEditor's justDuplicatedKey. */
   highlighted?: boolean;
-  /** The channel's drag-reorder handle (DeviceEditor's SortableChannelRow) -- passed through to Collapsible so it sits in the header row, centered against the title at any header height. */
-  dragHandle?: ReactNode;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
@@ -39,7 +36,6 @@ export function ChannelEditor({
   onRemove,
   onDuplicate,
   highlighted,
-  dragHandle,
   pathPrefix,
   jumpTarget,
   onRevealSecret,
@@ -54,7 +50,6 @@ export function ChannelEditor({
   return (
     <Collapsible
       openSignal={openSignal}
-      dragHandle={dragHandle}
       className={`rounded border border-slate-600 bg-slate-800 p-3 transition-shadow duration-700 ${highlighted ? "ring-2 ring-sky-400" : ""}`}
       titleClassName="font-medium text-slate-200"
       title={

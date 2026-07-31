@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.63] - 2026-07-31
+
+### Reverted
+
+- **Reverted v0.4.62's channel drag-handle alignment change.** That fix
+  measurably centered the handle against the title, but the user
+  preferred the channel list's previous look and asked to put the
+  broader alignment/padding cleanup on hold. `Collapsible.tsx`,
+  `ChannelEditor.tsx`, and `DeviceEditor.tsx` are back to their v0.4.61
+  state (the `dragHandle` slot on `Collapsible` is gone).
+
 ## [0.4.62] - 2026-07-31
 
 ### Fixed
