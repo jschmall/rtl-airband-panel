@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.60] - 2026-07-31
+
+### Changed
+
+- **Raised the mutating-route rate limit from 20/min to 60/min.** This
+  tier (`MUTATING_ROUTE_OPTS` in `backend/api/src/routes.ts`) covers
+  save/restart/rename/create/delete/bulk-restart/import/options-patch,
+  and — since Fastify registers one parameterized route per action, not
+  one per instance name — each action's budget is shared across every
+  instance in the deployment, not per-instance. 20/min was too tight for
+  legitimate multi-instance batch work (restarting most of a ~12-instance
+  deployment in one sitting, or several saves during a tuning session);
+  60/min gives real headroom for that while still tripping within
+  seconds on an actual runaway or malicious client. The global read-only
+  tier (300/min) is unchanged.
+
 ## [0.4.59] - 2026-07-31
 
 Section M, Phase 4 (GitHub issue #2) -- the last phase of the mobile

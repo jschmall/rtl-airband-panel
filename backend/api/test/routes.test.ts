@@ -241,14 +241,14 @@ describe("security middleware", () => {
     expect(logsRes.headers["x-ratelimit-limit"]).toBe("300");
   });
 
-  it("puts the mutating PATCH /options route on the tighter (20/min) tier, same as other config-mutating routes", async () => {
+  it("puts the mutating PATCH /options route on the tighter (60/min) tier, same as other config-mutating routes", async () => {
     await seedFixture(h.instancesDir);
     const res = await app.inject({
       method: "PATCH",
       url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
       payload: { jsonLogging: true },
     });
-    expect(res.headers["x-ratelimit-limit"]).toBe("20");
+    expect(res.headers["x-ratelimit-limit"]).toBe("60");
   });
 
   it("sets a per-request x-request-id header, correlating a response to its server-side (audit) log lines", async () => {

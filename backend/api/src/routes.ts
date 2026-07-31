@@ -7,8 +7,15 @@ import { CommandError } from "./systemd/run-command.js";
 // Applied to every route that writes a config, restarts/renames/creates/deletes an
 // instance, or otherwise touches systemd — deliberately much tighter than the global
 // default in app.ts, since these are the actions a misbehaving client could use to
-// restart-storm every managed instance.
-const MUTATING_ROUTE_OPTS = { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } };
+// restart-storm every managed instance. Each route registered with this gets its own
+// independent 60/min bucket (per client IP) -- e.g. "restart" and "save config" don't
+// share a budget -- but that budget IS shared across every instance for that one
+// action, since Fastify registers one parameterized route (/instances/:name/restart),
+// not one per literal instance name. 60 (not the original 20) was chosen so a real
+// multi-instance batch operation -- restarting or re-saving most/all of a ~12-instance
+// deployment in one sitting -- comfortably fits without tripping this, while a genuine
+// runaway/malicious client still hits the ceiling within seconds.
+const MUTATING_ROUTE_OPTS = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
 
 /**
  * There's no per-user identity to log (no auth layer yet), but "what changed
