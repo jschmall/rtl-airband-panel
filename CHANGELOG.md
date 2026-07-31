@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.50] - 2026-07-31
+
+### Added
+
+- **Test coverage for two previously-implicit safety guarantees.** A
+  concurrent config save and options patch on the same instance already
+  serialized correctly through the per-instance `KeyedMutex`, but nothing
+  proved it -- added a `concurrency.test.ts` case firing both at once and
+  checking neither's on-disk state (config, options, pending-restart flag)
+  came out corrupted. Also added rate-limit-tier assertions confirming
+  `/logs` stays on the global (300/min) tier while the mutating
+  `PATCH /options` route is on the tighter (20/min) tier, same as every
+  other config-mutating route.
+
 ## [0.4.49] - 2026-07-31
 
 ### Changed

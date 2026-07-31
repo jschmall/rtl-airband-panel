@@ -75,6 +75,32 @@ describe("concurrent updateConfig on the same instance", () => {
   });
 });
 
+describe("concurrent updateConfig + updateInstanceOptions on the same instance", () => {
+  it("a config save and an options patch (PATCH /options) running concurrently both succeed without corrupting each other's on-disk state", async () => {
+    await seedFixture(h.instancesDir);
+
+    // Today's safety here is real but only implicit: InstanceService.updateInstanceOptions
+    // and updateConfig share the same per-instance KeyedMutex, so this pins that invariant
+    // with an actual concurrent call rather than leaving it undemonstrated.
+    const [configResult, optionsResult] = await Promise.all([
+      h.service.updateConfig(FIXTURE_INSTANCE_NAME, minimalConfig({ stats_filepath: "/tmp/concurrent.txt" })),
+      h.service.updateInstanceOptions(FIXTURE_INSTANCE_NAME, { jsonLogging: true }),
+    ]);
+
+    expect(configResult.status.activeState).toBe("active");
+    expect(optionsResult.status.activeState).toBe("active");
+    expect(optionsResult.options.jsonLogging).toBe(true);
+
+    const finalConfig = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    expect(finalConfig.stats_filepath).toBe("/tmp/concurrent.txt");
+
+    // Both operations restart by default -- serialized through the mutex, neither's
+    // mark-pending/clear-pending pair should be left dangling by the other's.
+    const list = await h.service.listInstances();
+    expect(list.find((i) => i.name === FIXTURE_INSTANCE_NAME)?.pendingRestart).toBe(false);
+  });
+});
+
 describe("concurrent createInstance with the same name", () => {
   it("only one of two overlapping creates for the same name succeeds", async () => {
     const results = await Promise.allSettled([
