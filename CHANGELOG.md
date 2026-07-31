@@ -5,6 +5,43 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.56] - 2026-07-31
+
+Section M, Phase 1 (GitHub issue #2): the app's dense field grids are now
+responsive below a single `md:` (768px) breakpoint -- the first step
+toward a usable mobile layout, ahead of the sidebar/header work in the
+phases that follow.
+
+### Added
+
+- **Responsive grid constants** (`responsiveGrid2`/`3`/`4` in
+  `frontend/src/components/styles.ts`) swapped into the ~15 non-responsive
+  `grid-cols-2/3/4` occurrences across `ChannelEditor`, `ScanChannelEditor`,
+  `OutputEditor`, `DeviceEditor`, `MixerEditor`, and (by hand, since their
+  gap/container classes don't cleanly fit the shared constants)
+  `ConfigEditor`'s two global-settings grids. Stacks to one column below
+  `md:` (two, for the densest 4-up channel-field grid, since those labels
+  are short enough to still read fine 2-across even on a phone);
+  unchanged at `md:` and wider.
+
+### Fixed
+
+- **Every `Collapsible` header (Device/Channel/Output/Mixer/Logs) could
+  squeeze its own title button to zero width on a narrow viewport.**
+  Found empirically while testing Phase 1 at real phone/tablet widths, not
+  in the original design review: the header row's `headerActions` cluster
+  (Disable checkbox + Duplicate/Remove buttons) had no wrap strategy, so
+  on a narrow screen it could force the adjacent `flex-1` title button
+  down to 0px -- unclickable and invisible, not just cramped. Added
+  `flex-wrap` to `Collapsible`'s header row (one shared fix for every
+  caller) and to five other section-header rows with the same unwrapped
+  `flex items-center justify-between` shape (`ConfigEditor`'s
+  Devices/Mixers headers, `MixerEditor`/`ScanChannelEditor`/`ChannelEditor`'s
+  Outputs headers, `InstanceEditPage`'s title row). Also fixed
+  `DeviceEditor`'s channel-filter input, which had a fixed `w-56` that
+  caused real horizontal overflow rather than wrapping; it's now
+  `w-full sm:w-56`.
+
 ## [0.4.55] - 2026-07-31
 
 ### Added

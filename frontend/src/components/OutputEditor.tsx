@@ -11,7 +11,7 @@ import type {
 } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
-import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
 import { PasswordInput } from "./PasswordInput.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { OUTPUT_TOOLTIPS } from "../lib/config-descriptions.js";
@@ -194,7 +194,7 @@ export function OutputEditor({
         </div>
       }
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className={responsiveGrid2}>
         <Field label="Output type">
           <select className={inputClass} value={output.type} onChange={(e) => handleTypeChange(e.target.value as Output["type"])}>
             <option value="pulse">pulse</option>
@@ -219,7 +219,7 @@ export function OutputEditor({
 
 function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: Output) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <Field label="Server (optional; PulseAudio default if blank)" tooltip={OUTPUT_TOOLTIPS.pulseServer}>
         <input
           className={inputClass}
@@ -318,7 +318,7 @@ function FileFields({
   onRevealApiKey?: () => Promise<string>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <FileLikeTextFields output={output} onChange={onChange} />
       <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
         <input
@@ -374,7 +374,7 @@ function RdioScannerFields({
   onRevealApiKey?: () => Promise<string>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <Field label="Server" tooltip={OUTPUT_TOOLTIPS.rdioScannerServer}>
         <input className={inputClass} value={config.server} onChange={(e) => onChange({ ...config, server: e.target.value })} />
       </Field>
@@ -475,7 +475,7 @@ function RdioScannerFields({
 
 function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: (o: Output) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <FileLikeTextFields output={output} onChange={onChange} />
       <FileLikeCheckboxFields output={output} onChange={onChange} />
     </div>
@@ -495,7 +495,7 @@ function IcecastFields({
   onRevealPassword?: () => Promise<string>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <Field label="Server" tooltip={OUTPUT_TOOLTIPS.icecastServer}>
         <input className={inputClass} value={output.server} onChange={(e) => onChange({ ...output, server: e.target.value })} />
       </Field>
@@ -568,7 +568,7 @@ function IcecastFields({
 
 function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChange: (o: Output) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <Field label="Destination address" tooltip={OUTPUT_TOOLTIPS.destAddress}>
         <input
           className={inputClass}
@@ -614,7 +614,7 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
 
 function MixerFields({ output, onChange }: { output: MixerOutput; onChange: (o: Output) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className={responsiveGrid2}>
       <Field label="Mixer name (must match a top-level mixer definition)" tooltip={OUTPUT_TOOLTIPS.mixerName}>
         <input className={inputClass} value={output.name} onChange={(e) => onChange({ ...output, name: e.target.value })} />
       </Field>

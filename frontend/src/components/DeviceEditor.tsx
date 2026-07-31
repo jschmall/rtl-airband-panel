@@ -8,7 +8,7 @@ import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
-import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid3 } from "./styles.js";
 import { appendItem, duplicateAt, moveAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
 import { formatMsps, numberOrUndefined } from "../lib/number-utils.js";
@@ -188,7 +188,7 @@ export function DeviceEditor({
         </div>
       }
     >
-      <div className="grid grid-cols-3 gap-2">
+      <div className={responsiveGrid3}>
         <Field label="Type" tooltip={DEVICE_TOOLTIPS.type}>
           <select
             className={inputClass}
@@ -369,13 +369,13 @@ export function DeviceEditor({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h4 className="font-medium text-slate-300">Channels</h4>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {!isScan && (
               <input
                 type="search"
-                className={`${inputClass} w-56`}
+                className={`${inputClass} w-full sm:w-56`}
                 placeholder="Filter by frequency or label…"
                 value={channelFilter}
                 onChange={(e) => setChannelFilter(e.target.value)}

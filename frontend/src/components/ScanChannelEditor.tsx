@@ -2,7 +2,7 @@ import type { Output, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import {
@@ -63,7 +63,7 @@ export function ScanChannelEditor({
         <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
       }
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className={responsiveGrid2}>
         <Field label="Frequencies, Hz (comma-separated, one per scanned frequency)" tooltip={CHANNEL_TOOLTIPS.freqs}>
           <input
             className={inputClass}
@@ -148,7 +148,7 @@ export function ScanChannelEditor({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <h5 className="text-sm font-medium text-slate-400">Outputs (shared across all scanned frequencies)</h5>
           <button
             type="button"

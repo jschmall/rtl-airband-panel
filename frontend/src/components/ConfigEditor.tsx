@@ -44,7 +44,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-4 md:grid-cols-2">
         <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
           <input
             className={inputClass}
@@ -111,7 +111,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, rdio_scanner_queue_depth: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 self-end">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-2 self-end md:grid-cols-2">
           <BoolField
             label="Multiple demod threads"
             tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}
@@ -137,7 +137,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
       {afterGlobalSettings}
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-100">Devices</h2>
           <button
             type="button"
@@ -165,7 +165,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-100">Mixers</h2>
           <button
             type="button"

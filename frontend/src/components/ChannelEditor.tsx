@@ -2,7 +2,7 @@ import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid4 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
@@ -81,7 +81,7 @@ export function ChannelEditor({
         </div>
       }
     >
-      <div className="grid grid-cols-4 gap-2">
+      <div className={responsiveGrid4}>
         <Field label="Frequency (Hz)" tooltip={CHANNEL_TOOLTIPS.freq}>
           <input
             type="number"
@@ -206,7 +206,7 @@ export function ChannelEditor({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <h5 className="text-sm font-medium text-slate-400">Outputs</h5>
           <button
             type="button"

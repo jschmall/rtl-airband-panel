@@ -2,7 +2,7 @@ import type { Mixer, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass } from "./styles.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid3 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultIcecastOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
@@ -61,7 +61,7 @@ export function MixerEditor({
         </div>
       }
     >
-      <div className="grid grid-cols-3 gap-2">
+      <div className={responsiveGrid3}>
         <Field label="Name (referenced by channel outputs of type 'mixer')" tooltip={MIXER_TOOLTIPS.name}>
           <input className={inputClass} value={mixer.name} onChange={(e) => onChange({ ...mixer, name: e.target.value })} />
         </Field>
@@ -84,7 +84,7 @@ export function MixerEditor({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between">
           <h5 className="text-sm font-medium text-slate-400">Outputs</h5>
           <button
             type="button"

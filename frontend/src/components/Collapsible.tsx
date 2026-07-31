@@ -35,7 +35,11 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
 
   return (
     <div ref={rootRef} className={className}>
-      <div className="flex items-center justify-between gap-3">
+      {/* flex-wrap: without it, a headerActions cluster (Disable/Duplicate/Remove, etc.)
+          that doesn't fit next to the title on a narrow viewport squeezes the title
+          button's flex-1 all the way to zero width instead of just wrapping below --
+          found empirically while testing this component's many callers at phone widths. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={() =>

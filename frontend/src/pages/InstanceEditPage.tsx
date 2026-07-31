@@ -271,7 +271,7 @@ export function InstanceEditPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
         <GuardedLink to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
           View stats →
