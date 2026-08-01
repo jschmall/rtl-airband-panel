@@ -17,6 +17,9 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
     "Number of times this device's sample buffer wasn't drained quickly enough. Non-zero values may indicate insufficient CPU power.",
   output_overrun_count: "Number of times a device or mixer output couldn't keep up and had to drop samples.",
   input_overrun_count: "Number of times a mixer input couldn't keep up and had to drop samples.",
+  buffer_underrun_count:
+    "Number of times this device's demod thread found insufficient input data and had to wait. Expected to climb steadily under normal, healthy load -- read as a trend, not an absolute value. A device where this goes flat while buffer_overflow_count climbs indicates the demod thread is CPU-saturated rather than starved for input.",
+  process_cpu_seconds_total: "Total user and system CPU time consumed by this instance's process since it started, in seconds.",
 };
 
 export function deviceMetricTooltip(metric: string): string | undefined {

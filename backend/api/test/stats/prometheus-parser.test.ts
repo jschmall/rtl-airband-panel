@@ -23,6 +23,14 @@ buffer_overflow_count{device="0"}\t0
 # HELP input_overrun_count Number of times mixer input has overrun.
 # TYPE input_overrun_count counter
 input_overrun_count{mixer="0",input="1"}\t3
+
+# HELP buffer_underrun_count Number of times a device's demod loop found insufficient input data.
+# TYPE buffer_underrun_count counter
+buffer_underrun_count{device="0"}\t418
+
+# HELP process_cpu_seconds_total Total user and system CPU time spent by this process, in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total\t12.345678
 `;
 
 describe("parsePrometheusText", () => {
@@ -50,7 +58,17 @@ describe("parsePrometheusText", () => {
   it("ignores # HELP / # TYPE comment lines and blank lines", () => {
     const samples = parsePrometheusText(SAMPLE_STATS_FILE);
     expect(samples.every((s) => !s.metric.startsWith("#"))).toBe(true);
-    expect(samples).toHaveLength(6);
+    expect(samples).toHaveLength(8);
+  });
+
+  it("parses a device-labeled counter (buffer_underrun_count)", () => {
+    const samples = parsePrometheusText(SAMPLE_STATS_FILE);
+    expect(samples).toContainEqual({ metric: "buffer_underrun_count", labels: { device: "0" }, value: 418 });
+  });
+
+  it("parses a label-less, process-wide counter (process_cpu_seconds_total)", () => {
+    const samples = parsePrometheusText(SAMPLE_STATS_FILE);
+    expect(samples).toContainEqual({ metric: "process_cpu_seconds_total", labels: {}, value: 12.345678 });
   });
 
   it("returns an empty array for empty input", () => {

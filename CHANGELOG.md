@@ -5,6 +5,32 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.68] - 2026-08-01
+
+### Added
+
+- **Display support for the two new stats-file metrics added upstream in the
+  `jschmall/RTLSDR-Airband` fork** (`buffer_underrun_count{device}` and the
+  label-less `process_cpu_seconds_total`, commit `3babde1`). The stats
+  pipeline (Prometheus-text parser, SQLite store, `/instances/:name/stats/*`
+  API) is already metric-agnostic, so both flow through unchanged; this adds
+  the presentation-layer pieces that are hand-authored per metric: tile
+  tooltips in `stats-descriptions.ts` explaining what each one means
+  (`buffer_underrun_count` climbs steadily under healthy load and should be
+  read as a trend, not an absolute value -- correlate a flat trend against a
+  climbing `buffer_overflow_count` to spot CPU saturation vs. USB/host
+  starvation), and a `titleCaseMetric()` fix so a `_total`-suffixed metric
+  name renders as "Process Cpu Seconds" instead of literally including
+  "Total". `process_cpu_seconds_total` is also notable as the first
+  label-less (non-device, non-channel) sample the Stats page's device-tile
+  grid renders -- the existing generic rendering path already tolerated this
+  correctly, so no frontend structural change was needed, just a test
+  proving it. Deliberately not added to the landing-page
+  `InstanceHealthOverview` rollup: that table's amber-on-nonzero styling is
+  for problem counters, and `buffer_underrun_count` is expected to be
+  nonzero constantly under normal operation, so it would flag every healthy
+  instance.
+
 ## [0.4.67] - 2026-07-31
 
 ### Added

@@ -1,6 +1,6 @@
-/** "buffer_overflow_count" -> "Buffer Overflow", "channel_squelch_counter" -> "Squelch" */
+/** "buffer_overflow_count" -> "Buffer Overflow", "channel_squelch_counter" -> "Squelch", "process_cpu_seconds_total" -> "Process Cpu Seconds" */
 export function titleCaseMetric(metric: string): string {
-  const stripped = metric.replace(/^channel_/, "").replace(/_(count|counter)$/, "");
+  const stripped = metric.replace(/^channel_/, "").replace(/_(count|counter|total)$/, "");
   return stripped
     .split("_")
     .filter(Boolean)
