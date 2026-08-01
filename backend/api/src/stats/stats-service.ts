@@ -23,6 +23,14 @@ export interface InstanceStatsSummary {
   outputOverrunTotal: number;
   /** Count of input_overrun_count series currently reporting a nonzero value (i.e. mixer inputs actively dropping samples), not a sum of their values. */
   inputsDroppingCount: number;
+  /**
+   * Latest process_cpu_seconds_total value, verbatim (it's already a single
+   * process-wide counter, so there's nothing to sum across). Undefined --
+   * not 0 -- when the instance hasn't reported this metric at all, e.g. a
+   * build predating its addition, so the UI can distinguish "not supported"
+   * from "genuinely idle."
+   */
+  processCpuSeconds?: number;
 }
 
 export class StatsService {
@@ -73,6 +81,7 @@ export class StatsService {
       let bufferOverflowTotal = 0;
       let outputOverrunTotal = 0;
       let inputsDroppingCount = 0;
+      let processCpuSeconds: number | undefined;
       for (const sample of this.statsStore.latest(name)) {
         switch (sample.metric) {
           case "buffer_overflow_count":
@@ -84,9 +93,17 @@ export class StatsService {
           case "input_overrun_count":
             if (sample.value > 0) inputsDroppingCount += 1;
             break;
+          case "process_cpu_seconds_total":
+            processCpuSeconds = sample.value;
+            break;
         }
       }
-      result[name] = { bufferOverflowTotal, outputOverrunTotal, inputsDroppingCount };
+      result[name] = {
+        bufferOverflowTotal,
+        outputOverrunTotal,
+        inputsDroppingCount,
+        ...(processCpuSeconds !== undefined ? { processCpuSeconds } : {}),
+      };
     }
     return result;
   }

@@ -64,7 +64,7 @@ describe("StatsService.latestSummaries", () => {
     expect(summaries["rtl_b"]).toEqual({ bufferOverflowTotal: 0, outputOverrunTotal: 0, inputsDroppingCount: 0 });
   });
 
-  it("ignores metrics that aren't one of the three rollup targets", async () => {
+  it("ignores metrics that aren't one of the rollup targets", async () => {
     await seedFixture(h.instancesDir);
     h.statsStore.insertBatch(
       "rtl_151719",
@@ -74,5 +74,15 @@ describe("StatsService.latestSummaries", () => {
 
     const summaries = await h.statsService.latestSummaries();
     expect(summaries["rtl_151719"]).toEqual({ bufferOverflowTotal: 0, outputOverrunTotal: 0, inputsDroppingCount: 0 });
+  });
+
+  it("reports process_cpu_seconds_total verbatim, and leaves it undefined when unreported", async () => {
+    await seedFixture(h.instancesDir, "rtl_a");
+    await seedFixture(h.instancesDir, "rtl_b");
+    h.statsStore.insertBatch("rtl_a", [{ metric: "process_cpu_seconds_total", labels: {}, value: 187.652341 }], Date.now());
+
+    const summaries = await h.statsService.latestSummaries();
+    expect(summaries["rtl_a"].processCpuSeconds).toBe(187.652341);
+    expect(summaries["rtl_b"].processCpuSeconds).toBeUndefined();
   });
 });

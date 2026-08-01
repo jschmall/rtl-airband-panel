@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.69] - 2026-08-01
+
+### Added
+
+- **CPU (s) column on the landing-page instance health dashboard.** `InstanceHealthOverview`
+  now shows each instance's `process_cpu_seconds_total`, rounded to the nearest hundredth
+  (`formatCpuSeconds()` in `stats-format.ts`), rendered neutral (not amber-highlighted --
+  it's informational, not a problem counter) and as "—" for instances whose build doesn't
+  report it yet.
+
+### Changed
+
+- **Combined `buffer_overflow_count` and `buffer_underrun_count` into one "Buffer Health"
+  tile per device on the per-instance Stats page**, instead of two separate tiles a reader
+  had to mentally correlate -- the two are meant to be read together (see the v0.4.68
+  tooltip note: a device where Underrun goes flat while Overflow climbs signals CPU
+  saturation rather than USB/host starvation). New `BufferHealthTile` component; the
+  combined description lives in `BUFFER_HEALTH_TOOLTIP` (`stats-descriptions.ts`).
+- **Both counters in that tile render compactly** (`formatCompactCount()`, e.g. `48213` ->
+  "48.2K", `1432905` -> "1.4M") with the exact value one hover away via a tooltip
+  (`exactCount()`, thousands-separated). `buffer_underrun_count` in particular is expected
+  to climb continuously under healthy operation (see its tooltip), so on a long-uptime,
+  rarely-restarted instance the raw counter would otherwise grow into an unreadable
+  multi-million-value string.
+
 ## [0.4.68] - 2026-08-01
 
 ### Added

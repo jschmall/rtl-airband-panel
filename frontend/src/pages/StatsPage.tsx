@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
+import { BufferHealthTile } from "../components/stats/BufferHealthTile.js";
 import { MixerStats } from "../components/stats/MixerStats.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
 import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
-import { CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
+import { BUFFER_HEALTH_TOOLTIP, CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
 import { humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
 import { buildMixerLookups, resolveMixerSampleLabel, type MixerLookups } from "../lib/stats-mixer-labels.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
@@ -45,6 +46,35 @@ function discoverChannels(latest: StatSample[]): ChannelOption[] {
     }
   }
   return [...byKey.values()];
+}
+
+interface BufferHealth {
+  device: string;
+  overflow: number | undefined;
+  underrun: number | undefined;
+}
+
+/**
+ * buffer_overflow_count and buffer_underrun_count are always device-labeled
+ * (see input-common.h / rtl_airband.cpp in RTLSDR-Airband) and read together
+ * -- see BUFFER_HEALTH_TOOLTIP -- so they're grouped into one tile per
+ * device instead of rendering through the generic per-sample tile loop.
+ */
+function groupBufferHealth(samples: StatSample[]): BufferHealth[] {
+  const byDevice = new Map<string, BufferHealth>();
+  for (const sample of samples) {
+    if (sample.metric !== "buffer_overflow_count" && sample.metric !== "buffer_underrun_count") continue;
+    const device = sample.labels["device"];
+    if (device === undefined) continue;
+    let entry = byDevice.get(device);
+    if (!entry) {
+      entry = { device, overflow: undefined, underrun: undefined };
+      byDevice.set(device, entry);
+    }
+    if (sample.metric === "buffer_overflow_count") entry.overflow = sample.value;
+    else entry.underrun = sample.value;
+  }
+  return [...byDevice.values()];
 }
 
 function findValue(samples: StatSample[], metric: string): number | undefined {
@@ -93,6 +123,15 @@ export function StatsPage() {
   // section below the chart instead of the device tile grid -- a mixer with a dozen inputs would
   // otherwise dwarf the rest of the page with one tile per input.
   const deviceOnlySamples = useMemo(() => deviceSamples.filter((s) => s.labels["mixer"] === undefined), [deviceSamples]);
+  const bufferHealthByDevice = useMemo(() => groupBufferHealth(deviceOnlySamples), [deviceOnlySamples]);
+  // Everything buffer health already covers is pulled out of the generic tile loop below.
+  const otherDeviceSamples = useMemo(
+    () =>
+      deviceOnlySamples.filter(
+        (s) => !((s.metric === "buffer_overflow_count" || s.metric === "buffer_underrun_count") && s.labels["device"] !== undefined)
+      ),
+    [deviceOnlySamples]
+  );
   const selectedChannel = channels.find((c) => c.key === selectedChannelKey) ?? channels[0];
   const channelSamples = useMemo(
     () => (latest && selectedChannel ? latest.filter((s) => canonicalizeLabels(s.labels) === selectedChannel.key) : []),
@@ -238,7 +277,10 @@ export function StatsPage() {
             <div className="space-y-2">
               <h2 className="text-sm font-medium text-slate-400">Device counters (latest)</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {deviceOnlySamples.map((sample, i) => (
+                {bufferHealthByDevice.map((bh) => (
+                  <BufferHealthTile key={`buffer-health-${bh.device}`} device={bh.device} overflow={bh.overflow} underrun={bh.underrun} tooltip={BUFFER_HEALTH_TOOLTIP} />
+                ))}
+                {otherDeviceSamples.map((sample, i) => (
                   <StatTile
                     key={i}
                     label={titleCaseMetric(sample.metric)}

@@ -3,6 +3,7 @@ import { api, type InstanceStatsSummary } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { AUTO_REFRESH_MS } from "../lib/polling.js";
 import { formatDateTime, formatUptime } from "../lib/time-format.js";
+import { formatCpuSeconds } from "../lib/stats-format.js";
 import { HealthBadge } from "./HealthBadge.js";
 import { GuardedLink } from "./GuardedLink.js";
 
@@ -53,6 +54,7 @@ export function InstanceHealthOverview() {
             <th className="px-3 py-2 font-medium">Active since</th>
             <th className="px-3 py-2 text-right font-medium">Buffer overflows</th>
             <th className="px-3 py-2 text-right font-medium">Output overruns</th>
+            <th className="px-3 py-2 text-right font-medium">CPU (s)</th>
           </tr>
         </thead>
         <tbody>
@@ -77,6 +79,7 @@ export function InstanceHealthOverview() {
                 <td className={`px-3 py-2 text-right tabular-nums ${countClass(summary?.outputOverrunTotal ?? 0)}`}>
                   {summary?.outputOverrunTotal ?? 0}
                 </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-300">{formatCpuSeconds(summary?.processCpuSeconds)}</td>
               </tr>
             );
           })}

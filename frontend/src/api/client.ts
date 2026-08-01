@@ -62,6 +62,8 @@ export interface InstanceStatsSummary {
   bufferOverflowTotal: number;
   outputOverrunTotal: number;
   inputsDroppingCount: number;
+  /** Undefined when the instance's build doesn't report process_cpu_seconds_total. */
+  processCpuSeconds?: number;
 }
 
 export interface HistoryParams {
