@@ -718,7 +718,9 @@ describe("GET /instances/stats-summary", () => {
     await seedFixture(h.instancesDir);
     const res = await app.inject({ method: "GET", url: "/api/instances/stats-summary" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 0, outputOverrunTotal: 0, inputsDroppingCount: 0 } });
+    expect(res.json()).toEqual({
+      [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 0, outputOverrunTotal: 0, inputsDroppingCount: 0, outputFailureTotal: 0 },
+    });
   });
 
   it("rolls up buffer overflow and output overrun totals from the latest poll", async () => {
@@ -734,7 +736,9 @@ describe("GET /instances/stats-summary", () => {
     );
     const res = await app.inject({ method: "GET", url: "/api/instances/stats-summary" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 3, outputOverrunTotal: 2, inputsDroppingCount: 1 } });
+    expect(res.json()).toEqual({
+      [FIXTURE_INSTANCE_NAME]: { bufferOverflowTotal: 3, outputOverrunTotal: 2, inputsDroppingCount: 1, outputFailureTotal: 0 },
+    });
   });
 
   it("returns an empty object when there are no instances", async () => {

@@ -5,6 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.71] - 2026-08-01
+
+### Added
+
+- **Output-failure counters from the RTLSDR-Airband fork's "failure/health
+  counters for every output type" change** (`icecast_disconnect_count`,
+  `icecast_backlog_exceeded_count`, `lame_encode_failure_count`,
+  `file_write_failure_count`, `udp_stream_dropped_packet_count`,
+  `pulse_underflow_count`, `pulse_overflow_count`, `pulse_disconnect_count`,
+  `rdio_scanner_queue_drop_count`, `rdio_scanner_upload_failure_count`) are
+  now recognized throughout the panel. `InstanceStatsSummary` gains a new
+  `outputFailureTotal` field (sum of the actual-failure subset, excluding
+  the backlog-exceeded/underflow/overflow counters that are subsets or
+  expected under normal load) shown as a new **Output failures** column on
+  the landing-page instance health dashboard. Every new metric also has a
+  tooltip on the Stats page.
+
+### Fixed
+
+- **Mixer-attached output counters (icecast/lame/file/udp_stream/pulse) were
+  silently dropped from the Stats page.** Any sample carrying a `mixer`
+  label was routed to `MixerStats` for its own section, but `MixerStats`
+  only recognized `output_overrun_count`/`input_overrun_count` and threw
+  everything else away. Mixer cards now show every other mixer/output
+  counter in their expanded view, plus a collapsed-state failure count.
+- **`StatTile`'s label/sublabel overlapped and wrapped illegibly for
+  device+channel+output-labeled samples** (e.g. `Udp Stream Dropped Packet`
+  paired with `Channel 0, Device 0, Output 1`) -- the fixed-width sublabel
+  forced the label into a narrow column, wrapping every word onto its own
+  line. Surfaced by testing the new output-failure counters, the first
+  metrics to combine a long title with a long device+channel+output
+  sublabel in the generic tile fallback. The top row now wraps the sublabel
+  onto its own line instead of squeezing the label.
+
 ## [0.4.70] - 2026-08-01
 
 ### Changed

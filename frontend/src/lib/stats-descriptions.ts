@@ -20,6 +20,22 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   buffer_underrun_count:
     "Number of times this device's demod thread found insufficient input data and had to wait. Expected to climb steadily under normal, healthy load -- read as a trend, not an absolute value. A device where this goes flat while buffer_overflow_count climbs indicates the demod thread is CPU-saturated rather than starved for input.",
   process_cpu_seconds_total: "Total user and system CPU time consumed by this instance's process since it started, in seconds.",
+  icecast_disconnect_count:
+    "Number of times this icecast output's connection was lost (network error, exceeded send backlog, or the owning device failing) and had to be reconnected.",
+  icecast_backlog_exceeded_count:
+    "Subset of icecast_disconnect_count -- specifically caused by the local encode rate outpacing what Icecast could drain, rather than a network-level error.",
+  lame_encode_failure_count: "Number of times mp3 encoding failed for this output. Only emitted for outputs that encode mp3 (icecast, file).",
+  file_write_failure_count:
+    "Number of times a short or failed write happened on this file/rawfile output (disk full, I/O error). The output is disabled when this happens, so a healthy instance should see this stay at 0.",
+  udp_stream_dropped_packet_count: "Number of packets dropped by this udp_stream output's bounds checks instead of overrunning a buffer.",
+  pulse_underflow_count:
+    "Number of times this PulseAudio output stream underflowed (server drained the buffer faster than we fed it). Expected to increment frequently -- normal on squelch closing.",
+  pulse_overflow_count: "Number of times this PulseAudio output stream overflowed (we fed data faster than the server drained it).",
+  pulse_disconnect_count:
+    "Number of times this PulseAudio output stream's write path (latency check or a failed write) forced a disconnect.",
+  rdio_scanner_queue_drop_count:
+    "Number of completed transmissions dropped because the shared rdio_scanner upload queue was full. Process-wide: every rdio_scanner-configured output shares one upload queue and worker thread.",
+  rdio_scanner_upload_failure_count: "Number of rdio_scanner uploads that failed after exhausting max_retries. Process-wide, same reason as rdio_scanner_queue_drop_count.",
 };
 
 export function deviceMetricTooltip(metric: string): string | undefined {

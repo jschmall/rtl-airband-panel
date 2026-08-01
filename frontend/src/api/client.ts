@@ -62,6 +62,16 @@ export interface InstanceStatsSummary {
   bufferOverflowTotal: number;
   outputOverrunTotal: number;
   inputsDroppingCount: number;
+  /**
+   * Sum of every output-side failure counter (icecast_disconnect_count,
+   * lame_encode_failure_count, file_write_failure_count,
+   * udp_stream_dropped_packet_count, pulse_disconnect_count,
+   * rdio_scanner_queue_drop_count, rdio_scanner_upload_failure_count) across
+   * every device/channel/output and mixer/output series. Excludes
+   * icecast_backlog_exceeded_count (a subset of icecast_disconnect_count) and
+   * pulse_underflow_count/pulse_overflow_count (expected under normal load).
+   */
+  outputFailureTotal: number;
   /** Undefined when the instance's build doesn't report process_cpu_seconds_total. */
   processCpuSeconds?: number;
 }
