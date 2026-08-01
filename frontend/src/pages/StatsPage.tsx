@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
 import { BufferHealthTile } from "../components/stats/BufferHealthTile.js";
-import { MixerStats } from "../components/stats/MixerStats.js";
+import { isOutputCounterSample, OutputStats } from "../components/stats/OutputStats.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
@@ -124,11 +124,13 @@ export function StatsPage() {
   // otherwise dwarf the rest of the page with one tile per input.
   const deviceOnlySamples = useMemo(() => deviceSamples.filter((s) => s.labels["mixer"] === undefined), [deviceSamples]);
   const bufferHealthByDevice = useMemo(() => groupBufferHealth(deviceOnlySamples), [deviceOnlySamples]);
-  // Everything buffer health already covers is pulled out of the generic tile loop below.
+  // Everything buffer health and OutputStats already cover is pulled out of the generic tile loop below.
   const otherDeviceSamples = useMemo(
     () =>
       deviceOnlySamples.filter(
-        (s) => !((s.metric === "buffer_overflow_count" || s.metric === "buffer_underrun_count") && s.labels["device"] !== undefined)
+        (s) =>
+          !((s.metric === "buffer_overflow_count" || s.metric === "buffer_underrun_count") && s.labels["device"] !== undefined) &&
+          !isOutputCounterSample(s)
       ),
     [deviceOnlySamples]
   );
@@ -316,7 +318,7 @@ export function StatsPage() {
 
             <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
 
-            <MixerStats samples={deviceSamples} mixerLookups={mixerLookups} />
+            <OutputStats samples={deviceSamples} mixerLookups={mixerLookups} />
 
             {(squelchOpens !== undefined || flappyCount !== undefined || ctcssTotal !== undefined) && (
               <div className="space-y-2">

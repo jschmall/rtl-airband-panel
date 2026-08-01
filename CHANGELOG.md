@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.72] - 2026-08-01
+
+### Fixed
+
+- **Stats page showed a flood of tiles, one per channel per output-failure
+  metric.** v0.4.71 gave `output_overrun_count`/output-failure counters a
+  collapsed per-mixer card when labeled `{mixer, output}`, but the
+  `{device, channel, output}`-labeled variant (a channel's own
+  icecast/file/lame/udp_stream/pulse output with no mixer involved) still
+  fell through to the generic flat `StatTile` grid -- with several channels
+  each reporting several of these counters, that grid exploded into dozens
+  of tiles. `MixerStats` is renamed `OutputStats` and now groups all three
+  shapes (mixer, device+channel, and the label-less process-wide
+  `rdio_scanner_*` counters) into the same collapsed-by-default,
+  expand-for-detail cards, so the Stats page scales with channel count
+  again instead of channel count × metric count.
+
 ## [0.4.71] - 2026-08-01
 
 ### Added
