@@ -19,16 +19,18 @@ interface BufferHealthTileProps {
 export function BufferHealthTile({ device, overflow, underrun, tooltip }: BufferHealthTileProps) {
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-      <p className="text-xs text-slate-400">
-        <Tooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
-          Buffer Health
-        </Tooltip>
-      </p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs text-slate-400">
+          <Tooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
+            Buffer Health
+          </Tooltip>
+        </p>
+        <p className="shrink-0 text-xs text-slate-400">Device {device}</p>
+      </div>
       <div className="mt-1 space-y-1">
         <BufferHealthRow label="Overflow" value={overflow} />
         <BufferHealthRow label="Underrun" value={underrun} />
       </div>
-      <p className="text-xs text-slate-400">Device {device}</p>
     </div>
   );
 }

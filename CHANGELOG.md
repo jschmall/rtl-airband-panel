@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.70] - 2026-08-01
+
+### Changed
+
+- **Device-counter tile layout on the Stats page.** `StatTile` and
+  `BufferHealthTile` now put the device/mixer sublabel (e.g. "Device 0") on
+  the same top row as the stat name instead of below the value, freeing the
+  bottom of the tile for the number itself.
+- **`process_cpu_seconds_total` is now rounded to the nearest hundredth on
+  the Stats page** (`formatCpuSeconds()`, already used for the same metric
+  on the landing-page dashboard since v0.4.69), instead of showing the raw
+  unrounded value.
+
 ## [0.4.69] - 2026-08-01
 
 ### Added

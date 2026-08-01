@@ -8,7 +8,7 @@ import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
 import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
 import { BUFFER_HEALTH_TOOLTIP, CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
-import { humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
+import { formatCpuSeconds, humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
 import { buildMixerLookups, resolveMixerSampleLabel, type MixerLookups } from "../lib/stats-mixer-labels.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
@@ -284,7 +284,7 @@ export function StatsPage() {
                   <StatTile
                     key={i}
                     label={titleCaseMetric(sample.metric)}
-                    value={sample.value}
+                    value={sample.metric === "process_cpu_seconds_total" ? formatCpuSeconds(sample.value) : sample.value}
                     sublabel={resolveMixerSampleLabel(sample.metric, sample.labels, mixerLookups) ?? humanizeLabels(sample.labels)}
                     tooltip={deviceMetricTooltip(sample.metric)}
                   />
