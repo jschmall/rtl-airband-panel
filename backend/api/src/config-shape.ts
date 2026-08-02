@@ -181,6 +181,8 @@ export function parseRtlAirbandConfigBody(input: unknown, path = "$"): RtlAirban
   if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
   const rdioScannerQueueDepth = optionalNumber(obj, "rdio_scanner_queue_depth", path);
   if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
+  const controlSocketPath = optionalString(obj, "control_socket_path", path);
+  if (controlSocketPath !== undefined) config.control_socket_path = controlSocketPath;
   const mixers = optionalArray(obj, "mixers", path);
   if (mixers !== undefined) {
     config.mixers = mixers.map((m, i) => parseMixer(m, `${path}.mixers[${i}]`));
@@ -277,6 +279,8 @@ function parseMultichannelChannel(obj: Record<string, unknown>, path: string): M
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -315,6 +319,8 @@ function parseScanChannel(obj: Record<string, unknown>, path: string): ScanChann
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -332,6 +338,8 @@ function parseMixer(input: unknown, path: string): Mixer {
   };
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) mixer.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) mixer.enabled = enabled;
   const highpass = optionalNumber(obj, "highpass", path);
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(obj, "lowpass", path);

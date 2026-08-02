@@ -46,6 +46,7 @@ export function MixerEditor({
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
+          <BoolField label="Enabled" tooltip={MIXER_TOOLTIPS.enabled} checked={mixer.enabled ?? true} onChange={(v) => onChange({ ...mixer, enabled: v })} />
           <button type="button" onClick={onDuplicate} className={addButtonClass}>
             Duplicate mixer
           </button>

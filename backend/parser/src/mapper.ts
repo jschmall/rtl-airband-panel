@@ -80,6 +80,8 @@ export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
   const rdioScannerQueueDepth = optionalNumber(root, "rdio_scanner_queue_depth", path);
   if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
+  const controlSocketPath = optionalString(root, "control_socket_path", path);
+  if (controlSocketPath !== undefined) config.control_socket_path = controlSocketPath;
 
   const mixersSetting = findSetting(root, "mixers");
   if (mixersSetting) {
@@ -187,6 +189,8 @@ function toMultichannelChannel(g: GroupNode, path: string): MultichannelChannel 
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -227,6 +231,8 @@ function toScanChannel(g: GroupNode, path: string): ScanChannel {
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -249,6 +255,8 @@ function toMixer(g: GroupNode, name: string, path: string): Mixer {
   };
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) mixer.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) mixer.enabled = enabled;
   const highpass = optionalNumber(g, "highpass", path);
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(g, "lowpass", path);
@@ -461,6 +469,7 @@ export function fromDomain(config: RtlAirbandConfig): ConfigFile {
   if (config.rdio_scanner_queue_depth !== undefined) {
     members.push(numberSetting("rdio_scanner_queue_depth", config.rdio_scanner_queue_depth, "int"));
   }
+  if (config.control_socket_path !== undefined) members.push(stringSetting("control_socket_path", config.control_socket_path));
   members.push(setting("devices", listNode(config.devices.map(deviceFromDomain))));
   if (config.mixers !== undefined) {
     members.push(setting("mixers", group(config.mixers.map(mixerFromDomain))));
@@ -512,6 +521,7 @@ function multichannelChannelFromDomain(channel: MultichannelChannel): GroupNode 
     members.push(numberSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "int"));
   }
   if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
+  if (channel.enabled !== undefined) members.push(boolSetting("enabled", channel.enabled));
   members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
   return group(members);
 }
@@ -537,6 +547,7 @@ function scanChannelFromDomain(channel: ScanChannel): GroupNode {
     members.push(numberOrListSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "float"));
   }
   if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
+  if (channel.enabled !== undefined) members.push(boolSetting("enabled", channel.enabled));
   members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
   return group(members);
 }
@@ -544,6 +555,7 @@ function scanChannelFromDomain(channel: ScanChannel): GroupNode {
 function mixerFromDomain(mixer: Mixer): SettingNode {
   const members: SettingNode[] = [];
   if (mixer.disable !== undefined) members.push(boolSetting("disable", mixer.disable));
+  if (mixer.enabled !== undefined) members.push(boolSetting("enabled", mixer.enabled));
   if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
   if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
   members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));

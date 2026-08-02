@@ -58,6 +58,15 @@ export interface RtlAirbandConfig {
    * with -DRDIO_SCANNER=ON.
    */
   rdio_scanner_queue_depth?: number;
+  /**
+   * Path to a Unix domain socket the process listens on for live
+   * retune/reconfiguration commands (JSON-lines protocol), instead of
+   * requiring a full restart for every config change. Fork-only; requires
+   * RTLSDR-Airband built from jschmall/RTLSDR-Airband's `dynamic_reload`
+   * branch specifically — not available on `main`/upstream, and not
+   * available on other jschmall/RTLSDR-Airband builds either.
+   */
+  control_socket_path?: string;
   devices: Device[];
   mixers?: Mixer[];
 }
@@ -127,6 +136,16 @@ export interface MultichannelChannel {
   squelch_snr_threshold?: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this channel entirely, as if it weren't configured. */
   disable?: boolean;
+  /**
+   * RTLSDR-Airband defaults to true when absent. Distinct from `disable`:
+   * `disable` skips allocating this channel entirely at parse time
+   * (permanent for the process's lifetime), while `enabled = false` still
+   * allocates it but starts it live-off, so the `dynamic_reload` control
+   * socket's `reload_diff`/`channel_enable` commands can flip it on later
+   * with no restart. Fork-only (`dynamic_reload` branch) — see
+   * `control_socket_path`.
+   */
+  enabled?: boolean;
   outputs: Output[];
 }
 
@@ -178,6 +197,8 @@ export interface ScanChannel {
   squelch_snr_threshold?: number | number[];
   /** RTLSDR-Airband defaults to false when absent. Ignores this channel entirely, as if it weren't configured. */
   disable?: boolean;
+  /** Same meaning as MultichannelChannel's `enabled` — see there. */
+  enabled?: boolean;
   outputs: Output[];
 }
 
@@ -186,6 +207,8 @@ export interface Mixer {
   name: string;
   /** RTLSDR-Airband defaults to false when absent. Ignores this mixer entirely, as if it weren't configured. */
   disable?: boolean;
+  /** Same meaning as MultichannelChannel's `enabled` — see there. */
+  enabled?: boolean;
   /** MP3 highpass filter cutoff, Hz, applied to the mixed output. 0 disables it. */
   highpass?: number;
   /** MP3 lowpass filter cutoff, Hz, applied to the mixed output. 0 disables it. */

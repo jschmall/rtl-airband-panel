@@ -8,6 +8,7 @@ import { PendingRestartStore } from "./pending-restart-store.js";
 import { InstanceOptionsStore } from "./instance-options-store.js";
 import { MockSystemdAdapter } from "./systemd/mock-adapter.js";
 import { SudoSystemctlAdapter } from "./systemd/sudo-adapter.js";
+import { UnixControlSocketClient } from "./control-socket/unix-client.js";
 import { StatsStore } from "./stats/store.js";
 import { StatsPoller } from "./stats/poller.js";
 import { StatsService } from "./stats/stats-service.js";
@@ -62,10 +63,15 @@ try {
 }
 const pendingRestartStore = new PendingRestartStore(config.instancesDir);
 const instanceOptionsStore = new InstanceOptionsStore(config.instancesDir);
-const service = new InstanceService(configStore, systemd, pendingRestartStore, instanceOptionsStore, {
-  instancesDir: config.instancesDir,
-  rtlAirbandBinary: config.rtlAirbandBinary,
-});
+const controlSocketClient = new UnixControlSocketClient(config.controlSocketTimeoutMs);
+const service = new InstanceService(
+  configStore,
+  systemd,
+  pendingRestartStore,
+  instanceOptionsStore,
+  { instancesDir: config.instancesDir, rtlAirbandBinary: config.rtlAirbandBinary },
+  controlSocketClient
+);
 
 const statsStore = new StatsStore(config.statsDbPath);
 // Shared between the poller (which records) and StatsService (which exposes it via

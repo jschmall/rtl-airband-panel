@@ -23,6 +23,8 @@ export const GLOBAL_TOOLTIPS = {
     "TCP port for the stats HTTP endpoint, 1-65535. Must be set together with Stats HTTP address. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
   rdioScannerQueueDepth:
     "Maximum number of pending rdio-scanner uploads queued before new ones are dropped. Defaults to 64 when unset. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband with -DRDIO_SCANNER=ON.",
+  controlSocketPath:
+    "Path to a Unix domain socket the process listens on for live retune/reconfiguration commands, so some config changes can be applied without a full restart (see the 'Apply live' button once this is set and saved). Setting this field itself still requires a restart of this instance to take effect — a not-yet-listening process obviously can't be told to start listening over the very socket it isn't listening on yet. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch specifically — not available in upstream RTLSDR-Airband or other jschmall/RTLSDR-Airband builds.",
 } as const;
 
 export const INSTANCE_OPTIONS_TOOLTIPS = {
@@ -71,6 +73,8 @@ export const CHANNEL_TOOLTIPS = {
   lowpass: "MP3 encoder lowpass filter cutoff, in Hz. Cuts high-frequency hiss from the encoded audio. 0 disables it.",
   tauChannel: "Overrides the device/global NFM de-emphasis time constant for this specific channel. Leave blank to fall back to the device's Tau, or the global Tau if the device doesn't set one either.",
   disable: "Ignores this channel entirely, as if it weren't in the config at all. The device it belongs to still needs at least one other non-disabled channel.",
+  enabled:
+    "Starts this channel live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a channel in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;
 
 export const OUTPUT_TOOLTIPS = {
@@ -128,4 +132,6 @@ export const MIXER_TOOLTIPS = {
   highpass: "MP3 encoder highpass filter cutoff, in Hz, applied to the mixed-down audio. 0 disables it.",
   lowpass: "MP3 encoder lowpass filter cutoff, in Hz, applied to the mixed-down audio. 0 disables it.",
   disable: "Ignores this mixer entirely, as if it weren't configured. Any channel output still pointed at it will fail validation.",
+  enabled:
+    "Starts this mixer live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a mixer in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;

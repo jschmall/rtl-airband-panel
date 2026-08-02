@@ -426,10 +426,15 @@ describe("new multichannel channel fields", () => {
     expect(roundTripDomain(domain)).toEqual(domain);
   });
 
+  it("round-trips enabled: false, distinct from disable", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000, enabled: false });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
   it("omits new optional fields entirely when absent", () => {
     const domain = minimalMultichannelConfig({ freq: 100_000_000 });
     const text = serializeConfigFile(domain);
-    expect(text).not.toMatch(/squelch_threshold|notch_q|highpass|lowpass|\btau\b|disable|label/);
+    expect(text).not.toMatch(/squelch_threshold|notch_q|highpass|lowpass|\btau\b|disable|label|\benabled\b/);
   });
 });
 
@@ -503,6 +508,15 @@ describe("scan mode channels", () => {
       notch: 136.5,
       notch_q: 12.0,
       bandwidth: 8000,
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips enabled: false on a scan-mode channel, distinct from disable", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000],
+      enabled: false,
       outputs: [{ type: "pulse" }],
     });
     expect(roundTripDomain(domain)).toEqual(domain);
@@ -613,6 +627,18 @@ describe("global settings", () => {
     expect(text).not.toContain("stats_http_port");
     expect(text).not.toContain("rdio_scanner_queue_depth");
   });
+
+  it("round-trips control_socket_path", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.control_socket_path = "/run/rtl-airband/instance.sock";
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("omits control_socket_path from the serialized .conf when absent", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    const text = serializeConfigFile(domain);
+    expect(text).not.toContain("control_socket_path");
+  });
 });
 
 describe("mixers", () => {
@@ -620,6 +646,7 @@ describe("mixers", () => {
     const mixer: Mixer = {
       name: "mix1",
       disable: false,
+      enabled: false,
       highpass: 200,
       lowpass: 3000,
       outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
@@ -668,6 +695,7 @@ describe("fork-features fixture", () => {
     expect(domain.stats_http_address).toBe("127.0.0.1");
     expect(domain.stats_http_port).toBe(9091);
     expect(domain.rdio_scanner_queue_depth).toBe(128);
+    expect(domain.control_socket_path).toBe("/run/rtl-airband/fork-features.sock");
     expect(domain.mixers).toHaveLength(1);
 
     const channels = domain.devices[0]!.channels;
@@ -680,8 +708,11 @@ describe("fork-features fixture", () => {
     expect(udpOutput.bit_depth).toBe(16);
     expect(udpOutput.sample_rate).toBe(8000);
 
+    expect(channels[1]!.enabled).toBe(false);
+
     const mixer = domain.mixers![0]!;
     expect(mixer.name).toBe("fork_mix");
+    expect(mixer.enabled).toBe(false);
     const mixerOutput = mixer.outputs[0]!;
     if (mixerOutput.type !== "udp_stream") throw new Error("expected udp_stream mixer output");
     expect(mixerOutput.bit_depth).toBe(8);

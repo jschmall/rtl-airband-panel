@@ -7,9 +7,11 @@ import type { Channel, Device, Mixer, RtlAirbandConfig, ScanChannel } from "@rtl
 import {
   checkAmpfactor,
   checkBinCollisions,
+  checkControlSocketPath,
   checkCtcssTones,
   checkDeviceRequirements,
   checkDisableCascade,
+  checkEnabledDisableRedundant,
   checkFftSize,
   checkFileOutputFlags,
   checkFilterCutoffs,
@@ -717,6 +719,17 @@ describe("checkDisableCascade", () => {
     const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", disable: true }], disable: true };
     expect(checkDisableCascade(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
   });
+
+  it("does not treat enabled: false as disabled -- a live-off channel is still allocated and must still count as active", () => {
+    const device = makeDevice([makeChannel(100_000_000, { enabled: false })]);
+    expect(checkDisableCascade(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not treat enabled: false as disabled on a mixer either", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], enabled: false };
+    expect(checkDisableCascade(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
+  });
 });
 
 describe("checkFftSize", () => {
@@ -1015,6 +1028,49 @@ describe("checkStatsHttp", () => {
   it.each([0, -1, 65536])("errors when stats_http_port %d is out of range", (stats_http_port) => {
     const issues = checkStatsHttp(makeConfig([], { stats_http_address: "127.0.0.1", stats_http_port }));
     expect(issues.some((i) => i.code === "stats-http-port-out-of-range")).toBe(true);
+  });
+});
+
+describe("checkControlSocketPath", () => {
+  it("does not flag a config with no control_socket_path set", () => {
+    expect(checkControlSocketPath(makeConfig([]))).toEqual([]);
+  });
+
+  it("does not flag a non-empty path", () => {
+    expect(checkControlSocketPath(makeConfig([], { control_socket_path: "/run/rtl-airband/inst.sock" }))).toEqual([]);
+  });
+
+  it.each(["", "   "])("errors when control_socket_path is %j", (control_socket_path) => {
+    const issues = checkControlSocketPath(makeConfig([], { control_socket_path }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "control-socket-path-empty" });
+  });
+});
+
+describe("checkEnabledDisableRedundant", () => {
+  it("does not flag a channel with only disable set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { disable: true })]);
+    expect(checkEnabledDisableRedundant(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a channel with only enabled: false set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { enabled: false })]);
+    expect(checkEnabledDisableRedundant(makeConfig([device]))).toEqual([]);
+  });
+
+  it("warns when a channel has both disable: true and enabled: false", () => {
+    const device = makeDevice([makeChannel(100_000_000, { disable: true, enabled: false })]);
+    const issues = checkEnabledDisableRedundant(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "enabled-false-with-disable", path: "$.devices[0].channels[0]" });
+  });
+
+  it("warns when a mixer has both disable: true and enabled: false", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], disable: true, enabled: false };
+    const issues = checkEnabledDisableRedundant(makeConfig([device], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "enabled-false-with-disable", path: "$.mixers[0]" });
   });
 });
 

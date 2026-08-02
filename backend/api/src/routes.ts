@@ -178,6 +178,30 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     }
   );
 
+  // Separate from PUT's own restart-boolean query param rather than a third
+  // value for it, so PUT's WriteResult response contract stays stable
+  // regardless of query value -- this returns the differently-shaped
+  // ApplyLiveResult instead. Mirrors POST .../restart's relationship to
+  // PUT's restart:true — a dedicated action endpoint alongside the generic save.
+  app.post<{ Params: { name: string } }>("/instances/:name/apply-live", MUTATING_ROUTE_OPTS, async (request) => {
+    const config = parseRtlAirbandConfigBody(request.body);
+    const ifMatchHeader = request.headers["if-match"];
+    const ifMatch = typeof ifMatchHeader === "string" ? { ifMatch: ifMatchHeader } : {};
+    try {
+      const result = await service.applyConfigLive(request.params.name, config, ifMatch);
+      auditLog(request, "apply-live", request.params.name, "success", {
+        attempted: result.liveApply.attempted,
+        ...(result.liveApply.attempted
+          ? { applied: result.liveApply.applied.length, skipped: result.liveApply.skippedRequiresRestart.length }
+          : { reason: result.liveApply.reason }),
+      });
+      return result;
+    } catch (err) {
+      auditLog(request, "apply-live", request.params.name, "failure", { error: errorMessage(err) });
+      throw err;
+    }
+  });
+
   app.patch<{ Params: { name: string } }>("/instances/:name/options", MUTATING_ROUTE_OPTS, async (request) => {
     const patch = extractInstanceOptionsPatch(request.body);
     try {

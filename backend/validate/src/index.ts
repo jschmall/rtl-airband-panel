@@ -18,6 +18,8 @@ import { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 import { checkPostWriteScript } from "./checks/post-write-script.js";
 import { checkStatsHttp } from "./checks/stats-http.js";
+import { checkControlSocketPath } from "./checks/control-socket.js";
+import { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -45,6 +47,8 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkMixerOutputBalance(config),
     ...checkPostWriteScript(config),
     ...checkStatsHttp(config),
+    ...checkControlSocketPath(config),
+    ...checkEnabledDisableRedundant(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -75,3 +79,5 @@ export { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 export { checkPostWriteScript } from "./checks/post-write-script.js";
 export { checkStatsHttp } from "./checks/stats-http.js";
+export { checkControlSocketPath } from "./checks/control-socket.js";
+export { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";

@@ -41,6 +41,18 @@ export interface WriteResult {
   version: string;
 }
 
+/** Outcome of a dynamic_reload `reload_diff` attempt -- see InstanceService.applyConfigLive on the backend. */
+export type LiveApplyOutcome =
+  | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
+  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error"; detail?: string };
+
+export interface ApplyLiveResult {
+  warnings: ValidationIssue[];
+  status: UnitStatus;
+  version: string;
+  liveApply: LiveApplyOutcome;
+}
+
 export interface ConfigWithVersion {
   config: RtlAirbandConfig;
   /** Identifies this exact on-disk content; null if the server didn't send one (e.g. an older server). Pass to updateConfig's `ifMatch` to detect a conflicting edit. */
@@ -149,6 +161,14 @@ export const api = {
   updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {
       method: "PUT",
+      body: JSON.stringify(config),
+      headers: options.ifMatch !== undefined ? { "If-Match": options.ifMatch } : undefined,
+    }),
+
+  /** Writes the config, then asks the running process to live-apply whatever it safely can via its dynamic_reload control socket, instead of restarting. Only meaningful when the config has control_socket_path set. */
+  applyConfigLive: (name: string, config: RtlAirbandConfig, options: { ifMatch?: string } = {}): Promise<ApplyLiveResult> =>
+    request(`/instances/${encodeURIComponent(name)}/apply-live`, {
+      method: "POST",
       body: JSON.stringify(config),
       headers: options.ifMatch !== undefined ? { "If-Match": options.ifMatch } : undefined,
     }),

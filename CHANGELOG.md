@@ -5,6 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.73] - 2026-08-02
+
+### Added
+
+- **`dynamic_reload` branch: initial support for the RTLSDR-Airband fork's live
+  retune/reconfiguration control socket, via its `reload_diff` command.** The
+  fork's `dynamic_reload` branch adds a same-host-only Unix domain control
+  socket (gated behind a new `control_socket_path` config option) so a running
+  instance can pick up some config changes without a full systemd restart.
+  This is a **separate long-lived branch, not merged to `master`** — the fork
+  feature itself isn't upstream yet, and the socket protocol is not something
+  older/non-fork rtl_airband builds understand.
+  - New `control_socket_path` top-level config field, and a new per-channel/
+    per-mixer `enabled` field (distinct from the existing `disable`: `disable`
+    permanently skips allocating the channel/mixer, `enabled = false` still
+    allocates it but starts it live-off so it can be toggled on later without
+    a restart). Both round-trip through the parser and are editable in the UI.
+  - New `POST /instances/:name/apply-live` endpoint and matching **Apply
+    live** button (shown only when the instance's saved config has
+    `control_socket_path` set): writes the config, then asks the running
+    process's control socket to live-apply whatever it safely can via
+    `reload_diff`, reporting back what applied vs. what still needs a restart.
+    Falls back gracefully (saves to disk, same as a restart-free save) if the
+    socket is unreachable or the running process doesn't support it.
+  - New `backend/api/src/control-socket/` module (`UnixControlSocketClient`)
+    speaks the fork's newline-delimited JSON wire protocol directly; no
+    privileged proxy needed since the panel's backend runs as the same uid as
+    the rtl_airband instances it manages.
+  - Deliberately out of scope for this branch: the control socket's other five
+    commands (`retune`, `set_gain`, `set_bandwidth`, `channel_enable`/
+    `channel_disable`, `mixer_enable`/`mixer_disable`) and any granular
+    per-field live-control UI — only the coarser `reload_diff` path is wired
+    up for now.
+
 ## [0.4.72] - 2026-08-01
 
 ### Fixed
