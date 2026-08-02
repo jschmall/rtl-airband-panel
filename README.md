@@ -63,6 +63,50 @@ them, with validation before anything is written to disk.
   overrun counters, mixer stats
 - A `/metrics` endpoint in Prometheus format
 
+## 🧪 `dynamic_reload` branch — live apply without a restart
+
+This branch (not yet merged to `master`) adds initial support for the
+[`dynamic_reload`](https://github.com/jschmall/RTLSDR-Airband/tree/dynamic_reload)
+branch of the RTLSDR-Airband fork noted under [Features](#features) above,
+which gives a running instance a Unix domain control socket for live
+retune/reconfiguration — so some config changes can take effect without the
+full restart cycle every change currently requires. Kept off `master`
+deliberately: the fork feature itself is still soaking on a test instance
+before being considered for the fork's own `main`, and older or non-fork
+`rtl_airband` builds don't understand the protocol at all.
+
+What's here:
+
+- **`control_socket_path`** (new top-level config field) — set this to the
+  same Unix domain socket path the RTLSDR-Airband process is configured to
+  listen on, and the panel gains a new **Apply live** button (next to Save
+  and Save-and-restart) that saves the config, then asks the running
+  process to live-apply whatever it safely can instead of restarting —
+  reporting back exactly what applied and what still needs a restart
+  (device/channel/mixer count changes, sample rate, driver type, etc.
+  always do).
+- **`enabled` field** on channels and mixers — distinct from the existing
+  `disable`: `disable` permanently skips allocating that channel/mixer at
+  parse time, while `enabled = false` still allocates it but starts it
+  live-off, so it can be flipped on later via the control socket with no
+  restart.
+- Talks to the socket directly (`backend/api/src/control-socket/`) — no
+  proxy or elevated privileges needed, since the panel's backend process
+  and the `rtl_airband` instances it manages run as the same system user.
+
+What's not here yet: the control socket also exposes `retune`, `set_gain`,
+`set_bandwidth`, `channel_enable`/`channel_disable`, and
+`mixer_enable`/`mixer_disable` as individual live-control commands — this
+branch only wires up the coarser `reload_diff` command (re-reads the
+`.conf` file on disk and live-applies whatever it can), not per-field live
+controls. See
+[issue #4](https://github.com/jschmall/rtl-airband-panel/issues/4) for a
+known follow-up (page-level test coverage for the Apply live button).
+
+**Requires** an RTLSDR-Airband build from the fork's `dynamic_reload`
+branch specifically — this won't work against upstream RTLSDR-Airband, nor
+against other jschmall/RTLSDR-Airband builds that predate this feature.
+
 ## Screenshots
 
 The instance list, with the cross-instance search bar in the header and

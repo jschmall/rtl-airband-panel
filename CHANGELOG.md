@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.74] - 2026-08-02
+
+### Added
+
+- **README section documenting this branch's `dynamic_reload` integration.**
+  A new top-level "🧪 `dynamic_reload` branch" section explains the
+  `control_socket_path`/`enabled` config fields, the new Apply live button,
+  what's deliberately out of scope (the control socket's five other
+  live-control commands), and that this branch requires an RTLSDR-Airband
+  build from the fork's `dynamic_reload` branch specifically.
+
 ## [0.4.73] - 2026-08-02
 
 ### Added
