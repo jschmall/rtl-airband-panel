@@ -562,6 +562,12 @@ function IcecastFields({
         checked={output.send_scan_freq_tags}
         onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
       />
+      <BoolField
+        label="Send tx tags"
+        tooltip={OUTPUT_TOOLTIPS.sendTxTags}
+        checked={output.send_tx_tags}
+        onChange={(v) => onChange({ ...output, send_tx_tags: v })}
+      />
     </div>
   );
 }

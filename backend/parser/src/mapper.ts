@@ -384,6 +384,8 @@ function toIcecastOutput(g: GroupNode, path: string): IcecastOutput {
   if (description !== undefined) out.description = description;
   const sendScanFreqTags = optionalBool(g, "send_scan_freq_tags", path);
   if (sendScanFreqTags !== undefined) out.send_scan_freq_tags = sendScanFreqTags;
+  const sendTxTags = optionalBool(g, "send_tx_tags", path);
+  if (sendTxTags !== undefined) out.send_tx_tags = sendTxTags;
   const tls = optionalString(g, "tls", path);
   if (tls !== undefined) {
     if (!(TLS_MODES as readonly string[]).includes(tls)) {
@@ -651,6 +653,7 @@ function icecastOutputToAst(output: IcecastOutput): GroupNode {
   if (output.genre !== undefined) members.push(stringSetting("genre", output.genre));
   if (output.description !== undefined) members.push(stringSetting("description", output.description));
   if (output.send_scan_freq_tags !== undefined) members.push(boolSetting("send_scan_freq_tags", output.send_scan_freq_tags));
+  if (output.send_tx_tags !== undefined) members.push(boolSetting("send_tx_tags", output.send_tx_tags));
   if (output.tls !== undefined) members.push(stringSetting("tls", output.tls));
   appendDisable(members, output);
   return group(members);

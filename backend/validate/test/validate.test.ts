@@ -23,6 +23,7 @@ import {
   checkPostWriteScript,
   checkRdioScanner,
   checkScanMode,
+  checkSendTxTags,
   checkShoutMetadataDelay,
   checkSquelchMutualExclusion,
   checkSquelchSnrThreshold,
@@ -668,6 +669,48 @@ describe("checkRdioScanner", () => {
 
   it("does not flag a positive rdio_scanner_queue_depth", () => {
     expect(checkRdioScanner(makeConfig([], { rdio_scanner_queue_depth: 128 }))).toEqual([]);
+  });
+});
+
+describe("checkSendTxTags", () => {
+  it("errors when send_tx_tags is set on a scan-mode device's channel", () => {
+    const scanChannel: ScanChannel = {
+      freqs: [100_000_000],
+      outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p", send_tx_tags: true }],
+    };
+    const device = makeDevice([scanChannel], { mode: "scan" });
+    const issues = checkSendTxTags(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "send-tx-tags-not-supported-on-scan-mode" });
+  });
+
+  it("does not flag send_tx_tags on a multichannel-mode device's channel", () => {
+    const device = makeDevice(
+      [
+        makeChannel(100_000_000, {
+          outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p", send_tx_tags: true }],
+        }),
+      ],
+      { mode: "multichannel" }
+    );
+    expect(checkSendTxTags(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag send_tx_tags on a mixer output even though mixers have no scan-mode concept", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p", send_tx_tags: true }],
+    };
+    expect(checkSendTxTags(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("does not flag a scan-mode device's channel when send_tx_tags is unset", () => {
+    const scanChannel: ScanChannel = {
+      freqs: [100_000_000],
+      outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
+    };
+    const device = makeDevice([scanChannel], { mode: "scan" });
+    expect(checkSendTxTags(makeConfig([device]))).toEqual([]);
   });
 });
 
