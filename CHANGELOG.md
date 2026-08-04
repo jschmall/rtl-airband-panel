@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.78] - 2026-08-04
+
+### Changed
+
+- **Icecast output form layout.** "Send tx tags" now sits to the left of
+  "Send scan freq tags", and both checkboxes are grouped in the same row
+  as the TLS dropdown (vertically centered against it) instead of
+  "Send tx tags" falling into its own row below. Purely visual — no
+  effect on the underlying config or validation.
+
 ## [0.4.76] - 2026-08-04
 
 _Note: v0.4.73–v0.4.75 are used by the separate `dynamic_reload` branch

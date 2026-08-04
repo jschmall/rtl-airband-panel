@@ -556,18 +556,20 @@ function IcecastFields({
           ))}
         </select>
       </Field>
-      <BoolField
-        label="Send scan freq tags"
-        tooltip={OUTPUT_TOOLTIPS.sendScanFreqTags}
-        checked={output.send_scan_freq_tags}
-        onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
-      />
-      <BoolField
-        label="Send tx tags"
-        tooltip={OUTPUT_TOOLTIPS.sendTxTags}
-        checked={output.send_tx_tags}
-        onChange={(v) => onChange({ ...output, send_tx_tags: v })}
-      />
+      <div className="flex items-center gap-3">
+        <BoolField
+          label="Send tx tags"
+          tooltip={OUTPUT_TOOLTIPS.sendTxTags}
+          checked={output.send_tx_tags}
+          onChange={(v) => onChange({ ...output, send_tx_tags: v })}
+        />
+        <BoolField
+          label="Send scan freq tags"
+          tooltip={OUTPUT_TOOLTIPS.sendScanFreqTags}
+          checked={output.send_scan_freq_tags}
+          onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
+        />
+      </div>
     </div>
   );
 }
