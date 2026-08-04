@@ -5,7 +5,11 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
-## [0.4.73] - 2026-08-04
+## [0.4.76] - 2026-08-04
+
+_Note: v0.4.73–v0.4.75 are used by the separate `dynamic_reload` branch
+(not merged to `master`); this branch's version jumps from 0.4.72 to
+0.4.76 to keep `vX.Y.Z` tags globally unique across both lines._
 
 ### Added
 
