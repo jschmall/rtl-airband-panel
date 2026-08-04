@@ -212,7 +212,7 @@ export function InstanceEditPage() {
     if (!name || !config || pendingAction) return;
     if (
       !window.confirm(
-        `Apply changes to '${name}' live? This saves the config and asks the running process to pick up whatever it can without restarting (retune, gain, channel/mixer on/off). Some changes (device/channel/mixer count, sample rate, driver type, etc.) always require a restart regardless.`
+        `Apply changes to '${name}' live? This saves the config and asks the running process to pick up whatever it can without restarting (retune, gain, channel/mixer on/off, and appending new channels within a device's reserved headroom). Some changes (device/mixer count, sample rate, driver type, reordering or removing channels, etc.) always require a restart regardless.`
       )
     ) {
       return;

@@ -219,6 +219,8 @@ function parseDevice(input: unknown, path: string): Device {
   if (correction !== undefined) device.correction = correction;
   const mode = parseDeviceMode(obj, path);
   if (mode !== undefined) device.mode = mode;
+  const reserveChannels = optionalNumber(obj, "reserve_channels", path);
+  if (reserveChannels !== undefined) device.reserve_channels = reserveChannels;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) device.disable = disable;
   const tau = optionalNumber(obj, "tau", path);

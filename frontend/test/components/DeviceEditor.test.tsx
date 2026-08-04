@@ -63,3 +63,22 @@ describe("DeviceEditor type-switch value memory", () => {
     expect(screen.getByText("Channel 151.1600 MHz")).toBeInTheDocument();
   });
 });
+
+describe("DeviceEditor reserve_channels field", () => {
+  it("accepts a value on a multichannel device, and hides the field in scan mode", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+
+    const reserveInput = screen.getByLabelText(/Reserve channels/);
+    await user.type(reserveInput, "4");
+    expect(reserveInput).toHaveValue(4);
+
+    await user.selectOptions(screen.getByLabelText(/Mode/), "scan");
+    expect(screen.queryByLabelText(/Reserve channels/)).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/Mode/), "multichannel");
+    expect(screen.getByLabelText(/Reserve channels/)).toHaveValue(4);
+  });
+});

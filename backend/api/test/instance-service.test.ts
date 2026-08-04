@@ -282,6 +282,21 @@ describe("applyConfigLive", () => {
     expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(false);
   });
 
+  it("clears pending-restart when reload_diff reports a live channel-add (reserve_channels headroom) as fully applied", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", {
+      kind: "applied",
+      applied: ["dev0: added 1 channel(s) (index 3-3)"],
+      skippedRequiresRestart: [],
+    });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: true, applied: ["dev0: added 1 channel(s) (index 3-3)"], skippedRequiresRestart: [] });
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(false);
+  });
+
   it("leaves pending-restart marked when reload_diff reports a partial apply", async () => {
     await seedFixture(h.instancesDir);
     const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });

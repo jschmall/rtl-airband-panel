@@ -52,6 +52,8 @@ export const DEVICE_TOOLTIPS = {
   channel: "Which physical receive channel on the device to use, for devices with more than one (most single-tuner dongles only have channel 0).",
   antenna: "Selects which antenna port to use, for devices with more than one. Leave blank to use the device's default port.",
   disable: "Ignores this device entirely, as if it weren't in the config at all. Useful for temporarily disabling hardware that isn't currently connected without deleting its configuration.",
+  reserveChannels:
+    "Reserves this many extra channel slots at startup (beyond the channels defined below), so a channel appended later can be picked up live via Apply live without a restart — as long as it's a pure addition to the end of the list, within this headroom. Multichannel only; leave blank (default 0) unless you plan to add channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;
 
 export const CHANNEL_TOOLTIPS = {

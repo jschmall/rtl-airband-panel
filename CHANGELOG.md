@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.79] - 2026-08-04
+
+### Added
+
+- **`reserve_channels` device config field, matching the RTLSDR-Airband
+  fork's `dynamic_reload` branch support for live channel add.** The fork
+  now lets an operator append a channel to a multichannel device's
+  `channels` list and pick it up live via the existing `reload_diff`
+  control-socket command (no restart), as long as the device was started
+  with spare `reserve_channels` headroom and the addition is a pure tail
+  append. `reserve_channels` is now modeled end-to-end: parsed/serialized
+  in `backend/parser`, validated in `backend/validate` (negative values,
+  and non-zero values on scan-mode devices, are rejected as errors —
+  matching the fork's own startup-time rejections), and editable per
+  multichannel device in the frontend's DeviceEditor. The Apply live
+  button's confirm-dialog copy and the `dynamic_reload` README section are
+  updated to reflect that channel-count changes are no longer always
+  restart-only.
+
 ## [0.4.77] - 2026-08-04
 
 ### Changed

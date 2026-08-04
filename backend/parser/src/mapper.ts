@@ -128,6 +128,8 @@ function toDevice(g: GroupNode, path: string): Device {
   if (correction !== undefined) device.correction = correction;
   const mode = toDeviceMode(g, path);
   if (mode !== undefined) device.mode = mode;
+  const reserveChannels = optionalNumber(g, "reserve_channels", path);
+  if (reserveChannels !== undefined) device.reserve_channels = reserveChannels;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) device.disable = disable;
   const tau = optionalNumber(g, "tau", path);
@@ -486,6 +488,7 @@ function deviceFromDomain(device: Device) {
   if (device.sample_rate !== undefined) members.push(numberSetting("sample_rate", device.sample_rate, "int"));
   if (device.correction !== undefined) members.push(numberSetting("correction", device.correction, "int"));
   if (device.mode !== undefined) members.push(stringSetting("mode", device.mode));
+  if (device.reserve_channels !== undefined) members.push(numberSetting("reserve_channels", device.reserve_channels, "int"));
   if (device.disable !== undefined) members.push(boolSetting("disable", device.disable));
   if (device.tau !== undefined) members.push(numberSetting("tau", device.tau, "int"));
   if (device.buffers !== undefined) members.push(numberSetting("buffers", device.buffers, "int"));

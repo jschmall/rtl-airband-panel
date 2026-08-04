@@ -325,6 +325,18 @@ export function DeviceEditor({
             onChange={(e) => onChange({ ...device, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        {!isScan && (
+          <Field label="Reserve channels (optional, default 0)" tooltip={DEVICE_TOOLTIPS.reserveChannels}>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className={inputClass}
+              value={device.reserve_channels ?? ""}
+              onChange={(e) => onChange({ ...device, reserve_channels: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
 
         {isRtl && (
           <Field label="Buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.buffers}>

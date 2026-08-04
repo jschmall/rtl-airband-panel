@@ -90,6 +90,13 @@ export interface Device {
   correction?: number;
   /** "multichannel" (default) or "scan". Scan-mode devices must have exactly one channel entry, and it must be a ScanChannel. */
   mode?: "multichannel" | "scan";
+  /**
+   * Multichannel only; must be 0 or absent in scan mode. Reserves this many extra channel-array
+   * slots at startup so channels can later be appended to this device's `channels` list and
+   * picked up live via `reload_diff` (dynamic_reload fork), without a restart, as long as growth
+   * stays within this headroom. RTLSDR-Airband defaults to 0 (no live channel add) when absent.
+   */
+  reserve_channels?: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this device entirely, as if it weren't configured. */
   disable?: boolean;
   /** Per-device NFM deemphasis override in microseconds; falls back to the global tau when absent. */

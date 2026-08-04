@@ -83,13 +83,21 @@ What's here:
   and Save-and-restart) that saves the config, then asks the running
   process to live-apply whatever it safely can instead of restarting —
   reporting back exactly what applied and what still needs a restart
-  (device/channel/mixer count changes, sample rate, driver type, etc.
-  always do).
+  (device/mixer count changes, sample rate, driver type, reordering or
+  removing channels, etc. always do).
 - **`enabled` field** on channels and mixers — distinct from the existing
   `disable`: `disable` permanently skips allocating that channel/mixer at
   parse time, while `enabled = false` still allocates it but starts it
   live-off, so it can be flipped on later via the control socket with no
   restart.
+- **`reserve_channels` field** on devices (multichannel only) — reserves
+  extra channel-array headroom at startup so a channel *appended* to the
+  end of that device's `channels` list later can be picked up live via the
+  same `reload_diff` command, no restart, as long as the addition is a pure
+  tail append and fits within the reserved headroom. Any other channel-list
+  change (decrease, reorder, mid-list insert, or an existing channel's
+  fields changing) still requires a restart, as does adding a mixer or
+  device that wasn't in the original config.
 - Talks to the socket directly (`backend/api/src/control-socket/`) — no
   proxy or elevated privileges needed, since the panel's backend process
   and the `rtl_airband` instances it manages run as the same system user.
@@ -99,7 +107,7 @@ What's not here yet: the control socket also exposes `retune`, `set_gain`,
 `mixer_enable`/`mixer_disable` as individual live-control commands — this
 branch only wires up the coarser `reload_diff` command (re-reads the
 `.conf` file on disk and live-applies whatever it can), not per-field live
-controls. See
+controls. Mixer/device add still always requires a restart. See
 [issue #4](https://github.com/jschmall/rtl-airband-panel/issues/4) for a
 known follow-up (page-level test coverage for the Apply live button).
 

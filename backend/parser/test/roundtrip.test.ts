@@ -697,6 +697,7 @@ describe("fork-features fixture", () => {
     expect(domain.rdio_scanner_queue_depth).toBe(128);
     expect(domain.control_socket_path).toBe("/run/rtl-airband/fork-features.sock");
     expect(domain.mixers).toHaveLength(1);
+    expect(domain.devices[0]!.reserve_channels).toBe(4);
 
     const channels = domain.devices[0]!.channels;
     const fileOutput = channels[0]!.outputs[0];

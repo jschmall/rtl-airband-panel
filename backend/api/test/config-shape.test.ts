@@ -344,6 +344,12 @@ describe("parseRtlAirbandConfigBody device fields", () => {
     const config = parseRtlAirbandConfigBody(body);
     expect(config.devices[0]!).toMatchObject({ mode: "multichannel", disable: true, tau: 100, buffers: 12, num_buffers: 8 });
   });
+
+  it("accepts reserve_channels", () => {
+    const body = minimalBody({ reserve_channels: 4 });
+    const config = parseRtlAirbandConfigBody(body);
+    expect(config.devices[0]!.reserve_channels).toBe(4);
+  });
 });
 
 describe("parseRtlAirbandConfigBody global fields and mixers", () => {

@@ -435,6 +435,30 @@ describe("checkDeviceRequirements", () => {
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues.some((i) => i.code === "device-num-buffers-invalid")).toBe(true);
   });
+
+  it("errors when reserve_channels is negative", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { reserve_channels: -1 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-negative")).toBe(true);
+  });
+
+  it("does not flag a non-negative reserve_channels on a multichannel device", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { reserve_channels: 4 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-negative" || i.code === "device-reserve-channels-scan-unsupported")).toBe(false);
+  });
+
+  it("errors when a scan-mode device has a non-zero reserve_channels", () => {
+    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined, sample_rate: 1_400_000, reserve_channels: 2 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-scan-unsupported")).toBe(true);
+  });
+
+  it("does not flag a scan-mode device with reserve_channels explicitly 0", () => {
+    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined, sample_rate: 1_400_000, reserve_channels: 0 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-scan-unsupported")).toBe(false);
+  });
 });
 
 describe("checkMixerReferences", () => {
