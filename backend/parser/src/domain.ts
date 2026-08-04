@@ -325,14 +325,6 @@ export interface IcecastOutput {
   description?: string;
   /** RTLSDR-Airband defaults to false when absent. Has no effect outside scan mode. */
   send_scan_freq_tags?: boolean;
-  /**
-   * RTLSDR-Airband defaults to false when absent. Pushes the channel's (or,
-   * for a mixer, whichever source channel is currently talking) configured
-   * label as the Icecast "song" tag when a transmission starts, clearing it
-   * when it ends. Independent of send_scan_freq_tags; rejected on scan-mode
-   * channels (use send_scan_freq_tags there instead). Requires a fork build.
-   */
-  send_tx_tags?: boolean;
   /** Only meaningful when built with libshout TLS support. */
   tls?: "auto" | "auto_no_plain" | "transport" | "upgrade" | "disabled";
   /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */

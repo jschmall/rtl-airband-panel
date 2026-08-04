@@ -499,8 +499,6 @@ function parseIcecastOutput(obj: Record<string, unknown>, path: string): Icecast
   if (description !== undefined) out.description = description;
   const sendScanFreqTags = optionalBoolean(obj, "send_scan_freq_tags", path);
   if (sendScanFreqTags !== undefined) out.send_scan_freq_tags = sendScanFreqTags;
-  const sendTxTags = optionalBoolean(obj, "send_tx_tags", path);
-  if (sendTxTags !== undefined) out.send_tx_tags = sendTxTags;
   const tls = optionalString(obj, "tls", path);
   if (tls !== undefined) {
     if (!(TLS_MODES as readonly string[]).includes(tls)) {

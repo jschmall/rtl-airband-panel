@@ -100,7 +100,6 @@ export const OUTPUT_TOOLTIPS = {
   genre: "Stream genre metadata shown to listeners/directory listings.",
   description: "Stream description metadata shown to listeners/directory listings.",
   sendScanFreqTags: "In scan mode, updates the stream's title metadata to the current frequency (or its label, if set) each time the scanner changes frequency. Has no effect in multichannel mode.",
-  sendTxTags: "Pushes the channel's (or, for a mixer, whichever source channel is currently talking) configured label as the stream's title metadata when a transmission starts, clearing it when it ends. Independent of 'send scan freq tags' — not supported on scan-mode channels. Requires a fork build.",
   tls: "Enables TLS for the Icecast connection, if RTLSDR-Airband was built with libshout TLS support. Leave as default (disabled) otherwise.",
   destAddress: "Destination host or IP address the raw audio/metadata stream is sent to.",
   destPort: "Destination UDP port, as a number or a named service (e.g. '5005' or a service name from /etc/services).",

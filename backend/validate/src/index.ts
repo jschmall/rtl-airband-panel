@@ -4,7 +4,6 @@ import { checkFrequencyWindow } from "./checks/frequency-window.js";
 import { checkBinCollisions } from "./checks/bin-collision.js";
 import { checkCtcssTones } from "./checks/ctcss.js";
 import { checkScanMode } from "./checks/scan-mode.js";
-import { checkSendTxTags } from "./checks/send-tx-tags.js";
 import { checkDeviceRequirements } from "./checks/device-requirements.js";
 import { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
 import { checkMixerUnused } from "./checks/mixer-unused.js";
@@ -28,7 +27,6 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkBinCollisions(config),
     ...checkCtcssTones(config),
     ...checkScanMode(config),
-    ...checkSendTxTags(config),
     ...checkDeviceRequirements(config),
     ...checkMixerReferences(config),
     ...checkMixerUnused(config),
@@ -67,7 +65,6 @@ export { checkFrequencyWindow } from "./checks/frequency-window.js";
 export { checkBinCollisions } from "./checks/bin-collision.js";
 export { checkCtcssTones } from "./checks/ctcss.js";
 export { checkScanMode } from "./checks/scan-mode.js";
-export { checkSendTxTags } from "./checks/send-tx-tags.js";
 export { checkDeviceRequirements } from "./checks/device-requirements.js";
 export { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
 export { checkMixerUnused } from "./checks/mixer-unused.js";

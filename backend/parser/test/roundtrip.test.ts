@@ -286,7 +286,6 @@ describe("output types", () => {
       name: "Tower",
       genre: "ATC",
       send_scan_freq_tags: true,
-      send_tx_tags: true,
       tls: "auto",
     };
     expect(roundTrip(output)).toEqual(output);

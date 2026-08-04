@@ -5,19 +5,13 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
-## [0.4.75] - 2026-08-03
+## [0.4.77] - 2026-08-04
 
-### Added
+### Changed
 
-- **`send_tx_tags` icecast output option.** Supports the fork's new
-  per-transmission Icecast metadata tagging (PR #16): pushes a channel's
-  (or, for a mixer, whichever source channel is currently talking)
-  configured label as the stream's title metadata when a transmission
-  starts, clearing it when it ends. Independent of the existing
-  `send_scan_freq_tags` and works on plain multichannel channels and
-  mixers — rejected by a new validation check when set on a scan-mode
-  channel's icecast output, mirroring the fork's own config-parse-time
-  rejection.
+- **Reverted `send_tx_tags` (v0.4.75) from this branch.** It was mistakenly
+  committed to `dynamic_reload` instead of `master` — it's unrelated to
+  this branch's `reload_diff` work. Landed on `master` instead as v0.4.76.
 
 ## [0.4.74] - 2026-08-02
 
