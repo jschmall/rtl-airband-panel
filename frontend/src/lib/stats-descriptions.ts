@@ -36,6 +36,8 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   rdio_scanner_queue_drop_count:
     "Number of completed transmissions dropped because the shared rdio_scanner upload queue was full. Process-wide: every rdio_scanner-configured output shares one upload queue and worker thread.",
   rdio_scanner_upload_failure_count: "Number of rdio_scanner uploads that failed after exhausting max_retries. Process-wide, same reason as rdio_scanner_queue_drop_count.",
+  centerfreq_retune_failure_count:
+    "Number of times a live centerfreq retune (from the panel's Apply, or the fork's automatic frequency-hopping scan) failed at the hardware level. Does not mean the device stopped running -- only that this specific retune attempt didn't take effect. Expected to stay at 0 on healthy hardware; a climbing value points at a flaky tuner or i2c bus.",
 };
 
 export function deviceMetricTooltip(metric: string): string | undefined {

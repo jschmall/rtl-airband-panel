@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.83] - 2026-08-06
+
+### Changed
+
+- **Added a tooltip for the fork's new `centerfreq_retune_failure_count`
+  metric.** The RTLSDR-Airband fork's `dynamic_reload` branch (commit
+  `b165376`) stopped a transient hardware retune/gain/bandwidth failure
+  from marking a device's input as failed (previously this could cascade
+  into the whole process exiting if it was the last running device) and
+  started emitting a per-device `centerfreq_retune_failure_count` counter
+  alongside the existing `buffer_underrun_count`/`buffer_overflow_count`
+  metrics. The panel's stats parsing and per-device tile rendering are
+  already fully generic (no metric allowlist), so the new metric showed
+  up automatically — this just adds an entry to
+  `DEVICE_METRIC_TOOLTIPS` (`frontend/src/lib/stats-descriptions.ts`) so
+  it gets an explanatory tooltip like its siblings instead of falling
+  back to a bare titleized name. No control-socket or config-schema
+  change on the panel side: the fork commit didn't change any command
+  names, request/response shapes, or file formats the panel depends on.
+
 ## [0.4.82] - 2026-08-06
 
 ### Changed
