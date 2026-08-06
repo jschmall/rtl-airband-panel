@@ -83,24 +83,35 @@ What's here:
   and Save-and-restart) that saves the config, then asks the running
   process to live-apply whatever it safely can instead of restarting —
   reporting back exactly what applied and what still needs a restart
-  (device/mixer count changes, sample rate, driver type, reordering or
-  removing channels, etc. always do).
+  (device/mixer count changes, sample rate, driver type, etc. always do).
 - **`enabled` field** on channels and mixers — distinct from the existing
   `disable`: `disable` permanently skips allocating that channel/mixer at
   parse time, while `enabled = false` still allocates it but starts it
   live-off, so it can be flipped on later via the control socket with no
   restart.
 - **`reserve_channels` field** on devices (multichannel only) — reserves
-  extra channel-array headroom at startup so a channel *appended* to the
-  end of that device's `channels` list later can be picked up live via the
-  same `reload_diff` command, no restart, as long as the addition is a pure
-  tail append and fits within the reserved headroom. Any other channel-list
-  change (decrease, reorder, mid-list insert, or an existing channel's
-  fields changing) still requires a restart, as does adding a mixer or
-  device that wasn't in the original config.
-- Talks to the socket directly (`backend/api/src/control-socket/`) — no
-  proxy or elevated privileges needed, since the panel's backend process
-  and the `rtl_airband` instances it manages run as the same system user.
+  extra channel-array headroom at startup so a device's `channels` list can
+  be edited later and picked up live via the same `reload_diff` command, no
+  restart, as long as growth stays within the reserved headroom. This
+  covers more than a tail append: adding, removing, and editing an existing
+  channel's fields (freq/modulation/bandwidth/squelch/notch/ctcss/outputs)
+  all apply live now, anywhere in the list — a non-tail change tears down
+  and rebuilds every channel after the point of divergence (a brief
+  interruption, not data loss) as a side effect. `reserve_inputs` (below)
+  covers the equivalent headroom for a mixer's inputs. Adding a mixer or
+  device that wasn't in the original config still requires a restart.
+- **`reserve_inputs` field** on mixers — the mixer-side counterpart to
+  `reserve_channels`: reserves extra mixer-input headroom so a
+  dynamically-added or -edited channel whose output routes into this mixer
+  (`type: "mixer"`) can connect live, within that headroom, no restart.
+- Talks to the socket directly (`backend/api/src/control-socket/`). The
+  control socket's `SO_PEERCRED` check requires an *exact* UID match
+  against the daemon's own process, so the systemd unit needs an explicit
+  `User=`/`Group=` matching whatever account the panel connects as — set
+  via the new opt-in "Service account" fields on each instance's edit page
+  (`serviceUser`/`serviceGroup`, panel-only settings, not part of the
+  `.conf` file). Left unset, the unit runs as root and Apply live fails
+  with a permission error; the edit page warns inline when this applies.
 
 What's not here yet: the control socket also exposes `retune`, `set_gain`,
 `set_bandwidth`, `channel_enable`/`channel_disable`, and

@@ -56,7 +56,7 @@ export const DEVICE_TOOLTIPS = {
   antenna: "Selects which antenna port to use, for devices with more than one. Leave blank to use the device's default port.",
   disable: "Ignores this device entirely, as if it weren't in the config at all. Useful for temporarily disabling hardware that isn't currently connected without deleting its configuration.",
   reserveChannels:
-    "Reserves this many extra channel slots at startup (beyond the channels defined below), so a channel appended later can be picked up live via Apply live without a restart — as long as it's a pure addition to the end of the list, within this headroom. Multichannel only; leave blank (default 0) unless you plan to add channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+    "Reserves this many extra channel slots at startup (beyond the channels defined below), so adding, editing, or removing a channel later — anywhere in the list, not just the end — can be picked up live via Apply live without a restart, as long as the channel count stays within this headroom. Multichannel only; leave blank (default 0) unless you plan to change channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;
 
 export const CHANNEL_TOOLTIPS = {

@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.82] - 2026-08-06
+
+### Changed
+
+- **Documentation/copy updated to reflect that live channel edit and
+  removal now work via `reload_diff`, not just tail append.** The
+  RTLSDR-Airband fork's `dynamic_reload` branch generalized its diff
+  mechanism from "compare channel counts" to "find the longest common
+  prefix by content, tear down and rebuild everything after the point of
+  divergence" — so adding, removing (anywhere in a device's channel list,
+  not just the tail), and editing an existing channel's fields can now all
+  apply live, within `reserve_channels` headroom, no restart. The panel
+  never predicted this client-side to begin with (it always just fires the
+  bare `reload_diff` command and displays whatever the running process
+  reports back), so no behavior changed here — only the copy that
+  undersold what's possible: the Apply-live confirm dialog
+  (`InstanceEditPage.tsx`), the `README.md` `dynamic_reload` section, and
+  `DEVICE_TOOLTIPS.reserveChannels`. The README's `dynamic_reload` section
+  also gained a `reserve_inputs` bullet (v0.4.80) and dropped its now-
+  inaccurate "no elevated privileges needed" claim in favor of describing
+  the new `serviceUser`/`serviceGroup` setting (v0.4.81).
+
 ## [0.4.81] - 2026-08-06
 
 ### Added
