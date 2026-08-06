@@ -58,6 +58,15 @@ export interface RtlAirbandConfig {
    * with -DRDIO_SCANNER=ON.
    */
   rdio_scanner_queue_depth?: number;
+  /**
+   * Path to a Unix domain socket the process listens on for live
+   * retune/reconfiguration commands (JSON-lines protocol), instead of
+   * requiring a full restart for every config change. Fork-only; requires
+   * RTLSDR-Airband built from jschmall/RTLSDR-Airband's `dynamic_reload`
+   * branch specifically — not available on `main`/upstream, and not
+   * available on other jschmall/RTLSDR-Airband builds either.
+   */
+  control_socket_path?: string;
   devices: Device[];
   mixers?: Mixer[];
 }
@@ -79,8 +88,24 @@ export interface Device {
   sample_rate?: number;
   /** PPM (rtlsdr/mirisdr) or ppm-as-float (soapysdr) frequency correction; RTLSDR-Airband defaults to 0 when absent. */
   correction?: number;
+  /**
+   * rtlsdr only. Tuner (hardware capture) bandwidth in Hz; 0 = automatic (librtlsdr's own
+   * convention), which is also the default when this key is absent. Distinct from a channel's own
+   * `bandwidth` (MultichannelChannel/ScanChannel) -- that's a post-demodulation audio lowpass
+   * filter, this is the RF front-end capture width. Unlike centerfreq/sample_rate, this is a
+   * literal-int-only field on the RTLSDR-Airband side (no float-means-MHz shorthand) -- always
+   * write it as a plain integer Hz value.
+   */
+  bandwidth?: number;
   /** "multichannel" (default) or "scan". Scan-mode devices must have exactly one channel entry, and it must be a ScanChannel. */
   mode?: "multichannel" | "scan";
+  /**
+   * Multichannel only; must be 0 or absent in scan mode. Reserves this many extra channel-array
+   * slots at startup so channels can later be appended to this device's `channels` list and
+   * picked up live via `reload_diff` (dynamic_reload fork), without a restart, as long as growth
+   * stays within this headroom. RTLSDR-Airband defaults to 0 (no live channel add) when absent.
+   */
+  reserve_channels?: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this device entirely, as if it weren't configured. */
   disable?: boolean;
   /** Per-device NFM deemphasis override in microseconds; falls back to the global tau when absent. */
@@ -127,6 +152,16 @@ export interface MultichannelChannel {
   squelch_snr_threshold?: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this channel entirely, as if it weren't configured. */
   disable?: boolean;
+  /**
+   * RTLSDR-Airband defaults to true when absent. Distinct from `disable`:
+   * `disable` skips allocating this channel entirely at parse time
+   * (permanent for the process's lifetime), while `enabled = false` still
+   * allocates it but starts it live-off, so the `dynamic_reload` control
+   * socket's `reload_diff`/`channel_enable` commands can flip it on later
+   * with no restart. Fork-only (`dynamic_reload` branch) — see
+   * `control_socket_path`.
+   */
+  enabled?: boolean;
   outputs: Output[];
 }
 
@@ -178,6 +213,8 @@ export interface ScanChannel {
   squelch_snr_threshold?: number | number[];
   /** RTLSDR-Airband defaults to false when absent. Ignores this channel entirely, as if it weren't configured. */
   disable?: boolean;
+  /** Same meaning as MultichannelChannel's `enabled` — see there. */
+  enabled?: boolean;
   outputs: Output[];
 }
 
@@ -186,10 +223,23 @@ export interface Mixer {
   name: string;
   /** RTLSDR-Airband defaults to false when absent. Ignores this mixer entirely, as if it weren't configured. */
   disable?: boolean;
+  /** Same meaning as MultichannelChannel's `enabled` — see there. */
+  enabled?: boolean;
   /** MP3 highpass filter cutoff, Hz, applied to the mixed output. 0 disables it. */
   highpass?: number;
   /** MP3 lowpass filter cutoff, Hz, applied to the mixed output. 0 disables it. */
   lowpass?: number;
+  /**
+   * Reserves this many extra mixer-input slots, sized once after startup
+   * connections finish (unlike a device's `reserve_channels`, which is
+   * sized upfront — a mixer's eventual input count isn't known until
+   * channel outputs of type "mixer" connect during parsing). Lets a
+   * dynamically-appended channel's `type: "mixer"` output connect live via
+   * `reload_diff` (dynamic_reload fork), without a restart, as long as
+   * growth stays within this headroom. RTLSDR-Airband defaults to 0 (no
+   * live mixer-input growth) when absent.
+   */
+  reserve_inputs?: number;
   /** A mixer's own outputs cannot themselves be of type "mixer". */
   outputs: Exclude<Output, MixerOutput>[];
 }

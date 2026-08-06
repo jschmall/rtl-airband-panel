@@ -1,8 +1,13 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parseConfigFile, type RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { parseRtlAirbandConfigBody } from "../src/config-shape.js";
 import { FIXTURE_PATH } from "./helpers.js";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const FORK_FEATURES_FIXTURE_PATH = path.join(here, "../../../fixtures/fork-features.conf");
 
 function roundTripThroughShapeParser(config: RtlAirbandConfig): RtlAirbandConfig {
   const asJsonBody: unknown = JSON.parse(JSON.stringify(config));
@@ -150,5 +155,15 @@ describe("config-shape.ts / mapper.ts parity", () => {
     };
 
     expect(roundTripThroughShapeParser(config)).toEqual(config);
+  });
+
+  // Neither fixture above sets control_socket_path or the per-channel/mixer
+  // `enabled` keyword (dynamic_reload branch fields) -- this fixture does,
+  // so a mapper.ts/config-shape.ts drift on those specific fields would
+  // otherwise slip through undetected.
+  it("round-trips the fork-features fixture (control_socket_path, enabled) through parseRtlAirbandConfigBody with no field dropped or altered", () => {
+    const source = readFileSync(FORK_FEATURES_FIXTURE_PATH, "utf8");
+    const parsed = parseConfigFile(source);
+    expect(roundTripThroughShapeParser(parsed)).toEqual(parsed);
   });
 });

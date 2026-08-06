@@ -42,6 +42,24 @@ describe("DeviceEditor type-switch value memory", () => {
     expect(screen.getByLabelText(/Serial \(optional/)).toHaveValue("00000042");
   });
 
+  it("hides tuner bandwidth for non-rtlsdr types and restores its value when switching back to rtlsdr", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+
+    const bandwidthInput = screen.getByLabelText(/Tuner bandwidth/);
+    await user.type(bandwidthInput, "8000000");
+    expect(bandwidthInput).toHaveValue(8000000);
+
+    // Neither mirisdr nor soapysdr support device-level tuner bandwidth (rtlsdr-only feature).
+    await user.selectOptions(screen.getByLabelText(/^Type/), "mirisdr");
+    expect(screen.queryByLabelText(/Tuner bandwidth/)).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/^Type/), "rtlsdr");
+    expect(screen.getByLabelText(/Tuner bandwidth/)).toHaveValue(8000000);
+  });
+
   it("restores previously entered channels when switching mode back to multichannel", async () => {
     const user = userEvent.setup();
     render(<Harness />);
@@ -61,5 +79,24 @@ describe("DeviceEditor type-switch value memory", () => {
 
     await user.selectOptions(screen.getByLabelText(/Mode/), "multichannel");
     expect(screen.getByText("Channel 151.1600 MHz")).toBeInTheDocument();
+  });
+});
+
+describe("DeviceEditor reserve_channels field", () => {
+  it("accepts a value on a multichannel device, and hides the field in scan mode", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+
+    const reserveInput = screen.getByLabelText(/Reserve channels/);
+    await user.type(reserveInput, "4");
+    expect(reserveInput).toHaveValue(4);
+
+    await user.selectOptions(screen.getByLabelText(/Mode/), "scan");
+    expect(screen.queryByLabelText(/Reserve channels/)).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/Mode/), "multichannel");
+    expect(screen.getByLabelText(/Reserve channels/)).toHaveValue(4);
   });
 });

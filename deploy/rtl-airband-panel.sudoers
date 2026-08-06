@@ -32,4 +32,12 @@ Cmnd_Alias RTL_PANEL_UNIT_FILES = \
     /usr/bin/tee /etc/systemd/system/rtl_*.service, \
     /usr/bin/rm -f /etc/systemd/system/rtl_*.service
 
-rtl-airband-panel ALL=(root) NOPASSWD: RTL_PANEL_SYSTEMCTL, RTL_PANEL_UNIT_FILES
+# Backs the panel's log viewer (getLogs/followLogs, SudoSystemctlAdapter) -- both
+# invocations below, argument-for-argument, matching the fixed order the app itself
+# uses (sudo's command matching is literal, not semantic, so the two "-n <lines>"
+# variants can't be collapsed into one rule).
+Cmnd_Alias RTL_PANEL_JOURNALCTL = \
+    /usr/bin/journalctl -u rtl_*.service -n * --no-pager -o short-iso, \
+    /usr/bin/journalctl -u rtl_*.service -n * -f -o short-iso --no-pager
+
+rtl-airband-panel ALL=(root) NOPASSWD: RTL_PANEL_SYSTEMCTL, RTL_PANEL_UNIT_FILES, RTL_PANEL_JOURNALCTL

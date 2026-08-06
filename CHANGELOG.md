@@ -5,6 +5,330 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.90] - 2026-08-06
+
+### Added
+
+- **Merged `dynamic_reload` into `master`.** Brings in the whole live-apply
+  feature set documented in the 0.4.79–0.4.89 entries directly below: the
+  `control_socket_path`/`enabled`/`reserve_channels`/`reserve_inputs`/
+  `bandwidth` config fields, the **Apply live** button and its
+  `reload_diff`-backed live-apply path (centerfreq, sample_rate, gain,
+  tuner bandwidth, correction, channel/mixer enable, and channel
+  add/edit/remove within reserved headroom), the retryable-vs-restart-
+  required failure split, the per-instance live-apply cooldown, and the
+  `serviceUser`/`serviceGroup` opt-in instance options the control
+  socket's UID check requires. Requires an RTLSDR-Airband build from the
+  fork's now-merged-to-`main` `dynamic_reload` branch — see that repo's
+  [PR #18](https://github.com/jschmall/RTLSDR-Airband/pull/18).
+- Reconciles the two independent version sequences `master` and
+  `dynamic_reload` had been keeping since `dynamic_reload` branched off
+  (see the 0.4.76 entry's note below) — this merge commit is versioned
+  past both sides' highest prior number (`master` at 0.4.78,
+  `dynamic_reload` at 0.4.89) rather than continuing either chain alone.
+
+## [0.4.89] - 2026-08-06
+
+### Changed
+
+- **Rewrote the README's `dynamic_reload` section** to cover the full
+  current feature set instead of its original, now-stale snapshot. Fixes
+  the same "sample rate always needs a restart" claim already corrected in
+  the in-app dialog (0.4.88) — it was still wrong here too. Adds: the new
+  `bandwidth`/`correction` config fields, an explicit "what Apply live can
+  push live" list (centerfreq, sample_rate, gain, bandwidth, correction,
+  channel/mixer enable, channel add/edit/remove), a "Failure behavior"
+  note explaining the retryable-vs-restart-required split (0.4.85) so a
+  transient hardware failure isn't confused with something that needs a
+  restart, explicit guidance that `control_socket_path` is an arbitrary
+  but must-be-unique-per-instance path (prompted by a real question about
+  running 12 concurrent instances — a same-path collision fails closed
+  and silently, not with a crash), the 1s live-apply cooldown (0.4.84),
+  and the `centerfreq_retune_failure_count` metric (0.4.83). Also brings
+  the "what's not here yet" standalone-command list up to date
+  (`set_correction`/`set_sample_rate` existed but weren't listed).
+
+## [0.4.88] - 2026-08-06
+
+### Added
+
+- **Device-level `bandwidth` (rtlsdr tuner bandwidth) support**, tracking the
+  fork's `dynamic_reload` branch commits `80ee2bc` (live tuner bandwidth
+  control), `686b283` (live frequency correction), and `343be38` (live
+  `sample_rate` change). `correction` and `sample_rate` were already modeled
+  and needed no new fields; `bandwidth` — an rtlsdr-only device-level key,
+  distinct from the pre-existing per-channel `bandwidth` (a post-demod audio
+  filter) — was entirely missing. Added to the parser domain model
+  (`backend/parser/src/domain.ts`), its libconfig mapper read/write
+  (`mapper.ts`), the API's independent request-body shape validator
+  (`backend/api/src/config-shape.ts` — caught by the existing
+  `config-shape-parity` test, which round-trips the `fork-features` fixture
+  through both parsers and diffs the result), a `bandwidth >= 0` check
+  (`backend/validate/src/checks/device-requirements.ts`, mirroring
+  RTLSDR-Airband's own `rtlsdr_parse_config()` rejection), and a new
+  rtlsdr-only field in `DeviceEditor.tsx` (cleared/restored on device-type
+  switch, same as `buffers`/`serial`/`index`). Unlike `centerfreq`/
+  `sample_rate`, RTLSDR-Airband reads this key via a plain `(int)` cast, not
+  `parse_anynum2int()` — no float-means-MHz shorthand — so the mapper
+  deliberately uses `optionalNumber`, not `optionalHzNumber`; a dedicated
+  round-trip test locks this in.
+
+### Fixed
+
+- **"Apply live?" confirmation copy still claimed `sample rate` always needs
+  a restart.** True before `343be38`; now live-appliable like everything
+  else in that list. Updated `InstanceEditPage.tsx`'s confirm dialog to
+  match, and added `bandwidth`/`correction` to the same list.
+
+## [0.4.87] - 2026-08-06
+
+### Fixed
+
+- **`sudo` mode's CLI log garbling, and a missing `journalctl` sudoers
+  grant.** After 0.4.86's `pino-pretty` fix, foreground CLI logs still
+  showed periodic gaps mid-stream in `sudo` mode — a run of blank
+  characters roughly the width of the previous line, then the next log
+  line continuing mid-row. Root cause: `sudo`, on its own, never respects
+  piped stdio for a password prompt — it opens `/dev/tty` directly and
+  writes there regardless of how the child's stdin/stdout/stderr are
+  redirected, specifically so a prompt can't be silently hidden. Every
+  `sudo systemctl`/`journalctl`/`tee`/`rm` call `SudoSystemctlAdapter`
+  (`backend/api/src/systemd/sudo-adapter.ts`) shells out to was missing
+  `-n`, so a call that couldn't authenticate without a prompt — which,
+  for `journalctl`, was *every* call, since the shipped
+  `deploy/rtl-airband-panel.sudoers` example only ever granted
+  `systemctl`/`tee`/`rm`, never `journalctl` — would have `sudo` write its
+  prompt straight to the controlling terminal, uncoordinated with and
+  interleaved into this process's own stdout writes. Only reachable at a
+  real foreground terminal (a controlling tty to write to at all);
+  invisible under systemd, matching exactly how the symptom was
+  originally reported. Added the missing `RTL_PANEL_JOURNALCTL` grant to
+  the sudoers template, and `-n` to every `sudo` invocation the adapter
+  makes, so any future sudoers gap fails as a clean, piped, loggable
+  error instead of ever reaching for `/dev/tty` again.
+
+## [0.4.86] - 2026-08-06
+
+### Added
+
+- **Pretty, single-line logging when running the API directly from a
+  terminal.** `backend/api`'s Pino logger (`app.ts`) previously always
+  emitted raw NDJSON, regardless of how the process was started. Each
+  entry genuinely was one newline-terminated line, but the JSON is long
+  enough that it visually wraps across terminal rows during interactive
+  CLI use (`npm start --workspace=backend/api` in the foreground), which
+  read as hard-to-follow, spaced-out logs. Added a `pino-pretty`
+  transport (`singleLine: true`, colorized, short timestamps), enabled
+  only when `process.stdout.isTTY` is true and no `logFile` override is
+  set — never under systemd (no TTY there; goes to the journal as before)
+  and never when `RTL_PANEL_LOG_FILE`/`--log-file` is set (stays raw
+  NDJSON, since that path must remain machine-readable).
+
+## [0.4.85] - 2026-08-06
+
+### Fixed
+
+- **`LiveApplyBanner` no longer tells the user to restart right next to a
+  message saying not to.** The RTLSDR-Airband fork's `dynamic_reload`
+  branch (commit `743ccde1`) fixed `reload_diff` under-reporting retune
+  failures as `"applied"`: `compute_and_apply_diff()` now waits for the
+  demod thread to actually confirm a centerfreq change before reporting
+  it, and a confirmed hardware failure lands in `skipped_requires_restart`
+  with a message ending "no restart needed, retry reload_diff" — a case
+  that array never carried before. The panel's `LiveApplyBanner`
+  (`frontend/src/pages/InstanceEditPage.tsx`) had a single hardcoded
+  header ("N still need a restart:") above the raw list of messages,
+  which now directly contradicted this new message's own text. Added
+  `classifySkippedRequiresRestart()` (`frontend/src/lib/live-apply.ts`),
+  splitting on the fork-guaranteed "no restart needed" substring (locked
+  in by the fork's own `test_live_reconfig.cpp` regression test), so
+  genuinely restart-required items and transient/retryable failures each
+  get their own section with accurate copy. `pendingRestartStore`
+  semantics are unchanged — it already tracked "on-disk config not yet
+  fully reflected in the running process," which is still true for the
+  retryable case; only the UI copy was wrong.
+
+## [0.4.84] - 2026-08-06
+
+### Added
+
+- **A 1-second per-instance cooldown on live-apply (`reload_diff`)
+  requests.** `applyConfigLive` (`backend/api/src/instance-service.ts`)
+  has no dedicated "retune" command — every call writes the whole config
+  and asks the running process to `reload_diff` it, and the fork's diff
+  mechanism (see 0.4.82) can cascade into retuning several devices from a
+  single call. Nothing previously stopped back-to-back calls against the
+  same instance (a stuck retry loop, a fast double "Apply live", scripted
+  misuse) from firing faster than hardware can recover from a transient
+  retune fault — the kind the fork's `centerfreq_retune_failure_count`
+  metric (0.4.83) already tolerates as non-fatal, but not instantaneous.
+  `InstanceService` now tracks the last `reload_diff` attempt per
+  instance name in memory and skips the socket call — while still writing
+  the config to disk, same as any other live-apply outcome — if another
+  attempt on the same instance lands within 1000ms, reporting
+  `liveApply: { attempted: false, reason: "cooldown" }`. The frontend's
+  `LiveApplyBanner` (`frontend/src/pages/InstanceEditPage.tsx`) shows this
+  as a distinct amber "applied too recently" message rather than the
+  generic red failure banner. This is a defense-in-depth safety floor, not
+  a fix for a known bug — a real-world stress test (400 live retunes over
+  2 minutes against actual hardware) already ran with zero issues.
+
+## [0.4.83] - 2026-08-06
+
+### Changed
+
+- **Added a tooltip for the fork's new `centerfreq_retune_failure_count`
+  metric.** The RTLSDR-Airband fork's `dynamic_reload` branch (commit
+  `b165376`) stopped a transient hardware retune/gain/bandwidth failure
+  from marking a device's input as failed (previously this could cascade
+  into the whole process exiting if it was the last running device) and
+  started emitting a per-device `centerfreq_retune_failure_count` counter
+  alongside the existing `buffer_underrun_count`/`buffer_overflow_count`
+  metrics. The panel's stats parsing and per-device tile rendering are
+  already fully generic (no metric allowlist), so the new metric showed
+  up automatically — this just adds an entry to
+  `DEVICE_METRIC_TOOLTIPS` (`frontend/src/lib/stats-descriptions.ts`) so
+  it gets an explanatory tooltip like its siblings instead of falling
+  back to a bare titleized name. No control-socket or config-schema
+  change on the panel side: the fork commit didn't change any command
+  names, request/response shapes, or file formats the panel depends on.
+
+## [0.4.82] - 2026-08-06
+
+### Changed
+
+- **Documentation/copy updated to reflect that live channel edit and
+  removal now work via `reload_diff`, not just tail append.** The
+  RTLSDR-Airband fork's `dynamic_reload` branch generalized its diff
+  mechanism from "compare channel counts" to "find the longest common
+  prefix by content, tear down and rebuild everything after the point of
+  divergence" — so adding, removing (anywhere in a device's channel list,
+  not just the tail), and editing an existing channel's fields can now all
+  apply live, within `reserve_channels` headroom, no restart. The panel
+  never predicted this client-side to begin with (it always just fires the
+  bare `reload_diff` command and displays whatever the running process
+  reports back), so no behavior changed here — only the copy that
+  undersold what's possible: the Apply-live confirm dialog
+  (`InstanceEditPage.tsx`), the `README.md` `dynamic_reload` section, and
+  `DEVICE_TOOLTIPS.reserveChannels`. The README's `dynamic_reload` section
+  also gained a `reserve_inputs` bullet (v0.4.80) and dropped its now-
+  inaccurate "no elevated privileges needed" claim in favor of describing
+  the new `serviceUser`/`serviceGroup` setting (v0.4.81).
+
+## [0.4.81] - 2026-08-06
+
+### Added
+
+- **Opt-in `serviceUser`/`serviceGroup` instance options, so the generated
+  systemd unit can set `User=`/`Group=`.** The RTLSDR-Airband fork's own
+  docs now spell out a requirement that was previously undocumented on the
+  panel side: its `dynamic_reload` control socket's `SO_PEERCRED` check
+  requires an *exact* UID match against the daemon's own `getuid()`, so a
+  unit left to run as root (the default when `User=`/`Group=` are unset,
+  which is every unit this panel has generated until now) locks out any
+  non-root client — including this panel's own `reload_diff` calls, i.e.
+  the entire Apply live feature. Added a new `serviceUser`/`serviceGroup`
+  pair to `InstanceOptions` (`backend/api/src/instance-options-store.ts`),
+  threaded through `UnitTemplateOptions`/`renderUnitFile`
+  (`backend/api/src/unit-template.ts`) and every call site in
+  `instance-service.ts`, following the exact same opt-in, per-instance,
+  never-defaulted pattern `jsonLogging` already established — this is
+  never turned on implicitly, since the panel has no way to know what
+  account an operator's deployment actually uses. A new "Service account"
+  section in the frontend (`InstanceServiceAccount.tsx`, next to the
+  existing Logs/JSON-logging section) edits both fields and warns inline
+  when the instance's config sets `control_socket_path` but no account is
+  configured — the exact failure mode this closes.
+
+## [0.4.80] - 2026-08-06
+
+### Added
+
+- **`reserve_inputs` mixer config field, matching the RTLSDR-Airband fork's
+  `dynamic_reload` branch fix for a mixer-input live-append data race.**
+  The fork's `mixer_connect_input()` used to grow a mixer's input array
+  with an unconditional `realloc` that was only safe during single-threaded
+  startup — a real use-after-free once a dynamically-appended channel's
+  `type: "mixer"` output could reach it post-startup via `reload_diff`.
+  The fix sizes headroom upfront via a new mixer-level `reserve_inputs`
+  int (default 0), finalized once after startup connections, mirroring
+  `reserve_channels`' device-level headroom model. `reserve_inputs` is now
+  modeled end-to-end: parsed/serialized in `backend/parser`, validated in
+  `backend/validate` (negative values rejected as errors, matching the
+  fork's own startup-time rejection), and editable per mixer in the
+  frontend's MixerEditor, right alongside Highpass/Lowpass.
+
+## [0.4.79] - 2026-08-04
+
+### Added
+
+- **`reserve_channels` device config field, matching the RTLSDR-Airband
+  fork's `dynamic_reload` branch support for live channel add.** The fork
+  now lets an operator append a channel to a multichannel device's
+  `channels` list and pick it up live via the existing `reload_diff`
+  control-socket command (no restart), as long as the device was started
+  with spare `reserve_channels` headroom and the addition is a pure tail
+  append. `reserve_channels` is now modeled end-to-end: parsed/serialized
+  in `backend/parser`, validated in `backend/validate` (negative values,
+  and non-zero values on scan-mode devices, are rejected as errors —
+  matching the fork's own startup-time rejections), and editable per
+  multichannel device in the frontend's DeviceEditor. The Apply live
+  button's confirm-dialog copy and the `dynamic_reload` README section are
+  updated to reflect that channel-count changes are no longer always
+  restart-only.
+
+## [0.4.77] - 2026-08-04
+
+### Changed
+
+- **Reverted `send_tx_tags` (v0.4.75) from this branch.** It was mistakenly
+  committed to `dynamic_reload` instead of `master` — it's unrelated to
+  this branch's `reload_diff` work. Landed on `master` instead as v0.4.76.
+
+## [0.4.74] - 2026-08-02
+
+### Added
+
+- **README section documenting this branch's `dynamic_reload` integration.**
+  A new top-level "🧪 `dynamic_reload` branch" section explains the
+  `control_socket_path`/`enabled` config fields, the new Apply live button,
+  what's deliberately out of scope (the control socket's five other
+  live-control commands), and that this branch requires an RTLSDR-Airband
+  build from the fork's `dynamic_reload` branch specifically.
+
+## [0.4.73] - 2026-08-02
+
+### Added
+
+- **`dynamic_reload` branch: initial support for the RTLSDR-Airband fork's live
+  retune/reconfiguration control socket, via its `reload_diff` command.** The
+  fork's `dynamic_reload` branch adds a same-host-only Unix domain control
+  socket (gated behind a new `control_socket_path` config option) so a running
+  instance can pick up some config changes without a full systemd restart.
+  This is a **separate long-lived branch, not merged to `master`** — the fork
+  feature itself isn't upstream yet, and the socket protocol is not something
+  older/non-fork rtl_airband builds understand.
+  - New `control_socket_path` top-level config field, and a new per-channel/
+    per-mixer `enabled` field (distinct from the existing `disable`: `disable`
+    permanently skips allocating the channel/mixer, `enabled = false` still
+    allocates it but starts it live-off so it can be toggled on later without
+    a restart). Both round-trip through the parser and are editable in the UI.
+  - New `POST /instances/:name/apply-live` endpoint and matching **Apply
+    live** button (shown only when the instance's saved config has
+    `control_socket_path` set): writes the config, then asks the running
+    process's control socket to live-apply whatever it safely can via
+    `reload_diff`, reporting back what applied vs. what still needs a restart.
+    Falls back gracefully (saves to disk, same as a restart-free save) if the
+    socket is unreachable or the running process doesn't support it.
+  - New `backend/api/src/control-socket/` module (`UnixControlSocketClient`)
+    speaks the fork's newline-delimited JSON wire protocol directly; no
+    privileged proxy needed since the panel's backend runs as the same uid as
+    the rtl_airband instances it manages.
+  - Deliberately out of scope for this branch: the control socket's other five
+    commands (`retune`, `set_gain`, `set_bandwidth`, `channel_enable`/
+    `channel_disable`, `mixer_enable`/`mixer_disable`) and any granular
+    per-field live-control UI — only the coarser `reload_diff` path is wired
+    up for now.
 ## [0.4.78] - 2026-08-04
 
 ### Changed

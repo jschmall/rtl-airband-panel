@@ -91,6 +91,37 @@ describe("domain mapping layer", () => {
     expect(domain.devices[0]!.centerfreq).toBe(151_780_000);
   });
 
+  it("does NOT apply centerfreq/sample_rate's float-means-MHz shorthand to device bandwidth", () => {
+    // Unlike centerfreq/sample_rate, RTLSDR-Airband reads the device-level rtlsdr `bandwidth` key
+    // via a plain (int) cast (input-rtlsdr.cpp), not parse_anynum2int() -- so a float literal here
+    // is NOT "MHz, scale to Hz", it's just a value that would fail to parse as this field's actual
+    // int type on the RTLSDR-Airband side. The domain model must read/write it as a literal
+    // integer only (optionalNumber, not optionalHzNumber) or a config this panel writes could
+    // produce a value the fork can't start with.
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        {
+          type = "rtlsdr";
+          index = 0;
+          gain = 29;
+          centerfreq = 151780000;
+          bandwidth = 8000000;
+          channels: (
+            { freq = 151160000; outputs: (); }
+          );
+        }
+      );
+    `;
+    const domain = toDomain(parseConfig(source));
+    expect(domain.devices[0]!.bandwidth).toBe(8_000_000);
+    const text = serializeConfigFile(domain);
+    expect(text).toMatch(/bandwidth\s*=\s*8000000;/);
+  });
+
   it("treats afc, modulation, serial, sample_rate, and correction as optional, matching RTLSDR-Airband's own defaults", () => {
     // A channel with no afc/modulation set at all, and a device selected by
     // index rather than serial with no sample_rate/correction override --
@@ -427,10 +458,15 @@ describe("new multichannel channel fields", () => {
     expect(roundTripDomain(domain)).toEqual(domain);
   });
 
+  it("round-trips enabled: false, distinct from disable", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000, enabled: false });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
   it("omits new optional fields entirely when absent", () => {
     const domain = minimalMultichannelConfig({ freq: 100_000_000 });
     const text = serializeConfigFile(domain);
-    expect(text).not.toMatch(/squelch_threshold|notch_q|highpass|lowpass|\btau\b|disable|label/);
+    expect(text).not.toMatch(/squelch_threshold|notch_q|highpass|lowpass|\btau\b|disable|label|\benabled\b/);
   });
 });
 
@@ -504,6 +540,15 @@ describe("scan mode channels", () => {
       notch: 136.5,
       notch_q: 12.0,
       bandwidth: 8000,
+      outputs: [{ type: "pulse" }],
+    });
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("round-trips enabled: false on a scan-mode channel, distinct from disable", () => {
+    const domain = minimalScanConfig({
+      freqs: [126_300_000, 121_500_000],
+      enabled: false,
       outputs: [{ type: "pulse" }],
     });
     expect(roundTripDomain(domain)).toEqual(domain);
@@ -614,6 +659,18 @@ describe("global settings", () => {
     expect(text).not.toContain("stats_http_port");
     expect(text).not.toContain("rdio_scanner_queue_depth");
   });
+
+  it("round-trips control_socket_path", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    domain.control_socket_path = "/run/rtl-airband/instance.sock";
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
+  it("omits control_socket_path from the serialized .conf when absent", () => {
+    const domain = minimalMultichannelConfig({ freq: 100_000_000 });
+    const text = serializeConfigFile(domain);
+    expect(text).not.toContain("control_socket_path");
+  });
 });
 
 describe("mixers", () => {
@@ -621,6 +678,7 @@ describe("mixers", () => {
     const mixer: Mixer = {
       name: "mix1",
       disable: false,
+      enabled: false,
       highpass: 200,
       lowpass: 3000,
       outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
@@ -669,7 +727,10 @@ describe("fork-features fixture", () => {
     expect(domain.stats_http_address).toBe("127.0.0.1");
     expect(domain.stats_http_port).toBe(9091);
     expect(domain.rdio_scanner_queue_depth).toBe(128);
+    expect(domain.control_socket_path).toBe("/run/rtl-airband/fork-features.sock");
     expect(domain.mixers).toHaveLength(1);
+    expect(domain.devices[0]!.reserve_channels).toBe(4);
+    expect(domain.devices[0]!.bandwidth).toBe(8000000);
 
     const channels = domain.devices[0]!.channels;
     const fileOutput = channels[0]!.outputs[0];
@@ -681,8 +742,12 @@ describe("fork-features fixture", () => {
     expect(udpOutput.bit_depth).toBe(16);
     expect(udpOutput.sample_rate).toBe(8000);
 
+    expect(channels[1]!.enabled).toBe(false);
+
     const mixer = domain.mixers![0]!;
     expect(mixer.name).toBe("fork_mix");
+    expect(mixer.enabled).toBe(false);
+    expect(mixer.reserve_inputs).toBe(2);
     const mixerOutput = mixer.outputs[0]!;
     if (mixerOutput.type !== "udp_stream") throw new Error("expected udp_stream mixer output");
     expect(mixerOutput.bit_depth).toBe(8);

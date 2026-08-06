@@ -312,6 +312,84 @@ describe("PUT /instances/:name", () => {
   });
 });
 
+describe("POST /instances/:name/apply-live", () => {
+  it("400s on a structurally invalid body", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`,
+      payload: { not: "a valid config" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("422s on a semantically invalid config and never touches the control socket", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const outputs = before.devices[0]!.channels[0]!.outputs;
+    const collision = {
+      ...before,
+      devices: [
+        {
+          ...before.devices[0]!,
+          channels: [
+            { freq: 151_300_000, afc: 0, modulation: "nfm", outputs },
+            { freq: 151_300_100, afc: 0, modulation: "nfm", outputs },
+          ],
+        },
+      ],
+    };
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`, payload: collision });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().errors.length).toBeGreaterThan(0);
+    expect(h.controlSocketClient.calls).toEqual([]);
+  });
+
+  it("200s and reports no-control-socket when the config has none set", async () => {
+    await seedFixture(h.instancesDir);
+    const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`, payload: config });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().liveApply).toEqual({ attempted: false, reason: "no-control-socket" });
+  });
+
+  it("200s and reports what applied vs still needs a restart when control_socket_path is set", async () => {
+    await seedFixture(h.instancesDir);
+    const config = { ...(await h.service.getConfig(FIXTURE_INSTANCE_NAME)), control_socket_path: "/run/rtl-airband/inst.sock" };
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`, payload: config });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().liveApply).toEqual({ attempted: true, applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+  });
+
+  it("409s on a stale If-Match, same as PUT", async () => {
+    await seedFixture(h.instancesDir);
+    const getRes = await app.inject({ method: "GET", url: `/api/instances/${FIXTURE_INSTANCE_NAME}` });
+    const staleEtag = getRes.headers["etag"] as string;
+    const config = getRes.json();
+
+    await app.inject({ method: "PUT", url: `/api/instances/${FIXTURE_INSTANCE_NAME}`, payload: config });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`,
+      headers: { "if-match": staleEtag },
+      payload: { ...config, tau: 250 },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("is on the tighter mutating-route rate-limit tier, same as PUT", async () => {
+    await seedFixture(h.instancesDir);
+    const config = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const res = await app.inject({ method: "POST", url: `/api/instances/${FIXTURE_INSTANCE_NAME}/apply-live`, payload: config });
+    expect(res.headers["x-ratelimit-limit"]).toBe("60");
+  });
+});
+
 describe("POST /instances (create)", () => {
   const minimalConfig = {
     multiple_demod_threads: true,
@@ -476,6 +554,50 @@ describe("PATCH /instances/:name/options", () => {
   it("404s for a nonexistent instance", async () => {
     const res = await app.inject({ method: "PATCH", url: "/api/instances/does_not_exist/options", payload: { jsonLogging: true } });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("sets serviceUser/serviceGroup and reinstalls the unit with User=/Group=", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ options: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" } });
+    const unit = h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`);
+    expect(unit).toContain("User=rtl-airband");
+    expect(unit).toContain("Group=rtl-airband");
+  });
+
+  it("clears a previously-set serviceUser/serviceGroup with an empty string", async () => {
+    await seedFixture(h.instancesDir);
+    await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" },
+    });
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "", serviceGroup: "" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().options).not.toHaveProperty("serviceUser");
+    expect(res.json().options).not.toHaveProperty("serviceGroup");
+    const unit = h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`);
+    expect(unit).not.toContain("User=");
+    expect(unit).not.toContain("Group=");
+  });
+
+  it("rejects a non-string serviceUser value", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: 123 },
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
 

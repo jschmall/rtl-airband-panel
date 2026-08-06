@@ -46,6 +46,7 @@ export function MixerEditor({
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
+          <BoolField label="Enabled" tooltip={MIXER_TOOLTIPS.enabled} checked={mixer.enabled ?? true} onChange={(v) => onChange({ ...mixer, enabled: v })} />
           <button type="button" onClick={onDuplicate} className={addButtonClass}>
             Duplicate mixer
           </button>
@@ -79,6 +80,16 @@ export function MixerEditor({
             className={inputClass}
             value={mixer.lowpass ?? ""}
             onChange={(e) => onChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
+        <Field label="Reserve inputs (optional, default 0)" tooltip={MIXER_TOOLTIPS.reserveInputs}>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            className={inputClass}
+            value={mixer.reserve_inputs ?? ""}
+            onChange={(e) => onChange({ ...mixer, reserve_inputs: numberOrUndefined(e.target.value) })}
           />
         </Field>
       </div>

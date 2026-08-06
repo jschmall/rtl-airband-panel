@@ -23,11 +23,16 @@ export const GLOBAL_TOOLTIPS = {
     "TCP port for the stats HTTP endpoint, 1-65535. Must be set together with Stats HTTP address. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
   rdioScannerQueueDepth:
     "Maximum number of pending rdio-scanner uploads queued before new ones are dropped. Defaults to 64 when unset. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband with -DRDIO_SCANNER=ON.",
+  controlSocketPath:
+    "Path to a Unix domain socket the process listens on for live retune/reconfiguration commands, so some config changes can be applied without a full restart (see the 'Apply live' button once this is set and saved). Setting this field itself still requires a restart of this instance to take effect — a not-yet-listening process obviously can't be told to start listening over the very socket it isn't listening on yet. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch specifically — not available in upstream RTLSDR-Airband or other jschmall/RTLSDR-Airband builds.",
 } as const;
 
 export const INSTANCE_OPTIONS_TOOLTIPS = {
   jsonLogging:
     "Starts this instance with -j, so its journal log lines are single-line JSON instead of plain text; the log viewer below parses them either way. Toggling this restarts the instance. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+  serviceUser:
+    "Account the systemd unit runs as (User=). Required, alongside Service group, if this instance's config sets Control socket path: the control socket only accepts connections whose UID exactly matches the daemon's own, so leaving this unset (the default, which runs the process as root) locks out this panel's own Apply live calls with a permission error. Leave blank unless you're using the dynamic_reload fork's control socket.",
+  serviceGroup: "Account the systemd unit runs as (Group=). Paired with Service user — see its tooltip. Meaningless without Service user also set.",
 } as const;
 
 export const DEVICE_TOOLTIPS = {
@@ -50,6 +55,10 @@ export const DEVICE_TOOLTIPS = {
   channel: "Which physical receive channel on the device to use, for devices with more than one (most single-tuner dongles only have channel 0).",
   antenna: "Selects which antenna port to use, for devices with more than one. Leave blank to use the device's default port.",
   disable: "Ignores this device entirely, as if it weren't in the config at all. Useful for temporarily disabling hardware that isn't currently connected without deleting its configuration.",
+  reserveChannels:
+    "Reserves this many extra channel slots at startup (beyond the channels defined below), so adding, editing, or removing a channel later — anywhere in the list, not just the end — can be picked up live via Apply live without a restart, as long as the channel count stays within this headroom. Multichannel only; leave blank (default 0) unless you plan to change channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+  tunerBandwidth:
+    "The RTL-SDR tuner's hardware capture (front-end) bandwidth, in Hz — distinct from a channel's own Bandwidth field below, which filters the already-captured signal after demodulation. Leave blank (or 0) for automatic, RTLSDR-Airband's default. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch; changing it can be picked up live via Apply live, same as Correction.",
 } as const;
 
 export const CHANNEL_TOOLTIPS = {
@@ -71,6 +80,8 @@ export const CHANNEL_TOOLTIPS = {
   lowpass: "MP3 encoder lowpass filter cutoff, in Hz. Cuts high-frequency hiss from the encoded audio. 0 disables it.",
   tauChannel: "Overrides the device/global NFM de-emphasis time constant for this specific channel. Leave blank to fall back to the device's Tau, or the global Tau if the device doesn't set one either.",
   disable: "Ignores this channel entirely, as if it weren't in the config at all. The device it belongs to still needs at least one other non-disabled channel.",
+  enabled:
+    "Starts this channel live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a channel in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;
 
 export const OUTPUT_TOOLTIPS = {
@@ -129,4 +140,8 @@ export const MIXER_TOOLTIPS = {
   highpass: "MP3 encoder highpass filter cutoff, in Hz, applied to the mixed-down audio. 0 disables it.",
   lowpass: "MP3 encoder lowpass filter cutoff, in Hz, applied to the mixed-down audio. 0 disables it.",
   disable: "Ignores this mixer entirely, as if it weren't configured. Any channel output still pointed at it will fail validation.",
+  enabled:
+    "Starts this mixer live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a mixer in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+  reserveInputs:
+    "Reserves this many extra mixer-input slots, sized once after startup connections finish, so a channel appended later whose output routes into this mixer can connect live via Apply live without a restart. Unlike Reserve channels, this headroom isn't released when a mixer-connected channel is edited live — each live edit permanently consumes one more slot, so size this for the number of edits you expect, not just the number of channels. Leave blank (default 0) unless you plan to add or edit mixer-connected channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;

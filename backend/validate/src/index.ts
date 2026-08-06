@@ -6,7 +6,7 @@ import { checkCtcssTones } from "./checks/ctcss.js";
 import { checkScanMode } from "./checks/scan-mode.js";
 import { checkSendTxTags } from "./checks/send-tx-tags.js";
 import { checkDeviceRequirements } from "./checks/device-requirements.js";
-import { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+import { checkMixerReferences, checkMixerOutputBalance, checkMixerReserveInputs } from "./checks/mixers.js";
 import { checkMixerUnused } from "./checks/mixer-unused.js";
 import { checkDisableCascade } from "./checks/disable-cascade.js";
 import { checkRdioScanner } from "./checks/rdio-scanner.js";
@@ -19,6 +19,8 @@ import { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-
 import { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 import { checkPostWriteScript } from "./checks/post-write-script.js";
 import { checkStatsHttp } from "./checks/stats-http.js";
+import { checkControlSocketPath } from "./checks/control-socket.js";
+import { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -45,8 +47,11 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkUdpStreamSampleRate(config),
     ...checkMixerNestedOutputs(config),
     ...checkMixerOutputBalance(config),
+    ...checkMixerReserveInputs(config),
     ...checkPostWriteScript(config),
     ...checkStatsHttp(config),
+    ...checkControlSocketPath(config),
+    ...checkEnabledDisableRedundant(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -65,7 +70,7 @@ export { checkCtcssTones } from "./checks/ctcss.js";
 export { checkScanMode } from "./checks/scan-mode.js";
 export { checkSendTxTags } from "./checks/send-tx-tags.js";
 export { checkDeviceRequirements } from "./checks/device-requirements.js";
-export { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+export { checkMixerReferences, checkMixerOutputBalance, checkMixerReserveInputs } from "./checks/mixers.js";
 export { checkMixerUnused } from "./checks/mixer-unused.js";
 export { checkDisableCascade } from "./checks/disable-cascade.js";
 export { checkRdioScanner } from "./checks/rdio-scanner.js";
@@ -78,3 +83,5 @@ export { checkFileOutputFlags, checkUdpStreamSampleRate } from "./checks/output-
 export { checkMixerNestedOutputs } from "./checks/mixer-nested-outputs.js";
 export { checkPostWriteScript } from "./checks/post-write-script.js";
 export { checkStatsHttp } from "./checks/stats-http.js";
+export { checkControlSocketPath } from "./checks/control-socket.js";
+export { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";

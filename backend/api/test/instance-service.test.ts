@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
@@ -8,6 +8,7 @@ import { ConfigStore } from "../src/config-store.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
 import { InstanceOptionsStore } from "../src/instance-options-store.js";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
+import { MockControlSocketClient } from "../src/control-socket/mock-client.js";
 import { buildHarness, cleanupScratchDir, FIXTURE_INSTANCE_NAME, makeScratchDir, seedFixture, teardownHarness, type TestHarness } from "./helpers.js";
 
 function minimalConfig(overrides: Partial<RtlAirbandConfig> = {}): RtlAirbandConfig {
@@ -256,6 +257,175 @@ describe("updateConfig", () => {
   });
 });
 
+describe("applyConfigLive", () => {
+  it("writes the file and reports no-control-socket when the config has no control_socket_path, leaving pending-restart marked", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig();
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: false, reason: "no-control-socket" });
+    expect(h.controlSocketClient.calls).toEqual([]);
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(config);
+  });
+
+  it("clears pending-restart when reload_diff reports everything applied", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: true, applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+    expect(h.controlSocketClient.calls).toEqual([`reload-diff /run/rtl-airband/inst.sock`]);
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(false);
+  });
+
+  it("clears pending-restart when reload_diff reports a live channel-add (reserve_channels headroom) as fully applied", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", {
+      kind: "applied",
+      applied: ["dev0: added 1 channel(s) (index 3-3)"],
+      skippedRequiresRestart: [],
+    });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: true, applied: ["dev0: added 1 channel(s) (index 3-3)"], skippedRequiresRestart: [] });
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(false);
+  });
+
+  it("leaves pending-restart marked when reload_diff reports a partial apply", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", {
+      kind: "applied",
+      applied: ["device[0] centerfreq"],
+      skippedRequiresRestart: ["device[0] sample_rate"],
+    });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toMatchObject({ attempted: true, skippedRequiresRestart: ["device[0] sample_rate"] });
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+  });
+
+  it("still writes the config and leaves pending-restart marked when the socket is unreachable", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "unreachable", reason: "ENOENT" });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: false, reason: "unreachable", detail: "ENOENT" });
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(config);
+  });
+
+  it("leaves pending-restart marked on a protocol-error response", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+    h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "protocol-error", message: "no config file path known" });
+
+    const result = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+    expect(result.liveApply).toEqual({ attempted: false, reason: "protocol-error", detail: "no config file path known" });
+    expect(await h.pendingRestartStore.has(FIXTURE_INSTANCE_NAME)).toBe(true);
+  });
+
+  it("never touches the control socket when an ifMatch conflict is detected", async () => {
+    await seedFixture(h.instancesDir);
+    const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+
+    await expect(h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config, { ifMatch: "stale-version" })).rejects.toBeInstanceOf(ConfigConflictError);
+    expect(h.controlSocketClient.calls).toEqual([]);
+  });
+
+  it("fails closed on validation errors: no file write, no control-socket call", async () => {
+    await seedFixture(h.instancesDir);
+    const before = await h.service.getConfig(FIXTURE_INSTANCE_NAME);
+    const broken = minimalConfig({
+      control_socket_path: "/run/rtl-airband/inst.sock",
+      devices: [
+        {
+          ...before.devices[0]!,
+          channels: [
+            { freq: 100_000_000, afc: 0, modulation: "nfm", outputs: before.devices[0]!.channels[0]!.outputs },
+            { freq: 100_000_100, afc: 0, modulation: "nfm", outputs: before.devices[0]!.channels[0]!.outputs },
+          ],
+        },
+      ],
+    });
+
+    await expect(h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, broken)).rejects.toBeInstanceOf(ValidationFailedError);
+    expect(h.controlSocketClient.calls).toEqual([]);
+    expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+  });
+
+  describe("cooldown", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("skips reload_diff and reports cooldown on a second call made too soon, but still writes the config", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: false, reason: "cooldown" });
+      expect(h.controlSocketClient.calls).toHaveLength(1);
+      expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(config);
+    });
+
+    it("allows a new attempt once the cooldown window has elapsed", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      vi.advanceTimersByTime(1000);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: true });
+      expect(h.controlSocketClient.calls).toHaveLength(2);
+    });
+
+    it("does not throttle a different instance name", async () => {
+      await seedFixture(h.instancesDir);
+      await seedFixture(h.instancesDir, "second-instance");
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: [], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const other = await h.service.applyConfigLive("second-instance", config);
+
+      expect(other.liveApply).toMatchObject({ attempted: true });
+      expect(h.controlSocketClient.calls).toHaveLength(2);
+    });
+
+    it("starts the cooldown even when reload_diff fails or is unreachable", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "unreachable", reason: "ENOENT" });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: false, reason: "cooldown" });
+      expect(h.controlSocketClient.calls).toHaveLength(1);
+    });
+  });
+});
+
 describe("updateConfig optimistic concurrency (ifMatch)", () => {
   it("succeeds when ifMatch matches the current on-disk version", async () => {
     await seedFixture(h.instancesDir);
@@ -407,7 +577,8 @@ describe("exportAll / importAll", () => {
         {
           instancesDir: otherDir,
           rtlAirbandBinary: "/usr/local/bin/rtl_airband",
-        }
+        },
+        new MockControlSocketClient()
       );
 
       const results = await otherService.importAll(bundle);

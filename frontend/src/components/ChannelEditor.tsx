@@ -66,6 +66,7 @@ export function ChannelEditor({
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
+          <BoolField label="Enabled" tooltip={CHANNEL_TOOLTIPS.enabled} checked={channel.enabled ?? true} onChange={(v) => onChange({ ...channel, enabled: v })} />
           <button type="button" onClick={onDuplicate} className={addButtonClass}>
             Duplicate channel
           </button>

@@ -80,6 +80,8 @@ export function toDomain(ast: ConfigFile): RtlAirbandConfig {
   if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
   const rdioScannerQueueDepth = optionalNumber(root, "rdio_scanner_queue_depth", path);
   if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
+  const controlSocketPath = optionalString(root, "control_socket_path", path);
+  if (controlSocketPath !== undefined) config.control_socket_path = controlSocketPath;
 
   const mixersSetting = findSetting(root, "mixers");
   if (mixersSetting) {
@@ -124,8 +126,12 @@ function toDevice(g: GroupNode, path: string): Device {
   if (sampleRate !== undefined) device.sample_rate = sampleRate;
   const correction = optionalNumber(g, "correction", path);
   if (correction !== undefined) device.correction = correction;
+  const bandwidth = optionalNumber(g, "bandwidth", path);
+  if (bandwidth !== undefined) device.bandwidth = bandwidth;
   const mode = toDeviceMode(g, path);
   if (mode !== undefined) device.mode = mode;
+  const reserveChannels = optionalNumber(g, "reserve_channels", path);
+  if (reserveChannels !== undefined) device.reserve_channels = reserveChannels;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) device.disable = disable;
   const tau = optionalNumber(g, "tau", path);
@@ -187,6 +193,8 @@ function toMultichannelChannel(g: GroupNode, path: string): MultichannelChannel 
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -227,6 +235,8 @@ function toScanChannel(g: GroupNode, path: string): ScanChannel {
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -249,10 +259,14 @@ function toMixer(g: GroupNode, name: string, path: string): Mixer {
   };
   const disable = optionalBool(g, "disable", path);
   if (disable !== undefined) mixer.disable = disable;
+  const enabled = optionalBool(g, "enabled", path);
+  if (enabled !== undefined) mixer.enabled = enabled;
   const highpass = optionalNumber(g, "highpass", path);
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(g, "lowpass", path);
   if (lowpass !== undefined) mixer.lowpass = lowpass;
+  const reserveInputs = optionalNumber(g, "reserve_inputs", path);
+  if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
   return mixer;
 }
 
@@ -463,6 +477,7 @@ export function fromDomain(config: RtlAirbandConfig): ConfigFile {
   if (config.rdio_scanner_queue_depth !== undefined) {
     members.push(numberSetting("rdio_scanner_queue_depth", config.rdio_scanner_queue_depth, "int"));
   }
+  if (config.control_socket_path !== undefined) members.push(stringSetting("control_socket_path", config.control_socket_path));
   members.push(setting("devices", listNode(config.devices.map(deviceFromDomain))));
   if (config.mixers !== undefined) {
     members.push(setting("mixers", group(config.mixers.map(mixerFromDomain))));
@@ -478,7 +493,9 @@ function deviceFromDomain(device: Device) {
   if (device.centerfreq !== undefined) members.push(numberSetting("centerfreq", device.centerfreq, "int"));
   if (device.sample_rate !== undefined) members.push(numberSetting("sample_rate", device.sample_rate, "int"));
   if (device.correction !== undefined) members.push(numberSetting("correction", device.correction, "int"));
+  if (device.bandwidth !== undefined) members.push(numberSetting("bandwidth", device.bandwidth, "int"));
   if (device.mode !== undefined) members.push(stringSetting("mode", device.mode));
+  if (device.reserve_channels !== undefined) members.push(numberSetting("reserve_channels", device.reserve_channels, "int"));
   if (device.disable !== undefined) members.push(boolSetting("disable", device.disable));
   if (device.tau !== undefined) members.push(numberSetting("tau", device.tau, "int"));
   if (device.buffers !== undefined) members.push(numberSetting("buffers", device.buffers, "int"));
@@ -514,6 +531,7 @@ function multichannelChannelFromDomain(channel: MultichannelChannel): GroupNode 
     members.push(numberSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "int"));
   }
   if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
+  if (channel.enabled !== undefined) members.push(boolSetting("enabled", channel.enabled));
   members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
   return group(members);
 }
@@ -539,6 +557,7 @@ function scanChannelFromDomain(channel: ScanChannel): GroupNode {
     members.push(numberOrListSetting("squelch_snr_threshold", channel.squelch_snr_threshold, "float"));
   }
   if (channel.disable !== undefined) members.push(boolSetting("disable", channel.disable));
+  if (channel.enabled !== undefined) members.push(boolSetting("enabled", channel.enabled));
   members.push(setting("outputs", listNode(channel.outputs.map(outputFromDomain))));
   return group(members);
 }
@@ -546,8 +565,10 @@ function scanChannelFromDomain(channel: ScanChannel): GroupNode {
 function mixerFromDomain(mixer: Mixer): SettingNode {
   const members: SettingNode[] = [];
   if (mixer.disable !== undefined) members.push(boolSetting("disable", mixer.disable));
+  if (mixer.enabled !== undefined) members.push(boolSetting("enabled", mixer.enabled));
   if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
   if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
+  if (mixer.reserve_inputs !== undefined) members.push(numberSetting("reserve_inputs", mixer.reserve_inputs, "int"));
   members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));
   return setting(mixer.name, group(members));
 }

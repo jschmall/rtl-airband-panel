@@ -51,3 +51,21 @@ export function checkMixerOutputBalance(config: RtlAirbandConfig): ValidationIss
 
   return issues;
 }
+
+/** Errors when a mixer's reserve_inputs is negative -- RTLSDR-Airband's own config.cpp rejects this at startup. */
+export function checkMixerReserveInputs(config: RtlAirbandConfig): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  (config.mixers ?? []).forEach((mixer, mi) => {
+    if (mixer.reserve_inputs !== undefined && mixer.reserve_inputs < 0) {
+      issues.push({
+        severity: "error",
+        code: "mixer-reserve-inputs-negative",
+        path: `$.mixers[${mi}]`,
+        message: `reserve_inputs ${mixer.reserve_inputs} must not be negative`,
+      });
+    }
+  });
+
+  return issues;
+}

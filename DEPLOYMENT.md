@@ -105,13 +105,17 @@ RTLSDR-Airband instance.
 If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see
 [Systemd control](./README.md#systemd-control)) so the panel can restart
 real `rtl_airband` instances, the `rtl-airband-panel` system user needs
-passwordless `sudo` access to `systemctl` — don't grant it blanket `sudo`
-access. Instance naming is entirely up to you (see
+passwordless `sudo` access to `systemctl` and `journalctl` — don't grant it
+blanket `sudo` access. Instance naming is entirely up to you (see
 [Systemd control](./README.md#systemd-control) for how to scope this to
 only your instances), but even without that extra scoping, the example rule
 at [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers)
-still limits the grant to exactly the `systemctl`/`tee`/`rm` commands the
-sudo adapter issues, never a blanket `sudo systemctl` or `sudo ALL`:
+still limits the grant to exactly the `systemctl`/`journalctl`/`tee`/`rm`
+commands the sudo adapter issues, never a blanket `sudo systemctl` or
+`sudo ALL`. The adapter also always calls `sudo` with `-n` (non-interactive),
+so a missing or out-of-date sudoers rule fails with a clean, loggable error
+instead of `sudo` ever falling back to a password prompt on the controlling
+terminal:
 
 ```bash
 sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel

@@ -7,9 +7,11 @@ import type { Channel, Device, Mixer, RtlAirbandConfig, ScanChannel } from "@rtl
 import {
   checkAmpfactor,
   checkBinCollisions,
+  checkControlSocketPath,
   checkCtcssTones,
   checkDeviceRequirements,
   checkDisableCascade,
+  checkEnabledDisableRedundant,
   checkFftSize,
   checkFileOutputFlags,
   checkFilterCutoffs,
@@ -17,6 +19,7 @@ import {
   checkMixerNestedOutputs,
   checkMixerOutputBalance,
   checkMixerReferences,
+  checkMixerReserveInputs,
   checkMixerUnused,
   checkModulation,
   checkNotchQ,
@@ -434,6 +437,42 @@ describe("checkDeviceRequirements", () => {
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues.some((i) => i.code === "device-num-buffers-invalid")).toBe(true);
   });
+
+  it("errors when reserve_channels is negative", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { reserve_channels: -1 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-negative")).toBe(true);
+  });
+
+  it("does not flag a non-negative reserve_channels on a multichannel device", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { reserve_channels: 4 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-negative" || i.code === "device-reserve-channels-scan-unsupported")).toBe(false);
+  });
+
+  it("errors when a scan-mode device has a non-zero reserve_channels", () => {
+    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined, sample_rate: 1_400_000, reserve_channels: 2 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-scan-unsupported")).toBe(true);
+  });
+
+  it("does not flag a scan-mode device with reserve_channels explicitly 0", () => {
+    const device = makeDevice([makeScanChannel([100_000_000])], { mode: "scan", centerfreq: undefined, sample_rate: 1_400_000, reserve_channels: 0 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-reserve-channels-scan-unsupported")).toBe(false);
+  });
+
+  it("errors when an rtlsdr device's bandwidth is negative", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "rtlsdr", bandwidth: -1 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-bandwidth-negative")).toBe(true);
+  });
+
+  it("does not flag a non-negative bandwidth (0 = automatic) on an rtlsdr device", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "rtlsdr", bandwidth: 0 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-bandwidth-negative")).toBe(false);
+  });
 });
 
 describe("checkMixerReferences", () => {
@@ -760,6 +799,17 @@ describe("checkDisableCascade", () => {
     const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", disable: true }], disable: true };
     expect(checkDisableCascade(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
   });
+
+  it("does not treat enabled: false as disabled -- a live-off channel is still allocated and must still count as active", () => {
+    const device = makeDevice([makeChannel(100_000_000, { enabled: false })]);
+    expect(checkDisableCascade(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not treat enabled: false as disabled on a mixer either", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], enabled: false };
+    expect(checkDisableCascade(makeConfig([device], { mixers: [mixer] }))).toEqual([]);
+  });
 });
 
 describe("checkFftSize", () => {
@@ -1061,6 +1111,49 @@ describe("checkStatsHttp", () => {
   });
 });
 
+describe("checkControlSocketPath", () => {
+  it("does not flag a config with no control_socket_path set", () => {
+    expect(checkControlSocketPath(makeConfig([]))).toEqual([]);
+  });
+
+  it("does not flag a non-empty path", () => {
+    expect(checkControlSocketPath(makeConfig([], { control_socket_path: "/run/rtl-airband/inst.sock" }))).toEqual([]);
+  });
+
+  it.each(["", "   "])("errors when control_socket_path is %j", (control_socket_path) => {
+    const issues = checkControlSocketPath(makeConfig([], { control_socket_path }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "control-socket-path-empty" });
+  });
+});
+
+describe("checkEnabledDisableRedundant", () => {
+  it("does not flag a channel with only disable set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { disable: true })]);
+    expect(checkEnabledDisableRedundant(makeConfig([device]))).toEqual([]);
+  });
+
+  it("does not flag a channel with only enabled: false set", () => {
+    const device = makeDevice([makeChannel(100_000_000, { enabled: false })]);
+    expect(checkEnabledDisableRedundant(makeConfig([device]))).toEqual([]);
+  });
+
+  it("warns when a channel has both disable: true and enabled: false", () => {
+    const device = makeDevice([makeChannel(100_000_000, { disable: true, enabled: false })]);
+    const issues = checkEnabledDisableRedundant(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "enabled-false-with-disable", path: "$.devices[0].channels[0]" });
+  });
+
+  it("warns when a mixer has both disable: true and enabled: false", () => {
+    const device = makeDevice([makeChannel(100_000_000)]);
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], disable: true, enabled: false };
+    const issues = checkEnabledDisableRedundant(makeConfig([device], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "warning", code: "enabled-false-with-disable", path: "$.mixers[0]" });
+  });
+});
+
 describe("checkMixerNestedOutputs", () => {
   it("does not flag a pulse output with stream_name set", () => {
     const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse", stream_name: "mix1" }] };
@@ -1123,6 +1216,25 @@ describe("checkMixerOutputBalance", () => {
     const issues = checkMixerOutputBalance(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-balance-out-of-range" });
+  });
+});
+
+describe("checkMixerReserveInputs", () => {
+  it("does not flag a mixer with no reserve_inputs set", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    expect(checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("does not flag a non-negative reserve_inputs", () => {
+    const mixer: Mixer = { name: "mix1", reserve_inputs: 2, outputs: [{ type: "pulse" }] };
+    expect(checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when reserve_inputs is negative", () => {
+    const mixer: Mixer = { name: "mix1", reserve_inputs: -1, outputs: [{ type: "pulse" }] };
+    const issues = checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-reserve-inputs-negative", path: "$.mixers[0]" });
   });
 });
 

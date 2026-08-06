@@ -111,6 +111,13 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, rdio_scanner_queue_depth: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        <Field label="Control socket path (optional, dynamic_reload fork build only)" tooltip={GLOBAL_TOOLTIPS.controlSocketPath}>
+          <input
+            className={inputClass}
+            value={config.control_socket_path ?? ""}
+            onChange={(e) => onChange({ ...config, control_socket_path: e.target.value || undefined })}
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-x-4 gap-y-2 self-end md:grid-cols-2">
           <BoolField
             label="Multiple demod threads"

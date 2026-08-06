@@ -9,6 +9,9 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** Whether this instance's unit is started with -j (single-line JSON log output). See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** Account the unit's User=/Group= are set to, if configured. See InstanceOptions.serviceUser/serviceGroup. */
+  serviceUser?: string;
+  serviceGroup?: string;
   /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
   status: UnitStatus;
   /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
@@ -17,6 +20,8 @@ export interface InstanceSummary {
 
 export interface InstanceOptions {
   jsonLogging: boolean;
+  serviceUser?: string;
+  serviceGroup?: string;
 }
 
 export type UnitActiveState = "active" | "inactive" | "activating" | "deactivating" | "failed" | "unknown";
@@ -39,6 +44,18 @@ export interface WriteResult {
   status: UnitStatus;
   /** The written config's new version — pass as `ifMatch` on the next updateConfig call. */
   version: string;
+}
+
+/** Outcome of a dynamic_reload `reload_diff` attempt -- see InstanceService.applyConfigLive on the backend. */
+export type LiveApplyOutcome =
+  | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
+  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown"; detail?: string };
+
+export interface ApplyLiveResult {
+  warnings: ValidationIssue[];
+  status: UnitStatus;
+  version: string;
+  liveApply: LiveApplyOutcome;
 }
 
 export interface ConfigWithVersion {
@@ -149,6 +166,14 @@ export const api = {
   updateConfig: (name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> =>
     request(`/instances/${encodeURIComponent(name)}?restart=${options.restart ?? true}`, {
       method: "PUT",
+      body: JSON.stringify(config),
+      headers: options.ifMatch !== undefined ? { "If-Match": options.ifMatch } : undefined,
+    }),
+
+  /** Writes the config, then asks the running process to live-apply whatever it safely can via its dynamic_reload control socket, instead of restarting. Only meaningful when the config has control_socket_path set. */
+  applyConfigLive: (name: string, config: RtlAirbandConfig, options: { ifMatch?: string } = {}): Promise<ApplyLiveResult> =>
+    request(`/instances/${encodeURIComponent(name)}/apply-live`, {
+      method: "POST",
       body: JSON.stringify(config),
       headers: options.ifMatch !== undefined ? { "If-Match": options.ifMatch } : undefined,
     }),

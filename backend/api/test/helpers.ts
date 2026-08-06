@@ -7,6 +7,7 @@ import { InstanceService } from "../src/instance-service.js";
 import { PendingRestartStore } from "../src/pending-restart-store.js";
 import { InstanceOptionsStore } from "../src/instance-options-store.js";
 import { MockSystemdAdapter } from "../src/systemd/mock-adapter.js";
+import { MockControlSocketClient } from "../src/control-socket/mock-client.js";
 import { StatsStore } from "../src/stats/store.js";
 import { StatsService } from "../src/stats/stats-service.js";
 
@@ -32,6 +33,7 @@ export interface TestHarness {
   systemd: MockSystemdAdapter;
   pendingRestartStore: PendingRestartStore;
   instanceOptionsStore: InstanceOptionsStore;
+  controlSocketClient: MockControlSocketClient;
   service: InstanceService;
   statsStore: StatsStore;
   statsService: StatsService;
@@ -43,13 +45,18 @@ export async function buildHarness(): Promise<TestHarness> {
   const systemd = new MockSystemdAdapter();
   const pendingRestartStore = new PendingRestartStore(instancesDir);
   const instanceOptionsStore = new InstanceOptionsStore(instancesDir);
-  const service = new InstanceService(configStore, systemd, pendingRestartStore, instanceOptionsStore, {
-    instancesDir,
-    rtlAirbandBinary: "/usr/local/bin/rtl_airband",
-  });
+  const controlSocketClient = new MockControlSocketClient();
+  const service = new InstanceService(
+    configStore,
+    systemd,
+    pendingRestartStore,
+    instanceOptionsStore,
+    { instancesDir, rtlAirbandBinary: "/usr/local/bin/rtl_airband" },
+    controlSocketClient
+  );
   const statsStore = new StatsStore(":memory:");
   const statsService = new StatsService(configStore, statsStore);
-  return { instancesDir, configStore, systemd, pendingRestartStore, instanceOptionsStore, service, statsStore, statsService };
+  return { instancesDir, configStore, systemd, pendingRestartStore, instanceOptionsStore, controlSocketClient, service, statsStore, statsService };
 }
 
 export async function teardownHarness(h: TestHarness): Promise<void> {

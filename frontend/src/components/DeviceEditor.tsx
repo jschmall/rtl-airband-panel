@@ -317,6 +317,17 @@ export function DeviceEditor({
             onChange={(e) => onChange({ ...device, correction: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        {isRtl && (
+          <Field label="Tuner bandwidth, Hz (optional, blank/0 = automatic)" tooltip={DEVICE_TOOLTIPS.tunerBandwidth}>
+            <input
+              type="number"
+              min="0"
+              className={inputClass}
+              value={device.bandwidth ?? ""}
+              onChange={(e) => onChange({ ...device, bandwidth: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
         <Field label="Tau, µs (optional; NFM deemphasis, overrides global)" tooltip={DEVICE_TOOLTIPS.tauDevice}>
           <input
             type="number"
@@ -325,6 +336,18 @@ export function DeviceEditor({
             onChange={(e) => onChange({ ...device, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        {!isScan && (
+          <Field label="Reserve channels (optional, default 0)" tooltip={DEVICE_TOOLTIPS.reserveChannels}>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className={inputClass}
+              value={device.reserve_channels ?? ""}
+              onChange={(e) => onChange({ ...device, reserve_channels: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
 
         {isRtl && (
           <Field label="Buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.buffers}>

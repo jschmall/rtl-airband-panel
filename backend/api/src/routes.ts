@@ -178,6 +178,30 @@ export function registerRoutes(app: FastifyInstance, service: InstanceService): 
     }
   );
 
+  // Separate from PUT's own restart-boolean query param rather than a third
+  // value for it, so PUT's WriteResult response contract stays stable
+  // regardless of query value -- this returns the differently-shaped
+  // ApplyLiveResult instead. Mirrors POST .../restart's relationship to
+  // PUT's restart:true — a dedicated action endpoint alongside the generic save.
+  app.post<{ Params: { name: string } }>("/instances/:name/apply-live", MUTATING_ROUTE_OPTS, async (request) => {
+    const config = parseRtlAirbandConfigBody(request.body);
+    const ifMatchHeader = request.headers["if-match"];
+    const ifMatch = typeof ifMatchHeader === "string" ? { ifMatch: ifMatchHeader } : {};
+    try {
+      const result = await service.applyConfigLive(request.params.name, config, ifMatch);
+      auditLog(request, "apply-live", request.params.name, "success", {
+        attempted: result.liveApply.attempted,
+        ...(result.liveApply.attempted
+          ? { applied: result.liveApply.applied.length, skipped: result.liveApply.skippedRequiresRestart.length }
+          : { reason: result.liveApply.reason }),
+      });
+      return result;
+    } catch (err) {
+      auditLog(request, "apply-live", request.params.name, "failure", { error: errorMessage(err) });
+      throw err;
+    }
+  });
+
   app.patch<{ Params: { name: string } }>("/instances/:name/options", MUTATING_ROUTE_OPTS, async (request) => {
     const patch = extractInstanceOptionsPatch(request.body);
     try {
@@ -266,16 +290,27 @@ function extractCreateBody(body: unknown): { name: string; config: RtlAirbandCon
   return { name: rec["name"], config: parseRtlAirbandConfigBody(rec["config"]) };
 }
 
-function extractInstanceOptionsPatch(body: unknown): { jsonLogging?: boolean } {
+function extractInstanceOptionsPatch(body: unknown): { jsonLogging?: boolean; serviceUser?: string | undefined; serviceGroup?: string | undefined } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     throw new ShapeValidationError("Expected an object", "$");
   }
   const rec = body as Record<string, unknown>;
-  if (rec["jsonLogging"] === undefined) return {};
-  if (typeof rec["jsonLogging"] !== "boolean") {
-    throw new ShapeValidationError("Expected 'jsonLogging' to be a boolean", "$");
+  const patch: { jsonLogging?: boolean; serviceUser?: string | undefined; serviceGroup?: string | undefined } = {};
+  if (rec["jsonLogging"] !== undefined) {
+    if (typeof rec["jsonLogging"] !== "boolean") {
+      throw new ShapeValidationError("Expected 'jsonLogging' to be a boolean", "$");
+    }
+    patch.jsonLogging = rec["jsonLogging"];
   }
-  return { jsonLogging: rec["jsonLogging"] };
+  for (const key of ["serviceUser", "serviceGroup"] as const) {
+    if (rec[key] === undefined) continue;
+    if (typeof rec[key] !== "string") {
+      throw new ShapeValidationError(`Expected '${key}' to be a string`, "$");
+    }
+    // An empty string clears a previously-set account back to unset, same as omitting it entirely.
+    patch[key] = rec[key] === "" ? undefined : rec[key];
+  }
+  return patch;
 }
 
 function extractRenameBody(body: unknown): { newName: string } {

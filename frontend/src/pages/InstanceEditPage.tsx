@@ -2,15 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
-import { api, ApiError } from "../api/client.js";
+import { api, ApiError, type LiveApplyOutcome } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
 import { InstanceLogs } from "../components/InstanceLogs.js";
+import { InstanceServiceAccount } from "../components/InstanceServiceAccount.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep, stampOutputMatchIndices } from "../lib/keys.js";
 import { getValueAtPath } from "../lib/validation-path.js";
+import { classifySkippedRequiresRestart } from "../lib/live-apply.js";
 
 interface LoadError {
   /** "not-found" gets its own messaging (nothing to retry -- the instance is gone);
@@ -33,14 +35,18 @@ export function InstanceEditPage() {
   const [errors, setErrors] = useState<ValidationIssue[]>([]);
   const [warnings, setWarnings] = useState<ValidationIssue[]>([]);
   const [warningsDismissed, setWarningsDismissed] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"save" | "restart" | "check" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"save" | "restart" | "apply-live" | "check" | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  // Result of the most recent "Apply live" click -- kept separate from the plain-string
+  // savedMessage above since it needs to render two lists (applied/skipped), not one line.
+  const [liveApplyResult, setLiveApplyResult] = useState<LiveApplyOutcome | null>(null);
   // Set when the user clicks a validation issue in the banner -- nonce is bumped
   // (not just the path) so clicking the same issue twice still re-triggers the
   // scroll/expand even though the path string didn't change. See Collapsible's
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
+  const [serviceAccountPending, setServiceAccountPending] = useState(false);
 
   // Tracks the instance this page is currently showing, so an in-flight
   // save/check for the *previous* instance can tell it's stale once the user
@@ -58,6 +64,7 @@ export function InstanceEditPage() {
     setWarnings([]);
     setWarningsDismissed(false);
     setSavedMessage(null);
+    setLiveApplyResult(null);
     setPendingAction(null);
   }, [name]);
 
@@ -150,6 +157,7 @@ export function InstanceEditPage() {
     setPendingAction(restart ? "restart" : "save");
     setErrors([]);
     setSavedMessage(null);
+    setLiveApplyResult(null);
     try {
       const result = await api.updateConfig(name, config, { restart, ifMatch: version ?? undefined });
       // The user may have navigated to a different instance while this request
@@ -199,6 +207,60 @@ export function InstanceEditPage() {
     }
   }
 
+  // Saves, then asks the running process to live-apply whatever it safely can via its
+  // dynamic_reload control socket instead of restarting. Only ever offered (see the
+  // button below) when the *saved* config already has control_socket_path set, since
+  // the currently-running process won't have it otherwise either.
+  async function handleApplyLive() {
+    if (!name || !config || pendingAction) return;
+    if (
+      !window.confirm(
+        `Apply changes to '${name}' live? This saves the config and asks the running process to pick up whatever it can without restarting (retune, sample rate, gain, tuner bandwidth, correction, channel/mixer on/off, and adding, editing, or removing channels within a device's reserved headroom). Some changes (device/mixer count, driver type, etc.) always require a restart regardless.`
+      )
+    ) {
+      return;
+    }
+    setPendingAction("apply-live");
+    setErrors([]);
+    setSavedMessage(null);
+    setLiveApplyResult(null);
+    try {
+      const result = await api.applyConfigLive(name, config, { ifMatch: version ?? undefined });
+      if (nameRef.current !== name) return;
+      setWarnings(result.warnings);
+      setWarningsDismissed(false);
+      setVersion(result.version);
+      setSavedConfig(config);
+      setLiveApplyResult(result.liveApply);
+      await refreshInstanceList();
+    } catch (err) {
+      if (nameRef.current !== name) return;
+      if (err instanceof ApiError && err.status === 422 && err.body.errors) {
+        setErrors(err.body.errors);
+      } else if (err instanceof ApiError && err.status === 409) {
+        setErrors([
+          {
+            severity: "error",
+            code: "conflict",
+            path: "$",
+            message: `${err.message}. Your unsaved edits are still here below — reload the page to see the latest version, then re-apply them before saving.`,
+          },
+        ]);
+      } else {
+        setErrors([
+          {
+            severity: "error",
+            code: "request-failed",
+            path: "$",
+            message: err instanceof ApiError ? err.message : "Apply live failed",
+          },
+        ]);
+      }
+    } finally {
+      if (nameRef.current === name) setPendingAction(null);
+    }
+  }
+
   // Runs the same validation a save would, without writing or restarting anything --
   // an early-warning convenience so the user can find problems before committing to
   // Save-and-restart, which interrupts live audio.
@@ -206,6 +268,7 @@ export function InstanceEditPage() {
     if (!name || !config || pendingAction) return;
     setPendingAction("check");
     setSavedMessage(null);
+    setLiveApplyResult(null);
     try {
       const result = await api.validate(name, config);
       if (nameRef.current !== name) return;
@@ -250,6 +313,29 @@ export function InstanceEditPage() {
     }
   }
 
+  // Updates the systemd unit's User=/Group= -- a panel-only, non-.conf setting
+  // (see InstanceOptionsStore), same restart-on-change contract as
+  // handleToggleJsonLogging above. Passing "" for either field clears a
+  // previously-set value back to unset (see extractInstanceOptionsPatch).
+  async function handleUpdateServiceAccount(serviceUser: string, serviceGroup: string) {
+    if (!name || serviceAccountPending) return;
+    if (
+      !window.confirm(`Update the service account for '${name}'? This restarts the instance, interrupting live audio for a few seconds.`)
+    ) {
+      return;
+    }
+    setServiceAccountPending(true);
+    try {
+      await api.updateInstanceOptions(name, { serviceUser, serviceGroup });
+      await refreshInstanceList();
+      pollBriefly();
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Failed to update service account");
+    } finally {
+      setServiceAccountPending(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
@@ -288,6 +374,7 @@ export function InstanceEditPage() {
       {savedMessage && (
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>
       )}
+      {liveApplyResult && <LiveApplyBanner name={name} outcome={liveApplyResult} />}
 
       <ConfigEditor
         config={config}
@@ -296,12 +383,22 @@ export function InstanceEditPage() {
         onRevealSecret={revealSecret}
         afterGlobalSettings={
           name && (
-            <InstanceLogs
-              name={name}
-              jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
-              jsonLoggingPending={jsonLoggingPending}
-              onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
-            />
+            <>
+              <InstanceLogs
+                name={name}
+                jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+                jsonLoggingPending={jsonLoggingPending}
+                onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+              />
+              <InstanceServiceAccount
+                name={name}
+                serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
+                serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
+                controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
+                pending={serviceAccountPending}
+                onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
+              />
+            </>
           )
         }
       />
@@ -323,6 +420,16 @@ export function InstanceEditPage() {
         >
           {pendingAction === "save" ? "Saving…" : "Save"}
         </button>
+        {savedConfig?.control_socket_path !== undefined && (
+          <button
+            type="button"
+            disabled={pendingAction !== null}
+            onClick={() => void handleApplyLive()}
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {pendingAction === "apply-live" ? "Applying…" : "Apply live"}
+          </button>
+        )}
         <button
           type="button"
           disabled={pendingAction !== null}
@@ -332,6 +439,83 @@ export function InstanceEditPage() {
           {pendingAction === "restart" ? "Restarting…" : "Save and restart"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Renders the result of the most recent "Apply live" click -- see handleApplyLive above. */
+function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome: LiveApplyOutcome }) {
+  if (outcome.attempted) {
+    if (outcome.skippedRequiresRestart.length === 0) {
+      return (
+        <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+          Applied live to {name}.service — nothing left pending.
+        </div>
+      );
+    }
+    const { needsRestart, retryable } = classifySkippedRequiresRestart(outcome.skippedRequiresRestart);
+    return (
+      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
+        <p>
+          Applied {outcome.applied.length} change{outcome.applied.length === 1 ? "" : "s"} live to {name}.service.
+        </p>
+        {needsRestart.length > 0 && (
+          <>
+            <p className="mt-2">
+              {needsRestart.length} still need{needsRestart.length === 1 ? "s" : ""} a restart:
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {needsRestart.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {retryable.length > 0 && (
+          <>
+            <p className="mt-2">
+              {retryable.length} didn't take — no restart needed, click "Apply live" again to retry:
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {retryable.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {outcome.applied.length > 0 && (
+          <>
+            <p className="mt-2 text-amber-300/70">Applied:</p>
+            <ul className="mt-1 list-inside list-disc text-amber-300/70">
+              {outcome.applied.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (outcome.reason === "no-control-socket") {
+    return (
+      <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+        Saved {name}.conf. Changes will take effect after a restart — this instance has no control_socket_path set, so nothing could be applied live.
+      </div>
+    );
+  }
+
+  if (outcome.reason === "cooldown") {
+    return (
+      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
+        Applied too recently — wait a moment and try again. The config was still saved to disk.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
+      Couldn't apply live{outcome.detail ? ` (${outcome.detail})` : ""}. The config was saved to disk — use "Save and restart" or restart manually to apply it.
     </div>
   );
 }

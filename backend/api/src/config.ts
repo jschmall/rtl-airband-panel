@@ -32,6 +32,15 @@ export interface ApiConfig {
   statsPollIntervalMs: number;
   /** Samples older than this are pruned on each poll cycle. 0 or negative disables pruning (keep forever). */
   statsRetentionDays: number;
+  /**
+   * How long to wait for a response from an instance's dynamic_reload
+   * control socket (see UnixControlSocketClient) before treating it as
+   * unreachable and falling back to the restart-based save flow. No
+   * separate enable/disable flag exists for this feature -- gating is
+   * inherently per-instance via that instance's own control_socket_path
+   * being set in its saved config.
+   */
+  controlSocketTimeoutMs: number;
   /** Directory to serve the built frontend from, if it exists (see static.ts). Doesn't need to exist -- absent means dev mode via a separate Vite server. */
   frontendDistPath: string;
   /**
@@ -73,6 +82,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     statsDbPath: env.RTL_PANEL_STATS_DB_PATH ?? path.join(os.homedir(), ".rtl-airband-panel", "stats.db"),
     statsPollIntervalMs: env.RTL_PANEL_STATS_POLL_INTERVAL_MS ? Number(env.RTL_PANEL_STATS_POLL_INTERVAL_MS) : 15_000,
     statsRetentionDays: env.RTL_PANEL_STATS_RETENTION_DAYS ? Number(env.RTL_PANEL_STATS_RETENTION_DAYS) : 7,
+    controlSocketTimeoutMs: env.RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS ? Number(env.RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS) : 8000,
     frontendDistPath: env.RTL_PANEL_FRONTEND_DIST ?? DEFAULT_FRONTEND_DIST,
   };
   return { ...base, ...overrides };

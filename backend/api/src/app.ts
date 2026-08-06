@@ -25,8 +25,23 @@ export function buildApp(
   // instead of stdout -- see ApiConfig.logFile. This only relocates the
   // panel's own request/audit/warn/error logging; it has no bearing on
   // sudo's own PAM/audit lines (see statusMany on SystemdAdapter).
+  // Plain NDJSON wraps illegibly across terminal rows when run interactively from the CLI (each
+  // entry is genuinely one line, just a long one) -- pino-pretty fixes that, but only when
+  // there's an actual terminal to read it: never under systemd (stdout isn't a TTY there, and the
+  // journal doesn't want pretty-printed text) and never when logFile redirects output to a file
+  // (which must stay machine-readable NDJSON).
+  const usePrettyLogs = options.logger !== false && !options.logFile && process.stdout.isTTY === true;
   const app = Fastify({
-    logger: options.logger === false ? false : { level: options.logLevel ?? "info", ...(options.logFile ? { file: options.logFile } : {}) },
+    logger:
+      options.logger === false
+        ? false
+        : {
+            level: options.logLevel ?? "info",
+            ...(options.logFile ? { file: options.logFile } : {}),
+            ...(usePrettyLogs
+              ? { transport: { target: "pino-pretty", options: { colorize: true, singleLine: true, translateTime: "SYS:HH:MM:ss" } } }
+              : {}),
+          },
     logController: new LogController({ disableRequestLogging: true }),
   });
   installErrorHandler(app);

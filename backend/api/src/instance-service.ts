@@ -4,6 +4,7 @@ import type { ConfigStore } from "./config-store.js";
 import type { PendingRestartStore } from "./pending-restart-store.js";
 import type { InstanceOptions, InstanceOptionsStore } from "./instance-options-store.js";
 import type { LogLine, SystemdAdapter, UnitStatus } from "./systemd/types.js";
+import type { ControlSocketClient } from "./control-socket/types.js";
 import { assertValidInstanceName, confFilePath, unitFileName } from "./instance-name.js";
 import { renderUnitFile } from "./unit-template.js";
 import { redactSecrets, restoreSecrets } from "./secrets.js";
@@ -45,6 +46,10 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** See InstanceOptions.serviceUser. */
+  serviceUser?: string;
+  /** See InstanceOptions.serviceGroup. */
+  serviceGroup?: string;
   /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
   status: UnitStatus;
   /**
@@ -91,6 +96,34 @@ export interface WriteResult {
   version: string;
 }
 
+/**
+ * Outcome of the dynamic_reload control socket's `reload_diff` command,
+ * translated into the three cases the frontend needs to distinguish. See
+ * applyConfigLive()'s doc comment for the pending-restart interaction each
+ * case implies.
+ */
+export type LiveApplyOutcome =
+  | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
+  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown"; detail?: string };
+
+/**
+ * Minimum time between reload_diff attempts against the same instance.
+ * reload_diff can cascade into retuning multiple devices in one call (see
+ * applyConfigLive's doc comment), and a transient hardware retune failure
+ * (e.g. a tuner i2c read glitch) is tolerated by the fork but not
+ * instantaneous to recover from -- this is a defense-in-depth floor against
+ * back-to-back calls (a stuck retry loop, a fast double-click, scripted
+ * misuse), not a fix for any known bug.
+ */
+const LIVE_APPLY_COOLDOWN_MS = 1000;
+
+export interface ApplyLiveResult {
+  warnings: ValidationIssue[];
+  status: UnitStatus;
+  version: string;
+  liveApply: LiveApplyOutcome;
+}
+
 export interface InstanceServiceOptions {
   instancesDir: string;
   rtlAirbandBinary: string;
@@ -113,12 +146,19 @@ export class InstanceService {
   // a fully-old or fully-new file, never a partial one.
   private readonly mutex = new KeyedMutex();
 
+  // Timestamp (Date.now()) of the last reload_diff attempt per instance name,
+  // used to enforce LIVE_APPLY_COOLDOWN_MS in applyConfigLive(). In-memory
+  // only -- resets on API process restart, which just means a slightly
+  // shorter effective cooldown right after a restart, not a correctness issue.
+  private readonly lastLiveApplyAt = new Map<string, number>();
+
   constructor(
     private readonly configStore: ConfigStore,
     private readonly systemd: SystemdAdapter,
     private readonly pendingRestartStore: PendingRestartStore,
     private readonly instanceOptionsStore: InstanceOptionsStore,
-    private readonly options: InstanceServiceOptions
+    private readonly options: InstanceServiceOptions,
+    private readonly controlSocket: ControlSocketClient
   ) {}
 
   /**
@@ -135,12 +175,15 @@ export class InstanceService {
     return Promise.all(
       infos.map(async (info) => {
         const unit = unitFileName(info.name);
+        const instanceOptions = await this.instanceOptionsStore.get(info.name);
         return {
           name: info.name,
           confPath: info.confPath,
           unit,
           pendingRestart: await this.pendingRestartStore.has(info.name),
-          jsonLogging: (await this.instanceOptionsStore.get(info.name)).jsonLogging,
+          jsonLogging: instanceOptions.jsonLogging,
+          ...(instanceOptions.serviceUser !== undefined ? { serviceUser: instanceOptions.serviceUser } : {}),
+          ...(instanceOptions.serviceGroup !== undefined ? { serviceGroup: instanceOptions.serviceGroup } : {}),
           status: statuses.get(unit) ?? { unit, activeState: "unknown", subState: "unknown" },
           searchFields: await this.getSearchFields(info.name),
         };
@@ -258,28 +301,106 @@ export class InstanceService {
   async updateConfig(name: string, config: RtlAirbandConfig, options: { restart?: boolean; ifMatch?: string } = {}): Promise<WriteResult> {
     return this.mutex.run(name, async () => {
       const restart = options.restart ?? true;
-      await this.requireExists(name);
-      const { config: existing, version } = await this.configStore.readWithVersion(name);
-      if (options.ifMatch !== undefined && options.ifMatch !== version) {
-        throw new ConfigConflictError(name);
-      }
-      const restored = restoreSecrets(config, existing);
-      const { errors, warnings } = validateConfig(restored);
-      if (errors.length > 0) throw new ValidationFailedError(errors);
-
-      const newVersion = await this.configStore.write(name, restored);
+      const { warnings, newVersion } = await this.validateAndWrite(name, config, options.ifMatch);
       const unit = unitFileName(name);
-      // Marked as pending the moment the file is written, regardless of whether the
-      // restart below succeeds — a failed restart still leaves the on-disk config
-      // ahead of whatever the running process has loaded, so "pending" must already
-      // be true before we find out whether restart() throws, not only if it doesn't.
-      await this.pendingRestartStore.mark(name);
       if (restart) {
         await this.systemd.restart(unit);
         await this.pendingRestartStore.clear(name);
       }
       const status = await this.systemd.status(unit);
       return { warnings, status, version: newVersion };
+    });
+  }
+
+  /**
+   * Shared validate -> write -> mark-pending-restart sequence used by both
+   * updateConfig() and applyConfigLive() -- every writing path fails closed
+   * on validation, respects optimistic-concurrency ifMatch, and marks
+   * pending-restart the moment the file lands, before anything downstream
+   * (a restart, a live-apply attempt) gets a chance to fail. Not
+   * mutex-guarded itself -- callers are expected to already be inside
+   * this.mutex.run(name, ...).
+   */
+  private async validateAndWrite(
+    name: string,
+    config: RtlAirbandConfig,
+    ifMatch?: string
+  ): Promise<{ restored: RtlAirbandConfig; warnings: ValidationIssue[]; newVersion: string }> {
+    await this.requireExists(name);
+    const { config: existing, version } = await this.configStore.readWithVersion(name);
+    if (ifMatch !== undefined && ifMatch !== version) {
+      throw new ConfigConflictError(name);
+    }
+    const restored = restoreSecrets(config, existing);
+    const { errors, warnings } = validateConfig(restored);
+    if (errors.length > 0) throw new ValidationFailedError(errors);
+
+    const newVersion = await this.configStore.write(name, restored);
+    // Marked as pending the moment the file is written, regardless of what
+    // happens next (a restart, a live-apply attempt) — a failure downstream
+    // still leaves the on-disk config ahead of whatever the running process
+    // has loaded, so "pending" must already be true before we find out
+    // whether that next step succeeds, not only if it does.
+    await this.pendingRestartStore.mark(name);
+    return { restored, warnings, newVersion };
+  }
+
+  /**
+   * Like updateConfig(), but instead of always restarting (or never), tries
+   * to push the change to the running process live via the dynamic_reload
+   * control socket's `reload_diff` command — which re-reads the same .conf
+   * this write just produced and live-applies whatever it safely can. The
+   * config is always written to disk regardless of what happens next; a
+   * failed/unreachable live-apply attempt degrades to exactly the same
+   * on-disk state a normal `restart: false` save would leave, never blocks
+   * or rolls back the write itself.
+   *
+   * Pending-restart interaction: writing the file always marks pending
+   * (via validateAndWrite). It's cleared only when reload_diff reports back
+   * fully applied (an empty skippedRequiresRestart) — a partial apply, an
+   * unreachable socket, or a protocol error all leave it marked, since in
+   * every one of those cases the on-disk config isn't fully reflected in
+   * the running process yet. There's no field-level pending-restart
+   * tracking; skippedRequiresRestart in the response is how the caller
+   * finds out *what* is still pending beyond the boolean.
+   */
+  async applyConfigLive(name: string, config: RtlAirbandConfig, options: { ifMatch?: string } = {}): Promise<ApplyLiveResult> {
+    return this.mutex.run(name, async () => {
+      const { restored, warnings, newVersion } = await this.validateAndWrite(name, config, options.ifMatch);
+      const unit = unitFileName(name);
+
+      if (restored.control_socket_path === undefined) {
+        return { warnings, status: await this.systemd.status(unit), version: newVersion, liveApply: { attempted: false, reason: "no-control-socket" } };
+      }
+
+      const lastAttempt = this.lastLiveApplyAt.get(name);
+      const elapsed = lastAttempt === undefined ? Infinity : Date.now() - lastAttempt;
+      if (elapsed < LIVE_APPLY_COOLDOWN_MS) {
+        return {
+          warnings,
+          status: await this.systemd.status(unit),
+          version: newVersion,
+          liveApply: { attempted: false, reason: "cooldown", detail: `wait ${LIVE_APPLY_COOLDOWN_MS - elapsed}ms` },
+        };
+      }
+      this.lastLiveApplyAt.set(name, Date.now());
+
+      const result = await this.controlSocket.reloadDiff(restored.control_socket_path);
+      if (result.kind === "applied") {
+        if (result.skippedRequiresRestart.length === 0) await this.pendingRestartStore.clear(name);
+        return {
+          warnings,
+          status: await this.systemd.status(unit),
+          version: newVersion,
+          liveApply: { attempted: true, applied: result.applied, skippedRequiresRestart: result.skippedRequiresRestart },
+        };
+      }
+      return {
+        warnings,
+        status: await this.systemd.status(unit),
+        version: newVersion,
+        liveApply: { attempted: false, reason: result.kind, detail: result.kind === "unreachable" ? result.reason : result.message },
+      };
     });
   }
 
@@ -306,6 +427,8 @@ export class InstanceService {
         binaryPath: this.options.rtlAirbandBinary,
         confPath: confFilePath(this.options.instancesDir, name),
         jsonLogging: merged.jsonLogging,
+        ...(merged.serviceUser !== undefined ? { serviceUser: merged.serviceUser } : {}),
+        ...(merged.serviceGroup !== undefined ? { serviceGroup: merged.serviceGroup } : {}),
       });
       await this.systemd.installUnitFile(unit, unitContents);
       await this.systemd.daemonReload();
@@ -460,6 +583,8 @@ export class InstanceService {
       binaryPath: this.options.rtlAirbandBinary,
       confPath: confFilePath(this.options.instancesDir, newName),
       jsonLogging: instanceOptions.jsonLogging,
+      ...(instanceOptions.serviceUser !== undefined ? { serviceUser: instanceOptions.serviceUser } : {}),
+      ...(instanceOptions.serviceGroup !== undefined ? { serviceGroup: instanceOptions.serviceGroup } : {}),
     });
 
     await this.systemd.stop(oldUnit);

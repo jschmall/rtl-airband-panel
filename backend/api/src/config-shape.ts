@@ -181,6 +181,8 @@ export function parseRtlAirbandConfigBody(input: unknown, path = "$"): RtlAirban
   if (statsHttpPort !== undefined) config.stats_http_port = statsHttpPort;
   const rdioScannerQueueDepth = optionalNumber(obj, "rdio_scanner_queue_depth", path);
   if (rdioScannerQueueDepth !== undefined) config.rdio_scanner_queue_depth = rdioScannerQueueDepth;
+  const controlSocketPath = optionalString(obj, "control_socket_path", path);
+  if (controlSocketPath !== undefined) config.control_socket_path = controlSocketPath;
   const mixers = optionalArray(obj, "mixers", path);
   if (mixers !== undefined) {
     config.mixers = mixers.map((m, i) => parseMixer(m, `${path}.mixers[${i}]`));
@@ -215,8 +217,12 @@ function parseDevice(input: unknown, path: string): Device {
   if (sampleRate !== undefined) device.sample_rate = sampleRate;
   const correction = optionalNumber(obj, "correction", path);
   if (correction !== undefined) device.correction = correction;
+  const bandwidth = optionalNumber(obj, "bandwidth", path);
+  if (bandwidth !== undefined) device.bandwidth = bandwidth;
   const mode = parseDeviceMode(obj, path);
   if (mode !== undefined) device.mode = mode;
+  const reserveChannels = optionalNumber(obj, "reserve_channels", path);
+  if (reserveChannels !== undefined) device.reserve_channels = reserveChannels;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) device.disable = disable;
   const tau = optionalNumber(obj, "tau", path);
@@ -277,6 +283,8 @@ function parseMultichannelChannel(obj: Record<string, unknown>, path: string): M
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -315,6 +323,8 @@ function parseScanChannel(obj: Record<string, unknown>, path: string): ScanChann
   if (squelchSnr !== undefined) channel.squelch_snr_threshold = squelchSnr;
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) channel.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) channel.enabled = enabled;
   return channel;
 }
 
@@ -332,10 +342,14 @@ function parseMixer(input: unknown, path: string): Mixer {
   };
   const disable = optionalBoolean(obj, "disable", path);
   if (disable !== undefined) mixer.disable = disable;
+  const enabled = optionalBoolean(obj, "enabled", path);
+  if (enabled !== undefined) mixer.enabled = enabled;
   const highpass = optionalNumber(obj, "highpass", path);
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(obj, "lowpass", path);
   if (lowpass !== undefined) mixer.lowpass = lowpass;
+  const reserveInputs = optionalNumber(obj, "reserve_inputs", path);
+  if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
   return mixer;
 }
 
