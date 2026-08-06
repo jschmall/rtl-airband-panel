@@ -46,8 +46,20 @@ export function buildScopedUnitPattern(prefix: string): RegExp {
   return new RegExp(`^${prefix}[A-Za-z0-9_-]{1,64}\\.service$`);
 }
 
+// sudo, on its own, doesn't respect piped stdio for a password prompt -- it opens
+// /dev/tty directly and writes to it regardless of how stdin/stdout/stderr are
+// redirected, specifically so a prompt can never be silently hidden. That's fine
+// under systemd (no controlling tty exists there, so sudo just fails), but running
+// this process at a real foreground terminal (a missing/misscoped sudoers rule, an
+// expired cached credential, ...) means that prompt lands directly on the user's
+// console, interleaved with this process's own stdout writes with no coordination
+// between the two -- which reads as garbled/misaligned log output, not a password
+// prompt. -n makes sudo fail immediately (a normal, piped, catchable error) instead
+// of ever reaching for the controlling tty.
+const SUDO_NONINTERACTIVE = "-n";
+
 function systemctl(args: string[]): Promise<string> {
-  return runCommand("sudo", ["systemctl", ...args]);
+  return runCommand("sudo", [SUDO_NONINTERACTIVE, "systemctl", ...args]);
 }
 
 /** Parses one unit's `key=value` property block, as printed by `systemctl show`. */
@@ -180,7 +192,7 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     this.assertScoped(unit);
     let output: string;
     try {
-      output = await runCommand("sudo", ["journalctl", "-u", unit, "-n", String(lines), "--no-pager", "-o", "short-iso"]);
+      output = await runCommand("sudo", [SUDO_NONINTERACTIVE, "journalctl", "-u", unit, "-n", String(lines), "--no-pager", "-o", "short-iso"]);
     } catch (err) {
       // Consistent with status()'s "never throws on not found" behavior --
       // an unrecognized/never-started unit is reported as having no logs,
@@ -204,9 +216,11 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
     this.assertScoped(unit);
     if (signal.aborted) return;
 
-    const child = spawn("sudo", ["journalctl", "-u", unit, "-n", String(lines), "-f", "-o", "short-iso", "--no-pager"], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawn(
+      "sudo",
+      [SUDO_NONINTERACTIVE, "journalctl", "-u", unit, "-n", String(lines), "-f", "-o", "short-iso", "--no-pager"],
+      { stdio: ["ignore", "pipe", "pipe"] }
+    );
     let spawnError: Error | null = null;
     // Without this listener, a failed spawn (e.g. "sudo" missing) would surface
     // as an uncaught "error" event instead of propagating to the caller.
@@ -235,11 +249,11 @@ export class SudoSystemctlAdapter implements SystemdAdapter {
 
   async installUnitFile(unitName: string, contents: string): Promise<void> {
     this.assertScoped(unitName);
-    await runCommand("sudo", ["tee", `${this.unitDir}/${unitName}`], contents);
+    await runCommand("sudo", [SUDO_NONINTERACTIVE, "tee", `${this.unitDir}/${unitName}`], contents);
   }
 
   async removeUnitFile(unitName: string): Promise<void> {
     this.assertScoped(unitName);
-    await runCommand("sudo", ["rm", "-f", `${this.unitDir}/${unitName}`]);
+    await runCommand("sudo", [SUDO_NONINTERACTIVE, "rm", "-f", `${this.unitDir}/${unitName}`]);
   }
 }

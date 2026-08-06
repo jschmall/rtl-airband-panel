@@ -5,6 +5,33 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.87] - 2026-08-06
+
+### Fixed
+
+- **`sudo` mode's CLI log garbling, and a missing `journalctl` sudoers
+  grant.** After 0.4.86's `pino-pretty` fix, foreground CLI logs still
+  showed periodic gaps mid-stream in `sudo` mode — a run of blank
+  characters roughly the width of the previous line, then the next log
+  line continuing mid-row. Root cause: `sudo`, on its own, never respects
+  piped stdio for a password prompt — it opens `/dev/tty` directly and
+  writes there regardless of how the child's stdin/stdout/stderr are
+  redirected, specifically so a prompt can't be silently hidden. Every
+  `sudo systemctl`/`journalctl`/`tee`/`rm` call `SudoSystemctlAdapter`
+  (`backend/api/src/systemd/sudo-adapter.ts`) shells out to was missing
+  `-n`, so a call that couldn't authenticate without a prompt — which,
+  for `journalctl`, was *every* call, since the shipped
+  `deploy/rtl-airband-panel.sudoers` example only ever granted
+  `systemctl`/`tee`/`rm`, never `journalctl` — would have `sudo` write its
+  prompt straight to the controlling terminal, uncoordinated with and
+  interleaved into this process's own stdout writes. Only reachable at a
+  real foreground terminal (a controlling tty to write to at all);
+  invisible under systemd, matching exactly how the symptom was
+  originally reported. Added the missing `RTL_PANEL_JOURNALCTL` grant to
+  the sudoers template, and `-n` to every `sudo` invocation the adapter
+  makes, so any future sudoers gap fails as a clean, piped, loggable
+  error instead of ever reaching for `/dev/tty` again.
+
 ## [0.4.86] - 2026-08-06
 
 ### Added

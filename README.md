@@ -256,8 +256,8 @@ non-critical instance first.
 (`RTL_PANEL_SUDO_UNIT_PREFIX` unset), `sudo` mode will act on any unit
 whose name passes the existing safe-name check — there's no naming
 convention forced on you. That also means, on its own, sudo access isn't
-scoped by *which* units they are, only by which `systemctl`/`tee`/`rm`
-commands the adapter is allowed to run at all (see the sudoers rule in
+scoped by *which* units they are, only by which `systemctl`/`journalctl`/
+`tee`/`rm` commands the adapter is allowed to run at all (see the sudoers rule in
 [DEPLOYMENT.md](./DEPLOYMENT.md#running-the-panel-as-a-systemd-service)).
 If you'd rather the panel's sudo grant be provably limited to only the
 units it manages, set `RTL_PANEL_SUDO_UNIT_PREFIX` to a prefix your
