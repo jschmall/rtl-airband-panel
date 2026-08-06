@@ -21,9 +21,11 @@ const KNOWN_DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"];
  * input-rtlsdr.cpp / input-mirisdr.cpp) that call error() (_Exit(1)) on
  * violation: an unsupported device `type`, `sample_rate` at or below
  * RTLSDR-Airband's own floor, non-positive `buffers`/`num_buffers`, a
- * negative `reserve_channels`, and a non-zero `reserve_channels` on a
+ * negative `reserve_channels`, a non-zero `reserve_channels` on a
  * scan-mode device (dynamic_reload fork only -- see config.cpp's
- * parse_devices()).
+ * parse_devices()), and a negative device-level `bandwidth` (rtlsdr only,
+ * dynamic_reload fork -- input-rtlsdr.cpp's `rtlsdr_parse_config()` rejects
+ * it with "bandwidth must be >= 0 (0 = automatic)").
  */
 export function checkDeviceRequirements(config: RtlAirbandConfig): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -134,6 +136,15 @@ export function checkDeviceRequirements(config: RtlAirbandConfig): ValidationIss
         code: "device-reserve-channels-scan-unsupported",
         path,
         message: `reserve_channels is not supported in scan mode`,
+      });
+    }
+
+    if (isRtl && device.bandwidth !== undefined && device.bandwidth < 0) {
+      issues.push({
+        severity: "error",
+        code: "device-bandwidth-negative",
+        path,
+        message: `bandwidth ${device.bandwidth} must not be negative (0 = automatic)`,
       });
     }
   });

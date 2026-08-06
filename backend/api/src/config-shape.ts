@@ -217,6 +217,8 @@ function parseDevice(input: unknown, path: string): Device {
   if (sampleRate !== undefined) device.sample_rate = sampleRate;
   const correction = optionalNumber(obj, "correction", path);
   if (correction !== undefined) device.correction = correction;
+  const bandwidth = optionalNumber(obj, "bandwidth", path);
+  if (bandwidth !== undefined) device.bandwidth = bandwidth;
   const mode = parseDeviceMode(obj, path);
   if (mode !== undefined) device.mode = mode;
   const reserveChannels = optionalNumber(obj, "reserve_channels", path);

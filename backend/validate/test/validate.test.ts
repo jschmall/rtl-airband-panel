@@ -460,6 +460,18 @@ describe("checkDeviceRequirements", () => {
     const issues = checkDeviceRequirements(makeConfig([device]));
     expect(issues.some((i) => i.code === "device-reserve-channels-scan-unsupported")).toBe(false);
   });
+
+  it("errors when an rtlsdr device's bandwidth is negative", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "rtlsdr", bandwidth: -1 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-bandwidth-negative")).toBe(true);
+  });
+
+  it("does not flag a non-negative bandwidth (0 = automatic) on an rtlsdr device", () => {
+    const device = makeDevice([makeChannel(100_000_000)], { type: "rtlsdr", bandwidth: 0 });
+    const issues = checkDeviceRequirements(makeConfig([device]));
+    expect(issues.some((i) => i.code === "device-bandwidth-negative")).toBe(false);
+  });
 });
 
 describe("checkMixerReferences", () => {

@@ -91,6 +91,37 @@ describe("domain mapping layer", () => {
     expect(domain.devices[0]!.centerfreq).toBe(151_780_000);
   });
 
+  it("does NOT apply centerfreq/sample_rate's float-means-MHz shorthand to device bandwidth", () => {
+    // Unlike centerfreq/sample_rate, RTLSDR-Airband reads the device-level rtlsdr `bandwidth` key
+    // via a plain (int) cast (input-rtlsdr.cpp), not parse_anynum2int() -- so a float literal here
+    // is NOT "MHz, scale to Hz", it's just a value that would fail to parse as this field's actual
+    // int type on the RTLSDR-Airband side. The domain model must read/write it as a literal
+    // integer only (optionalNumber, not optionalHzNumber) or a config this panel writes could
+    // produce a value the fork can't start with.
+    const source = `
+      multiple_demod_threads = true;
+      multiple_output_threads = true;
+      stats_filepath = "/tmp/stats.txt";
+      localtime = true;
+      devices: (
+        {
+          type = "rtlsdr";
+          index = 0;
+          gain = 29;
+          centerfreq = 151780000;
+          bandwidth = 8000000;
+          channels: (
+            { freq = 151160000; outputs: (); }
+          );
+        }
+      );
+    `;
+    const domain = toDomain(parseConfig(source));
+    expect(domain.devices[0]!.bandwidth).toBe(8_000_000);
+    const text = serializeConfigFile(domain);
+    expect(text).toMatch(/bandwidth\s*=\s*8000000;/);
+  });
+
   it("treats afc, modulation, serial, sample_rate, and correction as optional, matching RTLSDR-Airband's own defaults", () => {
     // A channel with no afc/modulation set at all, and a device selected by
     // index rather than serial with no sample_rate/correction override --
@@ -698,6 +729,7 @@ describe("fork-features fixture", () => {
     expect(domain.control_socket_path).toBe("/run/rtl-airband/fork-features.sock");
     expect(domain.mixers).toHaveLength(1);
     expect(domain.devices[0]!.reserve_channels).toBe(4);
+    expect(domain.devices[0]!.bandwidth).toBe(8000000);
 
     const channels = domain.devices[0]!.channels;
     const fileOutput = channels[0]!.outputs[0];

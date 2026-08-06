@@ -317,6 +317,17 @@ export function DeviceEditor({
             onChange={(e) => onChange({ ...device, correction: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        {isRtl && (
+          <Field label="Tuner bandwidth, Hz (optional, blank/0 = automatic)" tooltip={DEVICE_TOOLTIPS.tunerBandwidth}>
+            <input
+              type="number"
+              min="0"
+              className={inputClass}
+              value={device.bandwidth ?? ""}
+              onChange={(e) => onChange({ ...device, bandwidth: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
         <Field label="Tau, µs (optional; NFM deemphasis, overrides global)" tooltip={DEVICE_TOOLTIPS.tauDevice}>
           <input
             type="number"

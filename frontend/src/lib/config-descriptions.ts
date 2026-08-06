@@ -57,6 +57,8 @@ export const DEVICE_TOOLTIPS = {
   disable: "Ignores this device entirely, as if it weren't in the config at all. Useful for temporarily disabling hardware that isn't currently connected without deleting its configuration.",
   reserveChannels:
     "Reserves this many extra channel slots at startup (beyond the channels defined below), so adding, editing, or removing a channel later — anywhere in the list, not just the end — can be picked up live via Apply live without a restart, as long as the channel count stays within this headroom. Multichannel only; leave blank (default 0) unless you plan to change channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+  tunerBandwidth:
+    "The RTL-SDR tuner's hardware capture (front-end) bandwidth, in Hz — distinct from a channel's own Bandwidth field below, which filters the already-captured signal after demodulation. Leave blank (or 0) for automatic, RTLSDR-Airband's default. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch; changing it can be picked up live via Apply live, same as Correction.",
 } as const;
 
 export const CHANNEL_TOOLTIPS = {

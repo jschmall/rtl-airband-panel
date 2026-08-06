@@ -88,6 +88,15 @@ export interface Device {
   sample_rate?: number;
   /** PPM (rtlsdr/mirisdr) or ppm-as-float (soapysdr) frequency correction; RTLSDR-Airband defaults to 0 when absent. */
   correction?: number;
+  /**
+   * rtlsdr only. Tuner (hardware capture) bandwidth in Hz; 0 = automatic (librtlsdr's own
+   * convention), which is also the default when this key is absent. Distinct from a channel's own
+   * `bandwidth` (MultichannelChannel/ScanChannel) -- that's a post-demodulation audio lowpass
+   * filter, this is the RF front-end capture width. Unlike centerfreq/sample_rate, this is a
+   * literal-int-only field on the RTLSDR-Airband side (no float-means-MHz shorthand) -- always
+   * write it as a plain integer Hz value.
+   */
+  bandwidth?: number;
   /** "multichannel" (default) or "scan". Scan-mode devices must have exactly one channel entry, and it must be a ScanChannel. */
   mode?: "multichannel" | "scan";
   /**

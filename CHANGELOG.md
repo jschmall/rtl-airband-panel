@@ -5,6 +5,38 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.88] - 2026-08-06
+
+### Added
+
+- **Device-level `bandwidth` (rtlsdr tuner bandwidth) support**, tracking the
+  fork's `dynamic_reload` branch commits `80ee2bc` (live tuner bandwidth
+  control), `686b283` (live frequency correction), and `343be38` (live
+  `sample_rate` change). `correction` and `sample_rate` were already modeled
+  and needed no new fields; `bandwidth` — an rtlsdr-only device-level key,
+  distinct from the pre-existing per-channel `bandwidth` (a post-demod audio
+  filter) — was entirely missing. Added to the parser domain model
+  (`backend/parser/src/domain.ts`), its libconfig mapper read/write
+  (`mapper.ts`), the API's independent request-body shape validator
+  (`backend/api/src/config-shape.ts` — caught by the existing
+  `config-shape-parity` test, which round-trips the `fork-features` fixture
+  through both parsers and diffs the result), a `bandwidth >= 0` check
+  (`backend/validate/src/checks/device-requirements.ts`, mirroring
+  RTLSDR-Airband's own `rtlsdr_parse_config()` rejection), and a new
+  rtlsdr-only field in `DeviceEditor.tsx` (cleared/restored on device-type
+  switch, same as `buffers`/`serial`/`index`). Unlike `centerfreq`/
+  `sample_rate`, RTLSDR-Airband reads this key via a plain `(int)` cast, not
+  `parse_anynum2int()` — no float-means-MHz shorthand — so the mapper
+  deliberately uses `optionalNumber`, not `optionalHzNumber`; a dedicated
+  round-trip test locks this in.
+
+### Fixed
+
+- **"Apply live?" confirmation copy still claimed `sample rate` always needs
+  a restart.** True before `343be38`; now live-appliable like everything
+  else in that list. Updated `InstanceEditPage.tsx`'s confirm dialog to
+  match, and added `bandwidth`/`correction` to the same list.
+
 ## [0.4.87] - 2026-08-06
 
 ### Fixed

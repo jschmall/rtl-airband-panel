@@ -126,6 +126,8 @@ function toDevice(g: GroupNode, path: string): Device {
   if (sampleRate !== undefined) device.sample_rate = sampleRate;
   const correction = optionalNumber(g, "correction", path);
   if (correction !== undefined) device.correction = correction;
+  const bandwidth = optionalNumber(g, "bandwidth", path);
+  if (bandwidth !== undefined) device.bandwidth = bandwidth;
   const mode = toDeviceMode(g, path);
   if (mode !== undefined) device.mode = mode;
   const reserveChannels = optionalNumber(g, "reserve_channels", path);
@@ -489,6 +491,7 @@ function deviceFromDomain(device: Device) {
   if (device.centerfreq !== undefined) members.push(numberSetting("centerfreq", device.centerfreq, "int"));
   if (device.sample_rate !== undefined) members.push(numberSetting("sample_rate", device.sample_rate, "int"));
   if (device.correction !== undefined) members.push(numberSetting("correction", device.correction, "int"));
+  if (device.bandwidth !== undefined) members.push(numberSetting("bandwidth", device.bandwidth, "int"));
   if (device.mode !== undefined) members.push(stringSetting("mode", device.mode));
   if (device.reserve_channels !== undefined) members.push(numberSetting("reserve_channels", device.reserve_channels, "int"));
   if (device.disable !== undefined) members.push(boolSetting("disable", device.disable));
