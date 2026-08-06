@@ -290,16 +290,27 @@ function extractCreateBody(body: unknown): { name: string; config: RtlAirbandCon
   return { name: rec["name"], config: parseRtlAirbandConfigBody(rec["config"]) };
 }
 
-function extractInstanceOptionsPatch(body: unknown): { jsonLogging?: boolean } {
+function extractInstanceOptionsPatch(body: unknown): { jsonLogging?: boolean; serviceUser?: string | undefined; serviceGroup?: string | undefined } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     throw new ShapeValidationError("Expected an object", "$");
   }
   const rec = body as Record<string, unknown>;
-  if (rec["jsonLogging"] === undefined) return {};
-  if (typeof rec["jsonLogging"] !== "boolean") {
-    throw new ShapeValidationError("Expected 'jsonLogging' to be a boolean", "$");
+  const patch: { jsonLogging?: boolean; serviceUser?: string | undefined; serviceGroup?: string | undefined } = {};
+  if (rec["jsonLogging"] !== undefined) {
+    if (typeof rec["jsonLogging"] !== "boolean") {
+      throw new ShapeValidationError("Expected 'jsonLogging' to be a boolean", "$");
+    }
+    patch.jsonLogging = rec["jsonLogging"];
   }
-  return { jsonLogging: rec["jsonLogging"] };
+  for (const key of ["serviceUser", "serviceGroup"] as const) {
+    if (rec[key] === undefined) continue;
+    if (typeof rec[key] !== "string") {
+      throw new ShapeValidationError(`Expected '${key}' to be a string`, "$");
+    }
+    // An empty string clears a previously-set account back to unset, same as omitting it entirely.
+    patch[key] = rec[key] === "" ? undefined : rec[key];
+  }
+  return patch;
 }
 
 function extractRenameBody(body: unknown): { newName: string } {

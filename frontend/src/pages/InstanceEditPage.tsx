@@ -7,6 +7,7 @@ import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
 import { InstanceLogs } from "../components/InstanceLogs.js";
+import { InstanceServiceAccount } from "../components/InstanceServiceAccount.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep, stampOutputMatchIndices } from "../lib/keys.js";
@@ -44,6 +45,7 @@ export function InstanceEditPage() {
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
+  const [serviceAccountPending, setServiceAccountPending] = useState(false);
 
   // Tracks the instance this page is currently showing, so an in-flight
   // save/check for the *previous* instance can tell it's stale once the user
@@ -310,6 +312,29 @@ export function InstanceEditPage() {
     }
   }
 
+  // Updates the systemd unit's User=/Group= -- a panel-only, non-.conf setting
+  // (see InstanceOptionsStore), same restart-on-change contract as
+  // handleToggleJsonLogging above. Passing "" for either field clears a
+  // previously-set value back to unset (see extractInstanceOptionsPatch).
+  async function handleUpdateServiceAccount(serviceUser: string, serviceGroup: string) {
+    if (!name || serviceAccountPending) return;
+    if (
+      !window.confirm(`Update the service account for '${name}'? This restarts the instance, interrupting live audio for a few seconds.`)
+    ) {
+      return;
+    }
+    setServiceAccountPending(true);
+    try {
+      await api.updateInstanceOptions(name, { serviceUser, serviceGroup });
+      await refreshInstanceList();
+      pollBriefly();
+    } catch (err) {
+      window.alert(err instanceof ApiError ? err.message : "Failed to update service account");
+    } finally {
+      setServiceAccountPending(false);
+    }
+  }
+
   if (loadError) {
     return (
       <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
@@ -357,12 +382,22 @@ export function InstanceEditPage() {
         onRevealSecret={revealSecret}
         afterGlobalSettings={
           name && (
-            <InstanceLogs
-              name={name}
-              jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
-              jsonLoggingPending={jsonLoggingPending}
-              onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
-            />
+            <>
+              <InstanceLogs
+                name={name}
+                jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+                jsonLoggingPending={jsonLoggingPending}
+                onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+              />
+              <InstanceServiceAccount
+                name={name}
+                serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
+                serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
+                controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
+                pending={serviceAccountPending}
+                onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
+              />
+            </>
           )
         }
       />

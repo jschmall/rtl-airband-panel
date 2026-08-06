@@ -30,6 +30,9 @@ export const GLOBAL_TOOLTIPS = {
 export const INSTANCE_OPTIONS_TOOLTIPS = {
   jsonLogging:
     "Starts this instance with -j, so its journal log lines are single-line JSON instead of plain text; the log viewer below parses them either way. Toggling this restarts the instance. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband — not available in upstream RTLSDR-Airband.",
+  serviceUser:
+    "Account the systemd unit runs as (User=). Required, alongside Service group, if this instance's config sets Control socket path: the control socket only accepts connections whose UID exactly matches the daemon's own, so leaving this unset (the default, which runs the process as root) locks out this panel's own Apply live calls with a permission error. Leave blank unless you're using the dynamic_reload fork's control socket.",
+  serviceGroup: "Account the systemd unit runs as (Group=). Paired with Service user — see its tooltip. Meaningless without Service user also set.",
 } as const;
 
 export const DEVICE_TOOLTIPS = {

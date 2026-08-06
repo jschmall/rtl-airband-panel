@@ -10,6 +10,21 @@ export interface UnitTemplateOptions {
    * false/undefined — see InstanceOptionsStore.
    */
   jsonLogging?: boolean;
+  /**
+   * Account the systemd unit runs the process as. Left unset by default —
+   * this must stay opt-in, not defaulted to any particular username, since
+   * the panel has no way to know what account an operator's deployment
+   * uses (see InstanceOptionsStore). Required in practice once the
+   * instance's config sets `control_socket_path` (dynamic_reload fork):
+   * the control socket's SO_PEERCRED check demands an exact UID match
+   * against the daemon's own `getuid()`, so a unit left to run as root
+   * (the default when User= is unset) locks out any non-root
+   * control-socket client, including this panel's own `reload_diff`
+   * calls — discovered and documented in the fork's own CLAUDE.md.
+   */
+  serviceUser?: string;
+  /** Paired with serviceUser — see its comment. Meaningless without serviceUser also set. */
+  serviceGroup?: string;
 }
 
 /**
@@ -21,6 +36,12 @@ export interface UnitTemplateOptions {
  */
 export function renderUnitFile(options: UnitTemplateOptions): string {
   const flags = ["-F", "-e", ...(options.jsonLogging ? ["-j"] : [])];
+  const userGroupLines = [
+    ...(options.serviceUser ? [`User=${options.serviceUser}`] : []),
+    ...(options.serviceGroup ? [`Group=${options.serviceGroup}`] : []),
+  ]
+    .map((line) => `${line}\n`)
+    .join("");
   return `[Unit]
 Description=${options.description}
 Documentation=https://github.com/rtl-airband/RTLSDR-Airband/wiki
@@ -29,7 +50,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${options.binaryPath} ${flags.join(" ")} -c ${options.confPath}
+${userGroupLines}ExecStart=${options.binaryPath} ${flags.join(" ")} -c ${options.confPath}
 Restart=no
 
 [Install]

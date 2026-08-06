@@ -555,6 +555,50 @@ describe("PATCH /instances/:name/options", () => {
     const res = await app.inject({ method: "PATCH", url: "/api/instances/does_not_exist/options", payload: { jsonLogging: true } });
     expect(res.statusCode).toBe(404);
   });
+
+  it("sets serviceUser/serviceGroup and reinstalls the unit with User=/Group=", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ options: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" } });
+    const unit = h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`);
+    expect(unit).toContain("User=rtl-airband");
+    expect(unit).toContain("Group=rtl-airband");
+  });
+
+  it("clears a previously-set serviceUser/serviceGroup with an empty string", async () => {
+    await seedFixture(h.instancesDir);
+    await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "rtl-airband", serviceGroup: "rtl-airband" },
+    });
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: "", serviceGroup: "" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().options).not.toHaveProperty("serviceUser");
+    expect(res.json().options).not.toHaveProperty("serviceGroup");
+    const unit = h.systemd.unitFiles.get(`${FIXTURE_INSTANCE_NAME}.service`);
+    expect(unit).not.toContain("User=");
+    expect(unit).not.toContain("Group=");
+  });
+
+  it("rejects a non-string serviceUser value", async () => {
+    await seedFixture(h.instancesDir);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/instances/${FIXTURE_INSTANCE_NAME}/options`,
+      payload: { serviceUser: 123 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });
 
 describe("POST /instances/restart-pending", () => {

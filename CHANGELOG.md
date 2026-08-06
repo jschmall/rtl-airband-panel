@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.81] - 2026-08-06
+
+### Added
+
+- **Opt-in `serviceUser`/`serviceGroup` instance options, so the generated
+  systemd unit can set `User=`/`Group=`.** The RTLSDR-Airband fork's own
+  docs now spell out a requirement that was previously undocumented on the
+  panel side: its `dynamic_reload` control socket's `SO_PEERCRED` check
+  requires an *exact* UID match against the daemon's own `getuid()`, so a
+  unit left to run as root (the default when `User=`/`Group=` are unset,
+  which is every unit this panel has generated until now) locks out any
+  non-root client — including this panel's own `reload_diff` calls, i.e.
+  the entire Apply live feature. Added a new `serviceUser`/`serviceGroup`
+  pair to `InstanceOptions` (`backend/api/src/instance-options-store.ts`),
+  threaded through `UnitTemplateOptions`/`renderUnitFile`
+  (`backend/api/src/unit-template.ts`) and every call site in
+  `instance-service.ts`, following the exact same opt-in, per-instance,
+  never-defaulted pattern `jsonLogging` already established — this is
+  never turned on implicitly, since the panel has no way to know what
+  account an operator's deployment actually uses. A new "Service account"
+  section in the frontend (`InstanceServiceAccount.tsx`, next to the
+  existing Logs/JSON-logging section) edits both fields and warns inline
+  when the instance's config sets `control_socket_path` but no account is
+  configured — the exact failure mode this closes.
+
 ## [0.4.80] - 2026-08-06
 
 ### Added

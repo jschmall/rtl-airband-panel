@@ -11,6 +11,21 @@ export interface InstanceOptions {
    * to false and is never turned on implicitly.
    */
   jsonLogging: boolean;
+  /**
+   * Account the generated unit's `User=`/`Group=` are set to. Absent by
+   * default (no lines emitted, same as today) — never defaulted to a
+   * specific username, since the panel has no way to know an operator's
+   * deployment conventions. Required in practice once the instance's
+   * config sets `control_socket_path` (dynamic_reload fork): the control
+   * socket's SO_PEERCRED check demands an exact UID match, so a unit left
+   * to run as root locks out this panel's own `reload_diff` calls. See
+   * UnitTemplateOptions.serviceUser. Explicitly `| undefined` (not just
+   * optional) so a patch can clear a previously-set account back to unset
+   * by passing `undefined` -- see extractInstanceOptionsPatch (routes.ts).
+   */
+  serviceUser?: string | undefined;
+  /** Paired with serviceUser — see its comment. */
+  serviceGroup?: string | undefined;
 }
 
 const DEFAULT_OPTIONS: InstanceOptions = { jsonLogging: false };
@@ -46,8 +61,11 @@ export class InstanceOptionsStore {
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return;
     for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof value !== "object" || value === null) continue;
-      const jsonLogging = (value as Record<string, unknown>)["jsonLogging"];
-      this.options.set(name, { jsonLogging: jsonLogging === true });
+      const rec = value as Record<string, unknown>;
+      const options: InstanceOptions = { jsonLogging: rec["jsonLogging"] === true };
+      if (typeof rec["serviceUser"] === "string" && rec["serviceUser"] !== "") options.serviceUser = rec["serviceUser"];
+      if (typeof rec["serviceGroup"] === "string" && rec["serviceGroup"] !== "") options.serviceGroup = rec["serviceGroup"];
+      this.options.set(name, options);
     }
   }
 

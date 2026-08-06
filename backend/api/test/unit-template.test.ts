@@ -51,4 +51,31 @@ describe("renderUnitFile", () => {
     const unit = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf", jsonLogging: true });
     expect(unit).toContain("ExecStart=/bin/true -F -e -j -c /x.conf");
   });
+
+  it("omits User=/Group= when serviceUser/serviceGroup are unset", () => {
+    const unit = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf" });
+    expect(unit).not.toContain("User=");
+    expect(unit).not.toContain("Group=");
+  });
+
+  it("adds User=/Group= to the [Service] section when set", () => {
+    const unit = renderUnitFile({
+      description: "d",
+      binaryPath: "/bin/true",
+      confPath: "/x.conf",
+      serviceUser: "rtl-airband",
+      serviceGroup: "rtl-airband",
+    });
+    const lines = unit.trim().split("\n");
+    expect(lines).toContain("User=rtl-airband");
+    expect(lines).toContain("Group=rtl-airband");
+    expect(lines.indexOf("User=rtl-airband")).toBeGreaterThan(lines.indexOf("[Service]"));
+    expect(lines.indexOf("User=rtl-airband")).toBeLessThan(lines.indexOf("ExecStart=/bin/true -F -e -c /x.conf"));
+  });
+
+  it("supports setting serviceUser without serviceGroup", () => {
+    const unit = renderUnitFile({ description: "d", binaryPath: "/bin/true", confPath: "/x.conf", serviceUser: "rtl-airband" });
+    expect(unit).toContain("User=rtl-airband");
+    expect(unit).not.toContain("Group=");
+  });
 });

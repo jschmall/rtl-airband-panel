@@ -46,6 +46,10 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** See InstanceOptions.serviceUser. */
+  serviceUser?: string;
+  /** See InstanceOptions.serviceGroup. */
+  serviceGroup?: string;
   /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
   status: UnitStatus;
   /**
@@ -154,12 +158,15 @@ export class InstanceService {
     return Promise.all(
       infos.map(async (info) => {
         const unit = unitFileName(info.name);
+        const instanceOptions = await this.instanceOptionsStore.get(info.name);
         return {
           name: info.name,
           confPath: info.confPath,
           unit,
           pendingRestart: await this.pendingRestartStore.has(info.name),
-          jsonLogging: (await this.instanceOptionsStore.get(info.name)).jsonLogging,
+          jsonLogging: instanceOptions.jsonLogging,
+          ...(instanceOptions.serviceUser !== undefined ? { serviceUser: instanceOptions.serviceUser } : {}),
+          ...(instanceOptions.serviceGroup !== undefined ? { serviceGroup: instanceOptions.serviceGroup } : {}),
           status: statuses.get(unit) ?? { unit, activeState: "unknown", subState: "unknown" },
           searchFields: await this.getSearchFields(info.name),
         };
@@ -391,6 +398,8 @@ export class InstanceService {
         binaryPath: this.options.rtlAirbandBinary,
         confPath: confFilePath(this.options.instancesDir, name),
         jsonLogging: merged.jsonLogging,
+        ...(merged.serviceUser !== undefined ? { serviceUser: merged.serviceUser } : {}),
+        ...(merged.serviceGroup !== undefined ? { serviceGroup: merged.serviceGroup } : {}),
       });
       await this.systemd.installUnitFile(unit, unitContents);
       await this.systemd.daemonReload();
@@ -545,6 +554,8 @@ export class InstanceService {
       binaryPath: this.options.rtlAirbandBinary,
       confPath: confFilePath(this.options.instancesDir, newName),
       jsonLogging: instanceOptions.jsonLogging,
+      ...(instanceOptions.serviceUser !== undefined ? { serviceUser: instanceOptions.serviceUser } : {}),
+      ...(instanceOptions.serviceGroup !== undefined ? { serviceGroup: instanceOptions.serviceGroup } : {}),
     });
 
     await this.systemd.stop(oldUnit);

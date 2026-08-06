@@ -9,6 +9,9 @@ export interface InstanceSummary {
   pendingRestart: boolean;
   /** Whether this instance's unit is started with -j (single-line JSON log output). See InstanceOptions.jsonLogging. */
   jsonLogging: boolean;
+  /** Account the unit's User=/Group= are set to, if configured. See InstanceOptions.serviceUser/serviceGroup. */
+  serviceUser?: string;
+  serviceGroup?: string;
   /** This instance's current systemd unit status, including uptime/last-restart via activeEnterTimestamp. */
   status: UnitStatus;
   /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
@@ -17,6 +20,8 @@ export interface InstanceSummary {
 
 export interface InstanceOptions {
   jsonLogging: boolean;
+  serviceUser?: string;
+  serviceGroup?: string;
 }
 
 export type UnitActiveState = "active" | "inactive" | "activating" | "deactivating" | "failed" | "unknown";
