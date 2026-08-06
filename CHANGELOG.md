@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.89] - 2026-08-06
+
+### Changed
+
+- **Rewrote the README's `dynamic_reload` section** to cover the full
+  current feature set instead of its original, now-stale snapshot. Fixes
+  the same "sample rate always needs a restart" claim already corrected in
+  the in-app dialog (0.4.88) — it was still wrong here too. Adds: the new
+  `bandwidth`/`correction` config fields, an explicit "what Apply live can
+  push live" list (centerfreq, sample_rate, gain, bandwidth, correction,
+  channel/mixer enable, channel add/edit/remove), a "Failure behavior"
+  note explaining the retryable-vs-restart-required split (0.4.85) so a
+  transient hardware failure isn't confused with something that needs a
+  restart, explicit guidance that `control_socket_path` is an arbitrary
+  but must-be-unique-per-instance path (prompted by a real question about
+  running 12 concurrent instances — a same-path collision fails closed
+  and silently, not with a crash), the 1s live-apply cooldown (0.4.84),
+  and the `centerfreq_retune_failure_count` metric (0.4.83). Also brings
+  the "what's not here yet" standalone-command list up to date
+  (`set_correction`/`set_sample_rate` existed but weren't listed).
+
 ## [0.4.88] - 2026-08-06
 
 ### Added

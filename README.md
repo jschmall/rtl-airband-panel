@@ -65,7 +65,7 @@ them, with validation before anything is written to disk.
 
 ## 🧪 `dynamic_reload` branch — live apply without a restart
 
-This branch (not yet merged to `master`) adds initial support for the
+This branch (not yet merged to `master`) adds support for the
 [`dynamic_reload`](https://github.com/jschmall/RTLSDR-Airband/tree/dynamic_reload)
 branch of the RTLSDR-Airband fork noted under [Features](#features) above,
 which gives a running instance a Unix domain control socket for live
@@ -75,15 +75,27 @@ deliberately: the fork feature itself is still soaking on a test instance
 before being considered for the fork's own `main`, and older or non-fork
 `rtl_airband` builds don't understand the protocol at all.
 
-What's here:
+### New config fields
 
 - **`control_socket_path`** (new top-level config field) — set this to the
   same Unix domain socket path the RTLSDR-Airband process is configured to
   listen on, and the panel gains a new **Apply live** button (next to Save
-  and Save-and-restart) that saves the config, then asks the running
-  process to live-apply whatever it safely can instead of restarting —
-  reporting back exactly what applied and what still needs a restart
-  (device/mixer count changes, sample rate, driver type, etc. always do).
+  and Save-and-restart). The path itself is arbitrary — any filesystem
+  location works, there's no required directory or name — but it must be
+  **unique per instance** (it's a real `bind()`; two instances sharing a
+  path silently lose the race, see "Failure behavior" below) and writable
+  by whichever user the instance's systemd unit runs as. Something like
+  `/run/rtl-airband/<instance-name>.sock` per instance keeps this
+  self-documenting. The panel does not check uniqueness across instances
+  for you — only that the field isn't empty.
+- **`bandwidth`** on a device (rtlsdr only) — the tuner's hardware capture
+  bandwidth in Hz, `0`/blank for automatic. Distinct from a channel's own
+  `bandwidth`, which is a post-demodulation audio filter, not a capture
+  setting.
+- **`correction`** on a device — frequency correction (PPM for
+  rtlsdr/mirisdr, ppm-as-float for soapysdr). Not new to this branch (it's
+  supported for a normal restart-based save on `master` too), but this
+  branch is what makes changing it take effect live.
 - **`enabled` field** on channels and mixers — distinct from the existing
   `disable`: `disable` permanently skips allocating that channel/mixer at
   parse time, while `enabled = false` still allocates it but starts it
@@ -104,21 +116,66 @@ What's here:
   `reserve_channels`: reserves extra mixer-input headroom so a
   dynamically-added or -edited channel whose output routes into this mixer
   (`type: "mixer"`) can connect live, within that headroom, no restart.
+
+### What Apply live can push without a restart
+
+Clicking **Apply live** saves the config, then asks the running process to
+live-apply whatever it safely can via `reload_diff` (which re-reads the
+`.conf` file this just wrote), reporting back exactly what applied and
+what's still pending. Currently live-appliable, all via that one
+`reload_diff` call:
+
+- **Centerfreq** (device retune)
+- **Sample rate** — expensive (a full RX-thread stop/reopen/restart under
+  the hood), but no longer restart-only
+- **Gain**
+- **Bandwidth** (rtlsdr tuner bandwidth, above)
+- **Correction** (PPM, above)
+- Channel/mixer **enable/disable** (the `enabled` field, above)
+- Channel **add/edit/remove**, within a device's `reserve_channels`
+  headroom (above)
+
+Everything else — device/mixer count, driver `type`, `mode`, and any field
+not listed above — still requires a restart, same as on `master`.
+
+**Failure behavior.** A field that's present in the config but fails to
+apply at the hardware level (a transient i2c error, an unreachable device,
+a socket-path collision leaving that instance's control socket never
+started, etc.) is reported back distinctly from a field that's simply not
+live-appliable at all: the Apply live result splits into "still needs a
+restart" and "didn't take — no restart needed, just click Apply live
+again" sections, so a flaky retry doesn't get conflated with something
+that genuinely requires stopping the unit. None of these failures crash or
+restart the instance on their own — RTLSDR-Airband keeps running at its
+previous settings and simply reports the attempt as unsuccessful.
+
+### Operational details
+
 - Talks to the socket directly (`backend/api/src/control-socket/`). The
   control socket's `SO_PEERCRED` check requires an *exact* UID match
   against the daemon's own process, so the systemd unit needs an explicit
   `User=`/`Group=` matching whatever account the panel connects as — set
-  via the new opt-in "Service account" fields on each instance's edit page
+  via the opt-in "Service account" fields on each instance's edit page
   (`serviceUser`/`serviceGroup`, panel-only settings, not part of the
   `.conf` file). Left unset, the unit runs as root and Apply live fails
   with a permission error; the edit page warns inline when this applies.
+- A 1-second per-instance cooldown throttles back-to-back Apply live
+  clicks against the same instance (the config is still saved to disk
+  either way; only the live-apply attempt itself is skipped and reported
+  as "applied too recently").
+- The fork tracks a `centerfreq_retune_failure_count` metric per device
+  (surfaced on the stats page and `/metrics`) — how many live retune
+  attempts (from Apply live, or the fork's own scan-mode frequency
+  hopping) failed at the hardware level. A climbing count on otherwise
+  healthy hardware points at a flaky tuner or i2c bus, not a crash risk.
 
-What's not here yet: the control socket also exposes `retune`, `set_gain`,
-`set_bandwidth`, `channel_enable`/`channel_disable`, and
-`mixer_enable`/`mixer_disable` as individual live-control commands — this
-branch only wires up the coarser `reload_diff` command (re-reads the
-`.conf` file on disk and live-applies whatever it can), not per-field live
-controls. Mixer/device add still always requires a restart. See
+### What's not here yet
+
+The control socket also exposes `retune`, `set_gain`, `set_bandwidth`,
+`set_correction`, `set_sample_rate`, `channel_enable`/`channel_disable`,
+and `mixer_enable`/`mixer_disable` as individual live-control commands —
+this branch only wires up the coarser `reload_diff` command, not per-field
+live controls. Mixer/device add still always requires a restart. See
 [issue #4](https://github.com/jschmall/rtl-airband-panel/issues/4) for a
 known follow-up (page-level test coverage for the Apply live button).
 
