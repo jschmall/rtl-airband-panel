@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.84] - 2026-08-06
+
+### Added
+
+- **A 1-second per-instance cooldown on live-apply (`reload_diff`)
+  requests.** `applyConfigLive` (`backend/api/src/instance-service.ts`)
+  has no dedicated "retune" command — every call writes the whole config
+  and asks the running process to `reload_diff` it, and the fork's diff
+  mechanism (see 0.4.82) can cascade into retuning several devices from a
+  single call. Nothing previously stopped back-to-back calls against the
+  same instance (a stuck retry loop, a fast double "Apply live", scripted
+  misuse) from firing faster than hardware can recover from a transient
+  retune fault — the kind the fork's `centerfreq_retune_failure_count`
+  metric (0.4.83) already tolerates as non-fatal, but not instantaneous.
+  `InstanceService` now tracks the last `reload_diff` attempt per
+  instance name in memory and skips the socket call — while still writing
+  the config to disk, same as any other live-apply outcome — if another
+  attempt on the same instance lands within 1000ms, reporting
+  `liveApply: { attempted: false, reason: "cooldown" }`. The frontend's
+  `LiveApplyBanner` (`frontend/src/pages/InstanceEditPage.tsx`) shows this
+  as a distinct amber "applied too recently" message rather than the
+  generic red failure banner. This is a defense-in-depth safety floor, not
+  a fix for a known bug — a real-world stress test (400 live retunes over
+  2 minutes against actual hardware) already ran with zero issues.
+
 ## [0.4.83] - 2026-08-06
 
 ### Changed

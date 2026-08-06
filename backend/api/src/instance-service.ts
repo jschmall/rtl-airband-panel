@@ -104,7 +104,18 @@ export interface WriteResult {
  */
 export type LiveApplyOutcome =
   | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
-  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error"; detail?: string };
+  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown"; detail?: string };
+
+/**
+ * Minimum time between reload_diff attempts against the same instance.
+ * reload_diff can cascade into retuning multiple devices in one call (see
+ * applyConfigLive's doc comment), and a transient hardware retune failure
+ * (e.g. a tuner i2c read glitch) is tolerated by the fork but not
+ * instantaneous to recover from -- this is a defense-in-depth floor against
+ * back-to-back calls (a stuck retry loop, a fast double-click, scripted
+ * misuse), not a fix for any known bug.
+ */
+const LIVE_APPLY_COOLDOWN_MS = 1000;
 
 export interface ApplyLiveResult {
   warnings: ValidationIssue[];
@@ -134,6 +145,12 @@ export class InstanceService {
   // temp-file+rename is already atomic, so a concurrent read only ever sees
   // a fully-old or fully-new file, never a partial one.
   private readonly mutex = new KeyedMutex();
+
+  // Timestamp (Date.now()) of the last reload_diff attempt per instance name,
+  // used to enforce LIVE_APPLY_COOLDOWN_MS in applyConfigLive(). In-memory
+  // only -- resets on API process restart, which just means a slightly
+  // shorter effective cooldown right after a restart, not a correctness issue.
+  private readonly lastLiveApplyAt = new Map<string, number>();
 
   constructor(
     private readonly configStore: ConfigStore,
@@ -355,6 +372,18 @@ export class InstanceService {
       if (restored.control_socket_path === undefined) {
         return { warnings, status: await this.systemd.status(unit), version: newVersion, liveApply: { attempted: false, reason: "no-control-socket" } };
       }
+
+      const lastAttempt = this.lastLiveApplyAt.get(name);
+      const elapsed = lastAttempt === undefined ? Infinity : Date.now() - lastAttempt;
+      if (elapsed < LIVE_APPLY_COOLDOWN_MS) {
+        return {
+          warnings,
+          status: await this.systemd.status(unit),
+          version: newVersion,
+          liveApply: { attempted: false, reason: "cooldown", detail: `wait ${LIVE_APPLY_COOLDOWN_MS - elapsed}ms` },
+        };
+      }
+      this.lastLiveApplyAt.set(name, Date.now());
 
       const result = await this.controlSocket.reloadDiff(restored.control_socket_path);
       if (result.kind === "applied") {

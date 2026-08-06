@@ -485,6 +485,14 @@ function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome:
     );
   }
 
+  if (outcome.reason === "cooldown") {
+    return (
+      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
+        Applied too recently — wait a moment and try again. The config was still saved to disk.
+      </div>
+    );
+  }
+
   return (
     <div className="rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
       Couldn't apply live{outcome.detail ? ` (${outcome.detail})` : ""}. The config was saved to disk — use "Save and restart" or restart manually to apply it.

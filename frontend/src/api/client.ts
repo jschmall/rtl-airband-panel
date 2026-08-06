@@ -49,7 +49,7 @@ export interface WriteResult {
 /** Outcome of a dynamic_reload `reload_diff` attempt -- see InstanceService.applyConfigLive on the backend. */
 export type LiveApplyOutcome =
   | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
-  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error"; detail?: string };
+  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown"; detail?: string };
 
 export interface ApplyLiveResult {
   warnings: ValidationIssue[];

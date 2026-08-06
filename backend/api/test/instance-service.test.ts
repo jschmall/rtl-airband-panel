@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
@@ -362,6 +362,67 @@ describe("applyConfigLive", () => {
     await expect(h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, broken)).rejects.toBeInstanceOf(ValidationFailedError);
     expect(h.controlSocketClient.calls).toEqual([]);
     expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(before);
+  });
+
+  describe("cooldown", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("skips reload_diff and reports cooldown on a second call made too soon, but still writes the config", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: false, reason: "cooldown" });
+      expect(h.controlSocketClient.calls).toHaveLength(1);
+      expect(await h.service.getConfig(FIXTURE_INSTANCE_NAME)).toEqual(config);
+    });
+
+    it("allows a new attempt once the cooldown window has elapsed", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: ["device[0] centerfreq"], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      vi.advanceTimersByTime(1000);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: true });
+      expect(h.controlSocketClient.calls).toHaveLength(2);
+    });
+
+    it("does not throttle a different instance name", async () => {
+      await seedFixture(h.instancesDir);
+      await seedFixture(h.instancesDir, "second-instance");
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "applied", applied: [], skippedRequiresRestart: [] });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const other = await h.service.applyConfigLive("second-instance", config);
+
+      expect(other.liveApply).toMatchObject({ attempted: true });
+      expect(h.controlSocketClient.calls).toHaveLength(2);
+    });
+
+    it("starts the cooldown even when reload_diff fails or is unreachable", async () => {
+      await seedFixture(h.instancesDir);
+      const config = minimalConfig({ control_socket_path: "/run/rtl-airband/inst.sock" });
+      h.controlSocketClient.results.set("/run/rtl-airband/inst.sock", { kind: "unreachable", reason: "ENOENT" });
+
+      await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+      const second = await h.service.applyConfigLive(FIXTURE_INSTANCE_NAME, config);
+
+      expect(second.liveApply).toMatchObject({ attempted: false, reason: "cooldown" });
+      expect(h.controlSocketClient.calls).toHaveLength(1);
+    });
   });
 });
 
