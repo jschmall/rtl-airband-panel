@@ -12,6 +12,7 @@ import { useInstanceList } from "../state/InstanceListContext.js";
 import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep, stampOutputMatchIndices } from "../lib/keys.js";
 import { getValueAtPath } from "../lib/validation-path.js";
+import { classifySkippedRequiresRestart } from "../lib/live-apply.js";
 
 interface LoadError {
   /** "not-found" gets its own messaging (nothing to retry -- the instance is gone);
@@ -452,17 +453,36 @@ function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome:
         </div>
       );
     }
+    const { needsRestart, retryable } = classifySkippedRequiresRestart(outcome.skippedRequiresRestart);
     return (
       <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-300">
         <p>
-          Applied {outcome.applied.length} change{outcome.applied.length === 1 ? "" : "s"} live to {name}.service; {outcome.skippedRequiresRestart.length} still
-          need{outcome.skippedRequiresRestart.length === 1 ? "s" : ""} a restart:
+          Applied {outcome.applied.length} change{outcome.applied.length === 1 ? "" : "s"} live to {name}.service.
         </p>
-        <ul className="mt-1 list-inside list-disc">
-          {outcome.skippedRequiresRestart.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+        {needsRestart.length > 0 && (
+          <>
+            <p className="mt-2">
+              {needsRestart.length} still need{needsRestart.length === 1 ? "s" : ""} a restart:
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {needsRestart.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {retryable.length > 0 && (
+          <>
+            <p className="mt-2">
+              {retryable.length} didn't take — no restart needed, click "Apply live" again to retry:
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {retryable.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
         {outcome.applied.length > 0 && (
           <>
             <p className="mt-2 text-amber-300/70">Applied:</p>

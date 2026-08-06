@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.85] - 2026-08-06
+
+### Fixed
+
+- **`LiveApplyBanner` no longer tells the user to restart right next to a
+  message saying not to.** The RTLSDR-Airband fork's `dynamic_reload`
+  branch (commit `743ccde1`) fixed `reload_diff` under-reporting retune
+  failures as `"applied"`: `compute_and_apply_diff()` now waits for the
+  demod thread to actually confirm a centerfreq change before reporting
+  it, and a confirmed hardware failure lands in `skipped_requires_restart`
+  with a message ending "no restart needed, retry reload_diff" — a case
+  that array never carried before. The panel's `LiveApplyBanner`
+  (`frontend/src/pages/InstanceEditPage.tsx`) had a single hardcoded
+  header ("N still need a restart:") above the raw list of messages,
+  which now directly contradicted this new message's own text. Added
+  `classifySkippedRequiresRestart()` (`frontend/src/lib/live-apply.ts`),
+  splitting on the fork-guaranteed "no restart needed" substring (locked
+  in by the fork's own `test_live_reconfig.cpp` regression test), so
+  genuinely restart-required items and transient/retryable failures each
+  get their own section with accurate copy. `pendingRestartStore`
+  semantics are unchanged — it already tracked "on-disk config not yet
+  fully reflected in the running process," which is still true for the
+  retryable case; only the UI copy was wrong.
+
 ## [0.4.84] - 2026-08-06
 
 ### Added
