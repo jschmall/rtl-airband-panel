@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.86] - 2026-08-06
+
+### Added
+
+- **Pretty, single-line logging when running the API directly from a
+  terminal.** `backend/api`'s Pino logger (`app.ts`) previously always
+  emitted raw NDJSON, regardless of how the process was started. Each
+  entry genuinely was one newline-terminated line, but the JSON is long
+  enough that it visually wraps across terminal rows during interactive
+  CLI use (`npm start --workspace=backend/api` in the foreground), which
+  read as hard-to-follow, spaced-out logs. Added a `pino-pretty`
+  transport (`singleLine: true`, colorized, short timestamps), enabled
+  only when `process.stdout.isTTY` is true and no `logFile` override is
+  set — never under systemd (no TTY there; goes to the journal as before)
+  and never when `RTL_PANEL_LOG_FILE`/`--log-file` is set (stays raw
+  NDJSON, since that path must remain machine-readable).
+
 ## [0.4.85] - 2026-08-06
 
 ### Fixed
