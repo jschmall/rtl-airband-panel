@@ -220,6 +220,17 @@ export interface Mixer {
   highpass?: number;
   /** MP3 lowpass filter cutoff, Hz, applied to the mixed output. 0 disables it. */
   lowpass?: number;
+  /**
+   * Reserves this many extra mixer-input slots, sized once after startup
+   * connections finish (unlike a device's `reserve_channels`, which is
+   * sized upfront — a mixer's eventual input count isn't known until
+   * channel outputs of type "mixer" connect during parsing). Lets a
+   * dynamically-appended channel's `type: "mixer"` output connect live via
+   * `reload_diff` (dynamic_reload fork), without a restart, as long as
+   * growth stays within this headroom. RTLSDR-Airband defaults to 0 (no
+   * live mixer-input growth) when absent.
+   */
+  reserve_inputs?: number;
   /** A mixer's own outputs cannot themselves be of type "mixer". */
   outputs: Exclude<Output, MixerOutput>[];
 }

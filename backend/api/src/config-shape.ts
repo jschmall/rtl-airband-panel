@@ -346,6 +346,8 @@ function parseMixer(input: unknown, path: string): Mixer {
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(obj, "lowpass", path);
   if (lowpass !== undefined) mixer.lowpass = lowpass;
+  const reserveInputs = optionalNumber(obj, "reserve_inputs", path);
+  if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
   return mixer;
 }
 

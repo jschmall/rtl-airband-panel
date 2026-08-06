@@ -82,6 +82,16 @@ export function MixerEditor({
             onChange={(e) => onChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        <Field label="Reserve inputs (optional, default 0)" tooltip={MIXER_TOOLTIPS.reserveInputs}>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            className={inputClass}
+            value={mixer.reserve_inputs ?? ""}
+            onChange={(e) => onChange({ ...mixer, reserve_inputs: numberOrUndefined(e.target.value) })}
+          />
+        </Field>
       </div>
 
       <div className="space-y-2">

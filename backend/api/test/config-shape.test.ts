@@ -394,4 +394,17 @@ describe("parseRtlAirbandConfigBody global fields and mixers", () => {
     body["mixers"] = [{ name: "mix1", outputs: [{ type: "mixer", name: "mix2" }] }];
     expect(() => parseRtlAirbandConfigBody(body)).toThrow(ShapeValidationError);
   });
+
+  it("accepts reserve_inputs on a mixer", () => {
+    const body = minimalBody({}, { outputs: [{ type: "mixer", name: "mix1" }] }) as Record<string, unknown>;
+    body["mixers"] = [
+      {
+        name: "mix1",
+        reserve_inputs: 2,
+        outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
+      },
+    ];
+    const config = parseRtlAirbandConfigBody(body);
+    expect(config.mixers![0]!.reserve_inputs).toBe(2);
+  });
 });

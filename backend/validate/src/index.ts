@@ -5,7 +5,7 @@ import { checkBinCollisions } from "./checks/bin-collision.js";
 import { checkCtcssTones } from "./checks/ctcss.js";
 import { checkScanMode } from "./checks/scan-mode.js";
 import { checkDeviceRequirements } from "./checks/device-requirements.js";
-import { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+import { checkMixerReferences, checkMixerOutputBalance, checkMixerReserveInputs } from "./checks/mixers.js";
 import { checkMixerUnused } from "./checks/mixer-unused.js";
 import { checkDisableCascade } from "./checks/disable-cascade.js";
 import { checkRdioScanner } from "./checks/rdio-scanner.js";
@@ -45,6 +45,7 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkUdpStreamSampleRate(config),
     ...checkMixerNestedOutputs(config),
     ...checkMixerOutputBalance(config),
+    ...checkMixerReserveInputs(config),
     ...checkPostWriteScript(config),
     ...checkStatsHttp(config),
     ...checkControlSocketPath(config),
@@ -66,7 +67,7 @@ export { checkBinCollisions } from "./checks/bin-collision.js";
 export { checkCtcssTones } from "./checks/ctcss.js";
 export { checkScanMode } from "./checks/scan-mode.js";
 export { checkDeviceRequirements } from "./checks/device-requirements.js";
-export { checkMixerReferences, checkMixerOutputBalance } from "./checks/mixers.js";
+export { checkMixerReferences, checkMixerOutputBalance, checkMixerReserveInputs } from "./checks/mixers.js";
 export { checkMixerUnused } from "./checks/mixer-unused.js";
 export { checkDisableCascade } from "./checks/disable-cascade.js";
 export { checkRdioScanner } from "./checks/rdio-scanner.js";

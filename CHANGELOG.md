@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.80] - 2026-08-06
+
+### Added
+
+- **`reserve_inputs` mixer config field, matching the RTLSDR-Airband fork's
+  `dynamic_reload` branch fix for a mixer-input live-append data race.**
+  The fork's `mixer_connect_input()` used to grow a mixer's input array
+  with an unconditional `realloc` that was only safe during single-threaded
+  startup — a real use-after-free once a dynamically-appended channel's
+  `type: "mixer"` output could reach it post-startup via `reload_diff`.
+  The fix sizes headroom upfront via a new mixer-level `reserve_inputs`
+  int (default 0), finalized once after startup connections, mirroring
+  `reserve_channels`' device-level headroom model. `reserve_inputs` is now
+  modeled end-to-end: parsed/serialized in `backend/parser`, validated in
+  `backend/validate` (negative values rejected as errors, matching the
+  fork's own startup-time rejection), and editable per mixer in the
+  frontend's MixerEditor, right alongside Highpass/Lowpass.
+
 ## [0.4.79] - 2026-08-04
 
 ### Added

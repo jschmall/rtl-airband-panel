@@ -136,4 +136,6 @@ export const MIXER_TOOLTIPS = {
   disable: "Ignores this mixer entirely, as if it weren't configured. Any channel output still pointed at it will fail validation.",
   enabled:
     "Starts this mixer live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a mixer in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+  reserveInputs:
+    "Reserves this many extra mixer-input slots, sized once after startup connections finish, so a channel appended later whose output routes into this mixer can connect live via Apply live without a restart. Unlike Reserve channels, this headroom isn't released when a mixer-connected channel is edited live — each live edit permanently consumes one more slot, so size this for the number of edits you expect, not just the number of channels. Leave blank (default 0) unless you plan to add or edit mixer-connected channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
 } as const;

@@ -19,6 +19,7 @@ import {
   checkMixerNestedOutputs,
   checkMixerOutputBalance,
   checkMixerReferences,
+  checkMixerReserveInputs,
   checkMixerUnused,
   checkModulation,
   checkNotchQ,
@@ -1160,6 +1161,25 @@ describe("checkMixerOutputBalance", () => {
     const issues = checkMixerOutputBalance(makeConfig([device]));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-output-balance-out-of-range" });
+  });
+});
+
+describe("checkMixerReserveInputs", () => {
+  it("does not flag a mixer with no reserve_inputs set", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    expect(checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("does not flag a non-negative reserve_inputs", () => {
+    const mixer: Mixer = { name: "mix1", reserve_inputs: 2, outputs: [{ type: "pulse" }] };
+    expect(checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when reserve_inputs is negative", () => {
+    const mixer: Mixer = { name: "mix1", reserve_inputs: -1, outputs: [{ type: "pulse" }] };
+    const issues = checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-reserve-inputs-negative", path: "$.mixers[0]" });
   });
 });
 

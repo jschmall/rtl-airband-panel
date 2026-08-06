@@ -714,6 +714,7 @@ describe("fork-features fixture", () => {
     const mixer = domain.mixers![0]!;
     expect(mixer.name).toBe("fork_mix");
     expect(mixer.enabled).toBe(false);
+    expect(mixer.reserve_inputs).toBe(2);
     const mixerOutput = mixer.outputs[0]!;
     if (mixerOutput.type !== "udp_stream") throw new Error("expected udp_stream mixer output");
     expect(mixerOutput.bit_depth).toBe(8);

@@ -263,6 +263,8 @@ function toMixer(g: GroupNode, name: string, path: string): Mixer {
   if (highpass !== undefined) mixer.highpass = highpass;
   const lowpass = optionalNumber(g, "lowpass", path);
   if (lowpass !== undefined) mixer.lowpass = lowpass;
+  const reserveInputs = optionalNumber(g, "reserve_inputs", path);
+  if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
   return mixer;
 }
 
@@ -561,6 +563,7 @@ function mixerFromDomain(mixer: Mixer): SettingNode {
   if (mixer.enabled !== undefined) members.push(boolSetting("enabled", mixer.enabled));
   if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
   if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
+  if (mixer.reserve_inputs !== undefined) members.push(numberSetting("reserve_inputs", mixer.reserve_inputs, "int"));
   members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));
   return setting(mixer.name, group(members));
 }
