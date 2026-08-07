@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.92] - 2026-08-07
+
+### Changed
+
+- Gave the 0.4.91 `mixer_remote`/`remote_inputs` feature its own top-level
+  README section ("Cross-instance mixer input") instead of a single bullet
+  buried in the `dynamic_reload` live-apply writeup — it's an unrelated
+  fork branch and deserved its own explanation of the transport, the
+  sending/receiving config syntax, and the cross-mixer duplicate-route
+  validation, rather than reading as a footnote to live-apply.
+
 ## [0.4.91] - 2026-08-07
 
 ### Added

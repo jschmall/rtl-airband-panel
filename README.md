@@ -118,15 +118,12 @@ socket is unreachable.
   `reserve_channels`: reserves extra mixer-input headroom so a
   dynamically-added or -edited channel whose output routes into this mixer
   (`type: "mixer"`) can connect live, within that headroom, no restart.
-- **`mixer_remote` output type / mixers' `remote_inputs` field** (a
-  different, non-upstream RTLSDR-Airband fork feature — needs a build from
-  its `mixer_remote_input` branch specifically) — lets a mixer in one
-  instance absorb a live audio input streamed from a channel in a
-  *different* instance's process, over a same-host, same-user Unix domain
-  socket. Unlike `reserve_channels`/`reserve_inputs`, there is no reserved
-  headroom mechanism for this: adding, removing, or editing a
-  `mixer_remote` output or a `remote_inputs` entry **always requires a
-  restart**, even with Apply live otherwise available on the instance.
+- **`mixer_remote` output type / mixers' `remote_inputs` field** — a
+  separate, non-upstream RTLSDR-Airband fork feature (needs a build from
+  its `mixer_remote_input` branch specifically, not the `dynamic_reload`
+  one this section is otherwise about). Always restart-only, never
+  live-appliable — see [Cross-instance mixer input](#cross-instance-mixer-input-mixer_remote)
+  below for what it does and how to configure it.
 
 ### What Apply live can push without a restart
 
@@ -189,6 +186,65 @@ the panel only wires up the coarser `reload_diff` command, not per-field
 live controls. Mixer/device add still always requires a restart. See
 [issue #4](https://github.com/jschmall/rtl-airband-panel/issues/4) for a
 known follow-up (page-level test coverage for the Apply live button).
+
+## Cross-instance mixer input (`mixer_remote`)
+
+Requires an RTLSDR-Airband build from
+[`jschmall/RTLSDR-Airband`](https://github.com/jschmall/RTLSDR-Airband)'s
+`mixer_remote_input` branch — a separate fork feature from the live-apply
+one above (different branch, not yet merged to that fork's `main`); the two
+aren't related and don't require each other.
+
+Lets a mixer in one instance absorb a live audio input streamed from a
+channel in a *different* instance's process, over a Unix domain socket —
+useful on a host that runs several instances and wants to combine channels
+from separate SDRs into one mixed stream, without a network hop. The
+transport is same-host and same-OS-user only: the receiving instance's
+socket only accepts packets from a sender running as its own user (checked
+via `SCM_CREDENTIALS`, the same trust model `dynamic_reload`'s control
+socket uses via `SO_PEERCRED`), so there's no separate authentication step
+to configure and no exposure beyond the local machine.
+
+**Sending side** — any channel (a device channel, or a mixer's own
+embedded channel) gets a `mixer_remote` output, chosen from the same
+output-type dropdown as every other output type:
+
+```
+outputs: (
+  { type = "mixer_remote"; dest_path = "/run/rtl-airband/other-instance.sock"; stream_id = 0; }
+);
+```
+
+**Receiving side** — the mixer that should absorb the input gets an entry
+in its "Remote inputs" section, editable alongside its regular outputs;
+each entry reserves one mixer-input slot:
+
+```
+mixers: {
+  mymix: {
+    remote_inputs: (
+      { listen_path = "/run/rtl-airband/mymix.sock"; stream_id = 0; ampfactor = 1.0; balance = 0.0; label = "site2 ch1"; }
+    );
+    outputs: ( /* ... */ );
+  };
+};
+```
+
+`dest_path` on the sender must match `listen_path` on the receiver
+exactly, and `stream_id` must match too — that's how the receiver tells
+multiple senders apart when several share one `listen_path`. The panel
+validates both: a negative `stream_id`, an out-of-range `balance`, or two
+`remote_inputs` entries reusing the same `(listen_path, stream_id)` pair
+anywhere in the instance's config (not just within one mixer — the fork
+shares one listener registry per `listen_path` across every mixer) are all
+flagged before you can save.
+
+**No live creation.** Unlike `reserve_channels`/`reserve_inputs`, there is
+no reserved-headroom mechanism for this: RTLSDR-Airband only connects
+`remote_inputs` slots once, at startup, in `parse_mixers()`. Adding,
+removing, or editing a `mixer_remote` output or a `remote_inputs` entry
+always requires a restart of the instance(s) involved, even on an
+otherwise Apply-live-capable instance.
 
 ## Screenshots
 
