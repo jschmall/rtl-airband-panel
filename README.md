@@ -28,11 +28,12 @@ them, with validation before anything is written to disk.
 ## Features
 
 **Config editing**
-- Editor for devices, channels, mixers, and all six RTLSDR-Airband output
-  types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
-  including rdio-scanner call uploads — that output type requires
-  [this fork](https://github.com/jschmall/RTLSDR-Airband) of
-  RTLSDR-Airband, not the upstream project
+- Editor for devices, channels, mixers, and all seven RTLSDR-Airband output
+  types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`,
+  `mixer_remote`), including rdio-scanner call uploads — that output type
+  and `mixer_remote` (plus a mixer's `remote_inputs` block) both require
+  [this fork](https://github.com/jschmall/RTLSDR-Airband) of RTLSDR-Airband,
+  not the upstream project
 - Drag-and-drop channel reordering (mouse, touch, and keyboard)
 - Duplicate/clone buttons, and a "copy to channel" action for outputs
 - Search across all instances by frequency, modulation, or device
@@ -117,6 +118,15 @@ socket is unreachable.
   `reserve_channels`: reserves extra mixer-input headroom so a
   dynamically-added or -edited channel whose output routes into this mixer
   (`type: "mixer"`) can connect live, within that headroom, no restart.
+- **`mixer_remote` output type / mixers' `remote_inputs` field** (a
+  different, non-upstream RTLSDR-Airband fork feature — needs a build from
+  its `mixer_remote_input` branch specifically) — lets a mixer in one
+  instance absorb a live audio input streamed from a channel in a
+  *different* instance's process, over a same-host, same-user Unix domain
+  socket. Unlike `reserve_channels`/`reserve_inputs`, there is no reserved
+  headroom mechanism for this: adding, removing, or editing a
+  `mixer_remote` output or a `remote_inputs` entry **always requires a
+  restart**, even with Apply live otherwise available on the instance.
 
 ### What Apply live can push without a restart
 
@@ -365,10 +375,11 @@ an instance's stats from somewhere other than this panel.
 
 The JSON model covers both `multichannel`- and `scan`-mode devices,
 top-level mixer *definitions* (the `mixers: { ... }` group itself, not just
-a channel routing into one by name), all six RTLSDR-Airband output types
-(`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the
-rdio-scanner call-upload block (see the note under
-[Features](#features) — this requires the non-upstream RTLSDR-Airband
+a channel routing into one by name, plus its `remote_inputs` block), all
+seven RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`,
+`udp_stream`, `mixer`, `mixer_remote`) including the rdio-scanner
+call-upload block (see the note under [Features](#features) — this and
+`mixer_remote`/`remote_inputs` require the non-upstream RTLSDR-Airband
 fork), and per-channel options like
 `highpass`/`lowpass`/`tau`/`label`/`labels`.
 

@@ -3,6 +3,7 @@ import type {
   FileOutput,
   IcecastOutput,
   MixerOutput,
+  MixerRemoteOutput,
   Output,
   PulseOutput,
   RawFileOutput,
@@ -19,6 +20,7 @@ import {
   defaultFileOutput,
   defaultIcecastOutput,
   defaultMixerOutput,
+  defaultMixerRemoteOutput,
   defaultPulseOutput,
   defaultRawFileOutput,
   defaultRdioScannerConfig,
@@ -55,6 +57,7 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   icecast: defaultIcecastOutput,
   udp_stream: defaultUdpStreamOutput,
   mixer: defaultMixerOutput,
+  mixer_remote: defaultMixerRemoteOutput,
 };
 
 export function OutputEditor({
@@ -203,6 +206,7 @@ export function OutputEditor({
             <option value="icecast">icecast</option>
             <option value="udp_stream">udp_stream</option>
             {!excludeMixerType && <option value="mixer">mixer</option>}
+            <option value="mixer_remote">mixer_remote</option>
           </select>
         </Field>
       </div>
@@ -213,6 +217,7 @@ export function OutputEditor({
       {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} onRevealPassword={revealField?.("password")} />}
       {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
       {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
+      {output.type === "mixer_remote" && <MixerRemoteFields output={output} onChange={onChange} />}
     </Collapsible>
   );
 }
@@ -644,6 +649,26 @@ function MixerFields({ output, onChange }: { output: MixerOutput; onChange: (o: 
           className={inputClass}
           value={output.balance ?? ""}
           onChange={(e) => onChange({ ...output, balance: numberOrUndefined(e.target.value) })}
+        />
+      </Field>
+    </div>
+  );
+}
+
+function MixerRemoteFields({ output, onChange }: { output: MixerRemoteOutput; onChange: (o: Output) => void }) {
+  return (
+    <div className={responsiveGrid2}>
+      <Field label="Destination path (the receiving mixer's remote_inputs listen path)" tooltip={OUTPUT_TOOLTIPS.mixerRemoteDestPath}>
+        <input className={inputClass} value={output.dest_path} onChange={(e) => onChange({ ...output, dest_path: e.target.value })} />
+      </Field>
+      <Field label="Stream ID (must match a remote_inputs entry on the receiver)" tooltip={OUTPUT_TOOLTIPS.mixerRemoteStreamId}>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          className={inputClass}
+          value={output.stream_id}
+          onChange={(e) => onChange({ ...output, stream_id: e.target.value === "" ? 0 : Number(e.target.value) })}
         />
       </Field>
     </div>

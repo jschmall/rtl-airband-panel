@@ -10,6 +10,8 @@ export type {
   IcecastOutput,
   Mixer,
   MixerOutput,
+  MixerRemoteInput,
+  MixerRemoteOutput,
   MultichannelChannel,
   Output,
   PulseOutput,

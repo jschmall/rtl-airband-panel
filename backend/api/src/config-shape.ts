@@ -12,6 +12,8 @@ import type {
   IcecastOutput,
   Mixer,
   MixerOutput,
+  MixerRemoteInput,
+  MixerRemoteOutput,
   MultichannelChannel,
   Output,
   PulseOutput,
@@ -350,7 +352,26 @@ function parseMixer(input: unknown, path: string): Mixer {
   if (lowpass !== undefined) mixer.lowpass = lowpass;
   const reserveInputs = optionalNumber(obj, "reserve_inputs", path);
   if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
+  const remoteInputs = optionalArray(obj, "remote_inputs", path);
+  if (remoteInputs !== undefined) {
+    mixer.remote_inputs = remoteInputs.map((r, i) => parseMixerRemoteInput(r, `${path}.remote_inputs[${i}]`));
+  }
   return mixer;
+}
+
+function parseMixerRemoteInput(input: unknown, path: string): MixerRemoteInput {
+  const obj = requireRecord(input, path);
+  const out: MixerRemoteInput = {
+    listen_path: requireString(obj, "listen_path", path),
+    stream_id: requireNumber(obj, "stream_id", path),
+  };
+  const ampfactor = optionalNumber(obj, "ampfactor", path);
+  if (ampfactor !== undefined) out.ampfactor = ampfactor;
+  const balance = optionalNumber(obj, "balance", path);
+  if (balance !== undefined) out.balance = balance;
+  const label = optionalString(obj, "label", path);
+  if (label !== undefined) out.label = label;
+  return out;
 }
 
 function parseOutput(input: unknown, path: string): Output {
@@ -377,9 +398,12 @@ function parseOutput(input: unknown, path: string): Output {
     case "mixer":
       out = parseMixerOutput(obj, path);
       break;
+    case "mixer_remote":
+      out = parseMixerRemoteOutput(obj, path);
+      break;
     default:
       throw new ShapeValidationError(
-        `Unrecognized output type '${type}' (expected one of: pulse, file, rawfile, icecast, udp_stream, mixer)`,
+        `Unrecognized output type '${type}' (expected one of: pulse, file, rawfile, icecast, udp_stream, mixer, mixer_remote)`,
         path
       );
   }
@@ -548,6 +572,16 @@ function parseMixerOutput(obj: Record<string, unknown>, path: string): MixerOutp
   if (ampfactor !== undefined) out.ampfactor = ampfactor;
   const balance = optionalNumber(obj, "balance", path);
   if (balance !== undefined) out.balance = balance;
+  parseOutputDisable(obj, path, out);
+  return out;
+}
+
+function parseMixerRemoteOutput(obj: Record<string, unknown>, path: string): MixerRemoteOutput {
+  const out: MixerRemoteOutput = {
+    type: "mixer_remote",
+    dest_path: requireString(obj, "dest_path", path),
+    stream_id: requireNumber(obj, "stream_id", path),
+  };
   parseOutputDisable(obj, path, out);
   return out;
 }

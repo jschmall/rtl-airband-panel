@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.91] - 2026-08-07
+
+### Added
+
+- **`mixer_remote` output type and mixers' `remote_inputs` block.** Lets a
+  mixer in one RTLSDR-Airband instance absorb a live audio input streamed
+  from a channel in a *different* instance's process, over a same-host,
+  same-user Unix domain socket — useful for combining channels from
+  separate SDR instances into one mixed stream on hosts that run several
+  instances. On the sending side, any channel (device or a mixer's own
+  embedded channel) can add a `mixer_remote` output (`dest_path`,
+  `stream_id`); on the receiving side, a mixer's new `remote_inputs` list
+  reserves one input slot per entry (`listen_path`, `stream_id`, optional
+  `ampfactor`/`balance`/`label`). Fork-only — requires an RTLSDR-Airband
+  build from `jschmall/RTLSDR-Airband`'s `mixer_remote_input` branch. No
+  live-creation path: adding, removing, or editing either side always
+  requires a restart, even on an otherwise Apply-live-capable instance.
+  Also fixes the mixer-input stats numbering (`buildMixerLookups()`) to
+  account for `remote_inputs` entries claiming the first N input indices on
+  a mixer, ahead of channel-routed `type: "mixer"` inputs, matching the
+  fork's `parse_mixers()`-before-`parse_devices()` connection order.
+
 ## [0.4.90] - 2026-08-06
 
 ### Added

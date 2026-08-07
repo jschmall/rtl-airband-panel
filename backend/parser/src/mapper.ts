@@ -36,6 +36,8 @@ import type {
   IcecastOutput,
   Mixer,
   MixerOutput,
+  MixerRemoteInput,
+  MixerRemoteOutput,
   MultichannelChannel,
   Output,
   PulseOutput,
@@ -267,7 +269,26 @@ function toMixer(g: GroupNode, name: string, path: string): Mixer {
   if (lowpass !== undefined) mixer.lowpass = lowpass;
   const reserveInputs = optionalNumber(g, "reserve_inputs", path);
   if (reserveInputs !== undefined) mixer.reserve_inputs = reserveInputs;
+  if (findSetting(g, "remote_inputs")) {
+    const remoteInputsList = requireList(g, "remote_inputs", path);
+    const remoteInputGroups = requireGroupItems(remoteInputsList, `${path}.remote_inputs`);
+    mixer.remote_inputs = remoteInputGroups.map((r, i) => toMixerRemoteInput(r, `${path}.remote_inputs[${i}]`));
+  }
   return mixer;
+}
+
+function toMixerRemoteInput(g: GroupNode, path: string): MixerRemoteInput {
+  const out: MixerRemoteInput = {
+    listen_path: requireString(g, "listen_path", path),
+    stream_id: requireNumber(g, "stream_id", path),
+  };
+  const ampfactor = optionalNumber(g, "ampfactor", path);
+  if (ampfactor !== undefined) out.ampfactor = ampfactor;
+  const balance = optionalNumber(g, "balance", path);
+  if (balance !== undefined) out.balance = balance;
+  const label = optionalString(g, "label", path);
+  if (label !== undefined) out.label = label;
+  return out;
 }
 
 function toOutput(g: GroupNode, path: string): Output {
@@ -285,6 +306,8 @@ function toOutput(g: GroupNode, path: string): Output {
       return toUdpStreamOutput(g, path);
     case "mixer":
       return toMixerOutput(g, path);
+    case "mixer_remote":
+      return toMixerRemoteOutput(g, path);
     default:
       throw new DomainMappingError(`Unrecognized output type '${type}'`, path);
   }
@@ -458,6 +481,16 @@ function toMixerOutput(g: GroupNode, path: string): MixerOutput {
   return out;
 }
 
+function toMixerRemoteOutput(g: GroupNode, path: string): MixerRemoteOutput {
+  const out: MixerRemoteOutput = {
+    type: "mixer_remote",
+    dest_path: requireString(g, "dest_path", path),
+    stream_id: requireNumber(g, "stream_id", path),
+  };
+  applyDisable(g, path, out);
+  return out;
+}
+
 export function fromDomain(config: RtlAirbandConfig): ConfigFile {
   const members = [
     boolSetting("multiple_demod_threads", config.multiple_demod_threads),
@@ -569,8 +602,19 @@ function mixerFromDomain(mixer: Mixer): SettingNode {
   if (mixer.highpass !== undefined) members.push(numberSetting("highpass", mixer.highpass, "int"));
   if (mixer.lowpass !== undefined) members.push(numberSetting("lowpass", mixer.lowpass, "int"));
   if (mixer.reserve_inputs !== undefined) members.push(numberSetting("reserve_inputs", mixer.reserve_inputs, "int"));
+  if (mixer.remote_inputs !== undefined && mixer.remote_inputs.length > 0) {
+    members.push(setting("remote_inputs", listNode(mixer.remote_inputs.map(mixerRemoteInputToAst))));
+  }
   members.push(setting("outputs", listNode(mixer.outputs.map(outputFromDomain))));
   return setting(mixer.name, group(members));
+}
+
+function mixerRemoteInputToAst(input: MixerRemoteInput): GroupNode {
+  const members = [stringSetting("listen_path", input.listen_path), numberSetting("stream_id", input.stream_id, "int")];
+  if (input.ampfactor !== undefined) members.push(numberSetting("ampfactor", input.ampfactor, "float"));
+  if (input.balance !== undefined) members.push(numberSetting("balance", input.balance, "float"));
+  if (input.label !== undefined) members.push(stringSetting("label", input.label));
+  return group(members);
 }
 
 function outputFromDomain(output: Output): GroupNode {
@@ -587,6 +631,8 @@ function outputFromDomain(output: Output): GroupNode {
       return udpStreamOutputToAst(output);
     case "mixer":
       return mixerOutputToAst(output);
+    case "mixer_remote":
+      return mixerRemoteOutputToAst(output);
   }
 }
 
@@ -697,6 +743,16 @@ function mixerOutputToAst(output: MixerOutput): GroupNode {
   const members = [stringSetting("type", output.type), stringSetting("name", output.name)];
   if (output.ampfactor !== undefined) members.push(numberSetting("ampfactor", output.ampfactor, "float"));
   if (output.balance !== undefined) members.push(numberSetting("balance", output.balance, "float"));
+  appendDisable(members, output);
+  return group(members);
+}
+
+function mixerRemoteOutputToAst(output: MixerRemoteOutput): GroupNode {
+  const members = [
+    stringSetting("type", output.type),
+    stringSetting("dest_path", output.dest_path),
+    numberSetting("stream_id", output.stream_id, "int"),
+  ];
   appendDisable(members, output);
   return group(members);
 }

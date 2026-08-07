@@ -133,6 +133,8 @@ export const OUTPUT_TOOLTIPS = {
   rdioScannerDeleteAfterUpload: "Deletes the local MP3 file after a successful upload. A failed upload never deletes the file, even when this is enabled.",
   rdioScannerTimeoutMs: "How long to wait for the rdio-scanner API to respond before treating the upload as failed, in milliseconds. Defaults to 5000.",
   rdioScannerMaxRetries: "How many times to retry a failed upload before giving up. Defaults to 2.",
+  mixerRemoteDestPath: "The AF_UNIX socket path the RECEIVING instance's mixer is listening on (its remote_inputs listen_path). Same host only. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's mixer_remote_input branch. Adding, removing, or changing this output always requires a restart — there's no live-creation path.",
+  mixerRemoteStreamId: "Identifies this sender to the receiving mixer when its listen_path is shared by more than one remote_inputs entry. Must match that entry's stream_id exactly, and must not be negative.",
 } as const;
 
 export const MIXER_TOOLTIPS = {
@@ -144,4 +146,11 @@ export const MIXER_TOOLTIPS = {
     "Starts this mixer live-off but still allocated, so it can be turned on later via the dynamic_reload control socket without a restart — unlike Disable, which removes it from the config entirely and can never be flipped back on without a restart. Leave on (the default) unless you specifically want to add a mixer in an off state to enable live later. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
   reserveInputs:
     "Reserves this many extra mixer-input slots, sized once after startup connections finish, so a channel appended later whose output routes into this mixer can connect live via Apply live without a restart. Unlike Reserve channels, this headroom isn't released when a mixer-connected channel is edited live — each live edit permanently consumes one more slot, so size this for the number of edits you expect, not just the number of channels. Leave blank (default 0) unless you plan to add or edit mixer-connected channels live. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's dynamic_reload branch.",
+  remoteInputsSection:
+    "Reserves mixer-input slots fed by a `mixer_remote` output in a DIFFERENT RTLSDR-Airband instance's config, over a same-host AF_UNIX socket — lets you combine channels from separate SDR instances into one mixed stream. Same host and same OS user as this instance only. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's mixer_remote_input branch. No live creation — adding, removing, or editing an entry always requires a restart.",
+  remoteInputListenPath: "The AF_UNIX socket path this mixer listens on for remote input. Sending instances' `mixer_remote` outputs must set dest_path to this exact value. Must not be empty.",
+  remoteInputStreamId: "Identifies which sender's packets land in this slot when more than one entry shares this listen_path. Must match the sender's stream_id exactly, must not be negative, and must be unique per listen_path across every mixer in this instance's config.",
+  remoteInputAmpfactor: "Volume multiplier applied to this remote input's contribution to the mixer. Defaults to 1.0.",
+  remoteInputBalance: "Stereo balance of this remote input's contribution to the mixer, from -1.0 (full left) to 1.0 (full right). Defaults to 0.0 (centered).",
+  remoteInputLabel: "Optional display label shown in place of a source channel's label — a remote input has no local source channel to look up.",
 } as const;

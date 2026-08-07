@@ -19,6 +19,8 @@ import {
   checkMixerNestedOutputs,
   checkMixerOutputBalance,
   checkMixerReferences,
+  checkMixerRemoteInputs,
+  checkMixerRemoteOutputStreamId,
   checkMixerReserveInputs,
   checkMixerUnused,
   checkModulation,
@@ -1235,6 +1237,114 @@ describe("checkMixerReserveInputs", () => {
     const issues = checkMixerReserveInputs(makeConfig([], { mixers: [mixer] }));
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-reserve-inputs-negative", path: "$.mixers[0]" });
+  });
+});
+
+describe("checkMixerRemoteOutputStreamId", () => {
+  it("does not flag a non-negative stream_id on a channel output", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "mixer_remote", dest_path: "/run/rtl-airband/other.sock", stream_id: 0 }] }),
+    ]);
+    expect(checkMixerRemoteOutputStreamId(makeConfig([device]))).toEqual([]);
+  });
+
+  it("errors on a negative stream_id on a channel output", () => {
+    const device = makeDevice([
+      makeChannel(100_000_000, { outputs: [{ type: "mixer_remote", dest_path: "/run/rtl-airband/other.sock", stream_id: -1 }] }),
+    ]);
+    const issues = checkMixerRemoteOutputStreamId(makeConfig([device]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ severity: "error", code: "mixer-remote-output-stream-id-negative", path: "$.devices[0].channels[0].outputs[0]" });
+  });
+
+  it("also checks outputs on top-level mixers", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "mixer_remote", dest_path: "/run/rtl-airband/other.sock", stream_id: -2 }] };
+    const issues = checkMixerRemoteOutputStreamId(makeConfig([], { mixers: [mixer] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "mixer-remote-output-stream-id-negative", path: "$.mixers[0].outputs[0]" });
+  });
+});
+
+describe("checkMixerRemoteInputs", () => {
+  it("does not flag a mixer with no remote_inputs set", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }] };
+    expect(checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("does not flag a well-formed remote_inputs entry", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [{ listen_path: "/run/rtl-airband/mix1.sock", stream_id: 0, ampfactor: 1.0, balance: 0.0, label: "site2" }],
+    };
+    expect(checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
+  });
+
+  it("errors when listen_path is empty", () => {
+    const mixer: Mixer = { name: "mix1", outputs: [{ type: "pulse" }], remote_inputs: [{ listen_path: "", stream_id: 0 }] };
+    const issues = checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues.some((i) => i.code === "mixer-remote-input-listen-path-empty")).toBe(true);
+  });
+
+  it("errors when stream_id is negative", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [{ listen_path: "/run/rtl-airband/mix1.sock", stream_id: -1 }],
+    };
+    const issues = checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues.some((i) => i.code === "mixer-remote-input-stream-id-negative")).toBe(true);
+  });
+
+  it.each([1.5, -1.5])("errors when balance is out of range (%d)", (balance) => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [{ listen_path: "/run/rtl-airband/mix1.sock", stream_id: 0, balance }],
+    };
+    const issues = checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues.some((i) => i.code === "mixer-remote-input-balance-out-of-range")).toBe(true);
+  });
+
+  it("errors on a duplicate stream_id for the same listen_path within one mixer", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [
+        { listen_path: "/run/rtl-airband/mix1.sock", stream_id: 0 },
+        { listen_path: "/run/rtl-airband/mix1.sock", stream_id: 0 },
+      ],
+    };
+    const issues = checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }));
+    expect(issues.some((i) => i.code === "mixer-remote-input-duplicate-stream-id")).toBe(true);
+  });
+
+  it("errors on a duplicate stream_id for the same listen_path shared ACROSS two different mixers", () => {
+    const mixer1: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [{ listen_path: "/run/rtl-airband/shared.sock", stream_id: 0 }],
+    };
+    const mixer2: Mixer = {
+      name: "mix2",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [{ listen_path: "/run/rtl-airband/shared.sock", stream_id: 0 }],
+    };
+    const issues = checkMixerRemoteInputs(makeConfig([], { mixers: [mixer1, mixer2] }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "mixer-remote-input-duplicate-stream-id", path: "$.mixers[1].remote_inputs[0]" });
+  });
+
+  it("does not flag the same stream_id reused across two DIFFERENT listen_paths", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "pulse" }],
+      remote_inputs: [
+        { listen_path: "/run/rtl-airband/a.sock", stream_id: 0 },
+        { listen_path: "/run/rtl-airband/b.sock", stream_id: 0 },
+      ],
+    };
+    expect(checkMixerRemoteInputs(makeConfig([], { mixers: [mixer] }))).toEqual([]);
   });
 });
 

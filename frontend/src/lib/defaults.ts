@@ -5,6 +5,8 @@ import type {
   IcecastOutput,
   Mixer,
   MixerOutput,
+  MixerRemoteInput,
+  MixerRemoteOutput,
   MultichannelChannel,
   PulseOutput,
   RawFileOutput,
@@ -60,6 +62,14 @@ export function defaultUdpStreamOutput(): UdpStreamOutput {
 
 export function defaultMixerOutput(): MixerOutput {
   return withUiKey({ type: "mixer", name: "" });
+}
+
+export function defaultMixerRemoteOutput(): MixerRemoteOutput {
+  return withUiKey({ type: "mixer_remote", dest_path: "", stream_id: 0 });
+}
+
+export function defaultMixerRemoteInput(): MixerRemoteInput {
+  return withUiKey({ listen_path: "", stream_id: 0 });
 }
 
 export function defaultChannel(): MultichannelChannel {

@@ -21,6 +21,7 @@ import { checkPostWriteScript } from "./checks/post-write-script.js";
 import { checkStatsHttp } from "./checks/stats-http.js";
 import { checkControlSocketPath } from "./checks/control-socket.js";
 import { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";
+import { checkMixerRemoteOutputStreamId, checkMixerRemoteInputs } from "./checks/mixer-remote.js";
 
 export function validateConfig(config: RtlAirbandConfig): ValidationResult {
   const issues = [
@@ -52,6 +53,8 @@ export function validateConfig(config: RtlAirbandConfig): ValidationResult {
     ...checkStatsHttp(config),
     ...checkControlSocketPath(config),
     ...checkEnabledDisableRedundant(config),
+    ...checkMixerRemoteOutputStreamId(config),
+    ...checkMixerRemoteInputs(config),
   ];
   return {
     errors: issues.filter((i) => i.severity === "error"),
@@ -85,3 +88,4 @@ export { checkPostWriteScript } from "./checks/post-write-script.js";
 export { checkStatsHttp } from "./checks/stats-http.js";
 export { checkControlSocketPath } from "./checks/control-socket.js";
 export { checkEnabledDisableRedundant } from "./checks/enabled-disable.js";
+export { checkMixerRemoteOutputStreamId, checkMixerRemoteInputs } from "./checks/mixer-remote.js";
