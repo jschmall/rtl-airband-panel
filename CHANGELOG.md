@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.93] - 2026-08-07
+
+### Fixed
+
+- **Corrected an inaccurate "always requires a restart" claim for
+  `mixer_remote` outputs.** Traced against three new commits on the fork's
+  `mixer_remote_input` branch (`5821116`, `a6bc9e3`, `61ed62e`): a memory
+  leak fix confirmed that editing or removing a `mixer_remote` output on
+  an *existing* channel was always meant to apply live via the existing
+  generic channel-edit path (`reserve_channels` headroom), exactly like
+  any other output type — it was only ever restart-only because of the
+  leak bug, now fixed upstream. Only a mixer's `remote_inputs` entries
+  remain genuinely restart-only (RTLSDR-Airband connects those slots once,
+  at startup, with no live-apply primitive at all — separately confirmed
+  by the fork's `reload_diff` now correctly detecting and reporting a
+  changed `remote_inputs` block under "skipped, needs restart" instead of
+  silently no-op'ing). Updated the `mixer_remote` output tooltip and both
+  the "New config fields" bullet and the dedicated "Cross-instance mixer
+  input" README section to reflect this split accurately. No functional
+  panel code changes were needed — the panel already applies whatever
+  `reload_diff` reports generically, with no live-appliable classification
+  table of its own to update.
+
 ## [0.4.92] - 2026-08-07
 
 ### Changed

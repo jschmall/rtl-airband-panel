@@ -133,7 +133,7 @@ export const OUTPUT_TOOLTIPS = {
   rdioScannerDeleteAfterUpload: "Deletes the local MP3 file after a successful upload. A failed upload never deletes the file, even when this is enabled.",
   rdioScannerTimeoutMs: "How long to wait for the rdio-scanner API to respond before treating the upload as failed, in milliseconds. Defaults to 5000.",
   rdioScannerMaxRetries: "How many times to retry a failed upload before giving up. Defaults to 2.",
-  mixerRemoteDestPath: "The AF_UNIX socket path the RECEIVING instance's mixer is listening on (its remote_inputs listen_path). Same host only. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's mixer_remote_input branch. Adding, removing, or changing this output always requires a restart — there's no live-creation path.",
+  mixerRemoteDestPath: "The AF_UNIX socket path the RECEIVING instance's mixer is listening on (its remote_inputs listen_path). Same host only. Requires RTLSDR-Airband built from jschmall/RTLSDR-Airband's mixer_remote_input branch. Like any other output, changing this on an existing channel applies live within that device's Reserve channels headroom -- it's the mixer's remote_inputs entry on the receiving side that's always restart-only, not this output.",
   mixerRemoteStreamId: "Identifies this sender to the receiving mixer when its listen_path is shared by more than one remote_inputs entry. Must match that entry's stream_id exactly, and must not be negative.",
 } as const;
 

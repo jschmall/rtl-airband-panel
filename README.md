@@ -121,8 +121,13 @@ socket is unreachable.
 - **`mixer_remote` output type / mixers' `remote_inputs` field** — a
   separate, non-upstream RTLSDR-Airband fork feature (needs a build from
   its `mixer_remote_input` branch specifically, not the `dynamic_reload`
-  one this section is otherwise about). Always restart-only, never
-  live-appliable — see [Cross-instance mixer input](#cross-instance-mixer-input-mixer_remote)
+  one this section is otherwise about). The two halves behave differently
+  under Apply live: a `mixer_remote` output is an ordinary output like any
+  other, so editing or removing one on an existing channel applies live
+  within that device's `reserve_channels` headroom same as always — but a
+  mixer's `remote_inputs` entries are always restart-only, since
+  RTLSDR-Airband only ever connects those slots once, at startup. See
+  [Cross-instance mixer input](#cross-instance-mixer-input-mixer_remote)
   below for what it does and how to configure it.
 
 ### What Apply live can push without a restart
@@ -237,14 +242,22 @@ validates both: a negative `stream_id`, an out-of-range `balance`, or two
 `remote_inputs` entries reusing the same `(listen_path, stream_id)` pair
 anywhere in the instance's config (not just within one mixer — the fork
 shares one listener registry per `listen_path` across every mixer) are all
-flagged before you can save.
+flagged before you can save. Keep `dest_path`/`listen_path` short — these
+are real Unix domain socket paths, capped at 107 bytes by the OS.
 
-**No live creation.** Unlike `reserve_channels`/`reserve_inputs`, there is
-no reserved-headroom mechanism for this: RTLSDR-Airband only connects
-`remote_inputs` slots once, at startup, in `parse_mixers()`. Adding,
-removing, or editing a `mixer_remote` output or a `remote_inputs` entry
-always requires a restart of the instance(s) involved, even on an
-otherwise Apply-live-capable instance.
+**Live apply.** The two sides behave differently. A `mixer_remote`
+output is an ordinary channel output like any other, so editing or
+removing one on an *existing* channel applies live via Apply live, within
+that device's `reserve_channels` headroom, same as any other output-field
+change — no special restriction. A mixer's `remote_inputs` entries are
+different: RTLSDR-Airband only ever connects those slots once, at
+startup (`parse_mixers()`), so there's no live-apply path for them at
+all — adding, removing, or editing an entry always requires a restart.
+Editing `remote_inputs` and clicking Apply live still saves the config
+and reports the mixer correctly under "still needs a restart" (the fork's
+`reload_diff` was fixed to detect and report this explicitly, rather than
+silently doing nothing) — it just won't take effect until that restart
+happens.
 
 ## Screenshots
 
