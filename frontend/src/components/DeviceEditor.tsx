@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
+import type { Device, MultichannelChannel, Output, ScanChannel } from "@rtl-airband-panel/parser";
 import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -98,6 +98,12 @@ export const DeviceEditor = memo(function DeviceEditor({
   // handleCopyOutputToChannel for the same ref-free pattern (no ref needed here since
   // `next` is always supplied fresh by the caller, never read back out of stale state).
   const emitChange = useCallback((next: Device) => onChange(deviceKey, next), [onChange, deviceKey]);
+  // Mirrors `device` so the channel-level callbacks below can look up a channel's
+  // current index by its uiKeyOf key at call time, same pattern as ConfigEditor's
+  // configRef -- keeps their identity stable across renders where the *device*
+  // reference changes for reasons unrelated to its own channels array.
+  const deviceRef = useRef(device);
+  deviceRef.current = device;
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
@@ -147,6 +153,46 @@ export const DeviceEditor = memo(function DeviceEditor({
     const timeout = setTimeout(() => setJustDuplicatedKey(null), 2500);
     return () => clearTimeout(timeout);
   }, [justDuplicatedKey]);
+
+  // Three stable callbacks (not one closure per channel) so ChannelEditor's
+  // React.memo can bail out on siblings -- same pattern as ConfigEditor's
+  // handleDeviceChange/Remove/Duplicate, looking up the channel's current index
+  // by its uiKeyOf key via deviceRef at call time.
+  const handleChannelChange = useCallback(
+    (key: string | number, next: MultichannelChannel) => {
+      const channels = deviceRef.current.channels;
+      const idx = channels.findIndex((c, i) => uiKeyOf(c, i) === key);
+      if (idx === -1) return;
+      emitChange({ ...deviceRef.current, channels: updateAt(channels, idx, next) });
+    },
+    [emitChange]
+  );
+  const handleChannelRemove = useCallback(
+    (key: string | number) => {
+      const channels = deviceRef.current.channels;
+      const idx = channels.findIndex((c, i) => uiKeyOf(c, i) === key);
+      if (idx === -1) return;
+      emitChange({ ...deviceRef.current, channels: removeAt(channels, idx) });
+    },
+    [emitChange]
+  );
+  const handleChannelDuplicate = useCallback(
+    (key: string | number) => {
+      const channels = deviceRef.current.channels;
+      const idx = channels.findIndex((c, i) => uiKeyOf(c, i) === key);
+      if (idx === -1) return;
+      const nextChannels = duplicateAt(channels, idx, cloneWithNewUiKeys);
+      emitChange({ ...deviceRef.current, channels: nextChannels });
+      setJustDuplicatedKey(uiKeyOf(nextChannels[idx + 1]!, idx + 1));
+    },
+    [emitChange]
+  );
+  // Only one ScanChannelEditor per device (never a list), so no key-based lookup
+  // is needed -- a single stable callback is enough.
+  const handleScanChannelChange = useCallback(
+    (next: ScanChannel) => emitChange({ ...deviceRef.current, channels: [next] }),
+    [emitChange]
+  );
 
   // MouseSensor/TouchSensor (rather than a single PointerSensor for both) so each input
   // modality gets its own activation constraint -- a touch needs a short press-and-hold
@@ -436,7 +482,7 @@ export const DeviceEditor = memo(function DeviceEditor({
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}
             deviceIndex={deviceIndex}
             channelIndex={0}
-            onChange={(next) => emitChange({ ...device, channels: [next] })}
+            onChange={handleScanChannelChange}
             pathPrefix={`${pathPrefix}.channels[0]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
@@ -459,13 +505,9 @@ export const DeviceEditor = memo(function DeviceEditor({
                       deviceIndex={deviceIndex}
                       channelIndex={i}
                       highlighted={justDuplicatedKey !== null && uiKeyOf(channel, i) === justDuplicatedKey}
-                      onChange={(next) => emitChange({ ...device, channels: updateAt(device.channels, i, next) })}
-                      onRemove={() => emitChange({ ...device, channels: removeAt(device.channels, i) })}
-                      onDuplicate={() => {
-                        const nextChannels = duplicateAt(device.channels, i, cloneWithNewUiKeys);
-                        emitChange({ ...device, channels: nextChannels });
-                        setJustDuplicatedKey(uiKeyOf(nextChannels[i + 1]!, i + 1));
-                      }}
+                      onChange={handleChannelChange}
+                      onRemove={handleChannelRemove}
+                      onDuplicate={handleChannelDuplicate}
                       pathPrefix={`${pathPrefix}.channels[${i}]`}
                       jumpTarget={jumpTarget}
                       onRevealSecret={onRevealSecret}

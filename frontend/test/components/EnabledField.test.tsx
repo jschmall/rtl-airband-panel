@@ -39,7 +39,7 @@ function ChannelHarness() {
       channel={channel}
       deviceIndex={0}
       channelIndex={0}
-      onChange={setChannel}
+      onChange={(_key, next) => setChannel(next)}
       onRemove={() => {}}
       onDuplicate={() => {}}
       pathPrefix="$.test"

@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -15,9 +16,9 @@ interface ChannelEditorProps {
   channel: MultichannelChannel;
   deviceIndex: number;
   channelIndex: number;
-  onChange: (channel: MultichannelChannel) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
+  onChange: (key: string | number, next: MultichannelChannel) => void;
+  onRemove: (key: string | number) => void;
+  onDuplicate: (key: string | number) => void;
   /** True for the brief window right after this channel was created by "Duplicate channel" -- see DeviceEditor's justDuplicatedKey. */
   highlighted?: boolean;
   pathPrefix: string;
@@ -28,7 +29,7 @@ interface ChannelEditorProps {
   onCopyOutputToChannel: (output: Output, target: ChannelTarget) => void;
 }
 
-export function ChannelEditor({
+export const ChannelEditor = memo(function ChannelEditor({
   channel,
   deviceIndex,
   channelIndex,
@@ -42,6 +43,8 @@ export function ChannelEditor({
   channelTargets,
   onCopyOutputToChannel,
 }: ChannelEditorProps) {
+  const channelKey = uiKeyOf(channel, channelIndex);
+  const emitChange = useCallback((next: MultichannelChannel) => onChange(channelKey, next), [onChange, channelKey]);
   // Excludes this channel itself from its outputs' copy-target list --
   // "Duplicate output" already covers copying an output within its own channel.
   const copyTargets = channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex));
@@ -65,15 +68,15 @@ export function ChannelEditor({
       }
       headerActions={
         <div className="flex items-center gap-3">
-          <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => onChange({ ...channel, disable: v })} />
-          <BoolField label="Enabled" tooltip={CHANNEL_TOOLTIPS.enabled} checked={channel.enabled ?? true} onChange={(v) => onChange({ ...channel, enabled: v })} />
-          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+          <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => emitChange({ ...channel, disable: v })} />
+          <BoolField label="Enabled" tooltip={CHANNEL_TOOLTIPS.enabled} checked={channel.enabled ?? true} onChange={(v) => emitChange({ ...channel, enabled: v })} />
+          <button type="button" onClick={() => onDuplicate(channelKey)} className={addButtonClass}>
             Duplicate channel
           </button>
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`Remove channel ${(channel.freq / 1e6).toFixed(4)} MHz? This also deletes all of its outputs.`)) onRemove();
+              if (window.confirm(`Remove channel ${(channel.freq / 1e6).toFixed(4)} MHz? This also deletes all of its outputs.`)) onRemove(channelKey);
             }}
             className={removeButtonClass}
           >
@@ -88,14 +91,14 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.freq}
-            onChange={(e) => onChange({ ...channel, freq: Number(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, freq: Number(e.target.value) })}
           />
         </Field>
         <Field label="Modulation (blank = default: am)" tooltip={CHANNEL_TOOLTIPS.modulation}>
           <select
             className={inputClass}
             value={channel.modulation ?? ""}
-            onChange={(e) => onChange({ ...channel, modulation: e.target.value || undefined })}
+            onChange={(e) => emitChange({ ...channel, modulation: e.target.value || undefined })}
           >
             <option value="">(default)</option>
             <option value="nfm">nfm</option>
@@ -107,7 +110,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.afc ?? ""}
-            onChange={(e) => onChange({ ...channel, afc: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, afc: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Bandwidth (Hz, optional)" tooltip={CHANNEL_TOOLTIPS.bandwidth}>
@@ -115,7 +118,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.bandwidth ?? ""}
-            onChange={(e) => onChange({ ...channel, bandwidth: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, bandwidth: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Ampfactor (optional)" tooltip={CHANNEL_TOOLTIPS.ampfactor}>
@@ -125,7 +128,7 @@ export function ChannelEditor({
             min="0"
             className={inputClass}
             value={channel.ampfactor ?? ""}
-            onChange={(e) => onChange({ ...channel, ampfactor: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, ampfactor: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="CTCSS Hz (optional)" tooltip={CHANNEL_TOOLTIPS.ctcss}>
@@ -134,7 +137,7 @@ export function ChannelEditor({
             step="0.1"
             className={inputClass}
             value={channel.ctcss ?? ""}
-            onChange={(e) => onChange({ ...channel, ctcss: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, ctcss: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Notch Hz (optional)" tooltip={CHANNEL_TOOLTIPS.notch}>
@@ -143,7 +146,7 @@ export function ChannelEditor({
             step="0.1"
             className={inputClass}
             value={channel.notch ?? ""}
-            onChange={(e) => onChange({ ...channel, notch: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, notch: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Squelch SNR threshold (optional)" tooltip={CHANNEL_TOOLTIPS.squelchSnrThreshold}>
@@ -151,7 +154,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.squelch_snr_threshold ?? ""}
-            onChange={(e) => onChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Squelch threshold, dBFS (optional)" tooltip={CHANNEL_TOOLTIPS.squelchThreshold}>
@@ -160,14 +163,14 @@ export function ChannelEditor({
             max="0"
             className={inputClass}
             value={channel.squelch_threshold ?? ""}
-            onChange={(e) => onChange({ ...channel, squelch_threshold: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, squelch_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Label (optional)" tooltip={CHANNEL_TOOLTIPS.label}>
           <input
             className={inputClass}
             value={channel.label ?? ""}
-            onChange={(e) => onChange({ ...channel, label: e.target.value || undefined })}
+            onChange={(e) => emitChange({ ...channel, label: e.target.value || undefined })}
           />
         </Field>
         <Field label="Notch Q (optional, default 10.0)" tooltip={CHANNEL_TOOLTIPS.notchQ}>
@@ -177,7 +180,7 @@ export function ChannelEditor({
             min="0.1"
             className={inputClass}
             value={channel.notch_q ?? ""}
-            onChange={(e) => onChange({ ...channel, notch_q: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, notch_q: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Highpass (optional, default 100; 0 disables)" tooltip={CHANNEL_TOOLTIPS.highpass}>
@@ -185,7 +188,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.highpass ?? ""}
-            onChange={(e) => onChange({ ...channel, highpass: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Lowpass (optional, default 2500; 0 disables)" tooltip={CHANNEL_TOOLTIPS.lowpass}>
@@ -193,7 +196,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.lowpass ?? ""}
-            onChange={(e) => onChange({ ...channel, lowpass: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Tau, µs (optional)" tooltip={CHANNEL_TOOLTIPS.tauChannel}>
@@ -201,7 +204,7 @@ export function ChannelEditor({
             type="number"
             className={inputClass}
             value={channel.tau ?? ""}
-            onChange={(e) => onChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...channel, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
       </div>
@@ -212,7 +215,7 @@ export function ChannelEditor({
           <button
             type="button"
             className={addButtonClass}
-            onClick={() => onChange({ ...channel, outputs: appendItem(channel.outputs, defaultPulseOutput()) })}
+            onClick={() => emitChange({ ...channel, outputs: appendItem(channel.outputs, defaultPulseOutput()) })}
           >
             + Add output
           </button>
@@ -221,9 +224,9 @@ export function ChannelEditor({
           <OutputEditor
             key={uiKeyOf(output, i)}
             output={output}
-            onChange={(next) => onChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
-            onRemove={() => onChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
-            onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
+            onChange={(next) => emitChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
+            onRemove={() => emitChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
+            onDuplicate={() => emitChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
@@ -234,4 +237,4 @@ export function ChannelEditor({
       </div>
     </Collapsible>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Output, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -38,7 +39,7 @@ interface ScanChannelEditorProps {
  * with one entry per frequency, matching RTLSDR-Airband's own config
  * grammar (e.g. `squelch_threshold = ( -30, -25, 0, -35 );`).
  */
-export function ScanChannelEditor({
+export const ScanChannelEditor = memo(function ScanChannelEditor({
   channel,
   deviceIndex,
   channelIndex,
@@ -175,7 +176,7 @@ export function ScanChannelEditor({
       </div>
     </Collapsible>
   );
-}
+});
 
 function NumberOrListField({
   label,

@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.97] - 2026-08-09
+
+### Fixed
+
+- **Stage 2 of the deferred `React.memo` editor-tree refactor (item 7,
+  tracked in #7): channel and scan-channel level.** `ChannelEditor` and
+  `ScanChannelEditor` are now wrapped in `React.memo`, and `DeviceEditor`
+  passes `ChannelEditor` three stable callbacks (keyed by `uiKeyOf`,
+  looked up via a new `deviceRef` at call time) instead of a fresh
+  `onChange`/`onRemove`/`onDuplicate` closure per channel per render.
+  Editing one channel's field (e.g. bandwidth, CTCSS, label) no longer
+  re-renders its sibling channels. Verified live: only the edited
+  channel re-rendered on a non-identifying field edit; editing a
+  channel's frequency/label, or reordering channels, still correctly
+  cascades to every channel in the instance, because `channelTargets`
+  (the instance-wide "copy output to channel…" list) encodes each
+  channel's current index and label, so those two kinds of edits
+  legitimately invalidate it for everyone — not a memoization gap.
+
 ## [0.4.96] - 2026-08-09
 
 ### Fixed
