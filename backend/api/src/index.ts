@@ -89,7 +89,7 @@ const app = buildApp(service, statsService, {
 const poller = new StatsPoller(
   configStore,
   statsStore,
-  { intervalMs: config.statsPollIntervalMs, retentionDays: config.statsRetentionDays },
+  { intervalMs: config.statsPollIntervalMs, retentionDays: config.statsRetentionDays, pruneIntervalMs: config.statsPruneIntervalMs },
   (instance, err) => app.log.warn({ instance, err }, "failed to poll stats for instance"),
   pollStatusTracker
 );

@@ -5,6 +5,110 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.94] - 2026-08-09
+
+### Fixed
+
+- **Eliminated the redundant per-instance config re-parsing that was the
+  likely cause of periodic CPU spikes on multi-instance deployments.**
+  `ConfigStore` had no cache, so every stats-poll tick (every 15s) and every
+  `GET /instances` call re-read and re-parsed **every** instance's `.conf`
+  file from disk, even though nothing had changed — with N instances
+  configured, that's N full libconfig-style parses every 15-20 seconds,
+  clustered into the same event-loop tick. `ConfigStore` now caches each
+  instance's parsed config keyed on the file's mtime/size, invalidating only
+  on an actual write, rename, or external change.
+- **Fixed a roughly-quadratic tokenizer bug.** The number/identifier token
+  branches did `source.slice(i)` on every single token — re-copying the
+  entire remainder of the file each time — making one full parse cost scale
+  with file size squared rather than linearly. Replaced with a sticky (`y`
+  flag) regex that matches in place. This compounds with the cache fix above:
+  every parse that does still happen (cold cache, first load) is now cheap
+  too.
+- **Decoupled the stats DB prune pass from the poll interval.** `prune()`
+  (a `DELETE` over the whole samples table, an anti-join `DELETE` over
+  series, and an incremental vacuum — all synchronous, all blocking the
+  event loop) ran unconditionally on every single stats-poll tick regardless
+  of whether anything was actually expired. It now runs on its own cadence,
+  `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` (default 1 hour, new CLI flag
+  `--stats-prune-interval-ms`), independent of `RTL_PANEL_STATS_POLL_INTERVAL_MS`.
+- **Stopped the frontend's background instance-list poll from cascading a
+  re-render through the whole app shell every 20 seconds regardless of
+  whether anything changed.** `InstanceListContext` now compares the freshly
+  polled list against the current one and only replaces state (and thus only
+  changes the context value's identity) when something actually differs.
+- **Memoized `InstanceEditPage`'s unsaved-changes check**, which did two full
+  `JSON.stringify` passes over the whole instance config on every render,
+  including renders caused by the unrelated background list poll while a
+  user was mid-edit.
+- **Merged `InstanceHealthOverview`'s independent 20s poll timer into the
+  same clock `InstanceListContext` already runs**, instead of two
+  independently-phased timers producing app re-renders roughly every 10
+  seconds on average.
+- **Removed `StatsPage`'s redundant `listInstances()` fetch** — it now reads
+  from the same shared `InstanceListContext` every other page already uses,
+  instead of duplicating the request (and, pre-cache-fix above, duplicating
+  a full re-parse of every instance's config) on every mount.
+- Fixed an unstable array-index React key on the Stats page's device-counter
+  tiles; stabilized `ConfigEditor`'s `channelTargets`/copy-to-channel handler
+  so they don't change identity on every keystroke.
+
+## [0.4.93] - 2026-08-07
+
+### Fixed
+
+- **Corrected an inaccurate "always requires a restart" claim for
+  `mixer_remote` outputs.** Traced against three new commits on the fork's
+  `mixer_remote_input` branch (`5821116`, `a6bc9e3`, `61ed62e`): a memory
+  leak fix confirmed that editing or removing a `mixer_remote` output on
+  an *existing* channel was always meant to apply live via the existing
+  generic channel-edit path (`reserve_channels` headroom), exactly like
+  any other output type — it was only ever restart-only because of the
+  leak bug, now fixed upstream. Only a mixer's `remote_inputs` entries
+  remain genuinely restart-only (RTLSDR-Airband connects those slots once,
+  at startup, with no live-apply primitive at all — separately confirmed
+  by the fork's `reload_diff` now correctly detecting and reporting a
+  changed `remote_inputs` block under "skipped, needs restart" instead of
+  silently no-op'ing). Updated the `mixer_remote` output tooltip and both
+  the "New config fields" bullet and the dedicated "Cross-instance mixer
+  input" README section to reflect this split accurately. No functional
+  panel code changes were needed — the panel already applies whatever
+  `reload_diff` reports generically, with no live-appliable classification
+  table of its own to update.
+
+## [0.4.92] - 2026-08-07
+
+### Changed
+
+- Gave the 0.4.91 `mixer_remote`/`remote_inputs` feature its own top-level
+  README section ("Cross-instance mixer input") instead of a single bullet
+  buried in the `dynamic_reload` live-apply writeup — it's an unrelated
+  fork branch and deserved its own explanation of the transport, the
+  sending/receiving config syntax, and the cross-mixer duplicate-route
+  validation, rather than reading as a footnote to live-apply.
+
+## [0.4.91] - 2026-08-07
+
+### Added
+
+- **`mixer_remote` output type and mixers' `remote_inputs` block.** Lets a
+  mixer in one RTLSDR-Airband instance absorb a live audio input streamed
+  from a channel in a *different* instance's process, over a same-host,
+  same-user Unix domain socket — useful for combining channels from
+  separate SDR instances into one mixed stream on hosts that run several
+  instances. On the sending side, any channel (device or a mixer's own
+  embedded channel) can add a `mixer_remote` output (`dest_path`,
+  `stream_id`); on the receiving side, a mixer's new `remote_inputs` list
+  reserves one input slot per entry (`listen_path`, `stream_id`, optional
+  `ampfactor`/`balance`/`label`). Fork-only — requires an RTLSDR-Airband
+  build from `jschmall/RTLSDR-Airband`'s `mixer_remote_input` branch. No
+  live-creation path: adding, removing, or editing either side always
+  requires a restart, even on an otherwise Apply-live-capable instance.
+  Also fixes the mixer-input stats numbering (`buildMixerLookups()`) to
+  account for `remote_inputs` entries claiming the first N input indices on
+  a mixer, ahead of channel-routed `type: "mixer"` inputs, matching the
+  fork's `parse_mixers()`-before-`parse_devices()` connection order.
+
 ## [0.4.90] - 2026-08-06
 
 ### Added

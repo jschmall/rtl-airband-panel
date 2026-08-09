@@ -240,11 +240,40 @@ export interface Mixer {
    * live mixer-input growth) when absent.
    */
   reserve_inputs?: number;
+  /**
+   * Reserves mixer-input slots fed by `mixer_remote` outputs in a
+   * DIFFERENT rtl_airband instance's config, over a same-host AF_UNIX
+   * SOCK_DGRAM socket (mixer_remote_input fork feature). Connected at
+   * startup via the same mixer_connect_input() machinery a local `type:
+   * "mixer"` output uses — no live creation; adding, removing, or editing
+   * an entry always requires a restart. Fork-only.
+   */
+  remote_inputs?: MixerRemoteInput[];
   /** A mixer's own outputs cannot themselves be of type "mixer". */
   outputs: Exclude<Output, MixerOutput>[];
 }
 
-export type Output = PulseOutput | FileOutput | RawFileOutput | IcecastOutput | UdpStreamOutput | MixerOutput;
+/**
+ * One reserved mixer-input slot fed by a remote `mixer_remote` output in a
+ * different rtl_airband instance's process, multiplexed by stream_id over
+ * one shared listen_path (multiple entries may share a listen_path).
+ * Fork-only (jschmall/RTLSDR-Airband, mixer_remote_input branch); same-host,
+ * same-UID transport only. No live creation — see Mixer.remote_inputs.
+ */
+export interface MixerRemoteInput {
+  /** This mixer's AF_UNIX SOCK_DGRAM listen path; sending instances' `mixer_remote` outputs target this via dest_path. */
+  listen_path: string;
+  /** Identifies which sender's packets land in this slot when multiple entries share one listen_path; must not be negative. */
+  stream_id: number;
+  /** RTLSDR-Airband defaults to 1.0 when absent. */
+  ampfactor?: number;
+  /** Valid range -1.0 to 1.0; RTLSDR-Airband defaults to 0.0 when absent. */
+  balance?: number;
+  /** Shown in place of a source channel's label — a remote input has no local source channel to look up. */
+  label?: string;
+}
+
+export type Output = PulseOutput | FileOutput | RawFileOutput | IcecastOutput | UdpStreamOutput | MixerOutput | MixerRemoteOutput;
 
 export interface PulseOutput {
   type: "pulse";
@@ -399,6 +428,27 @@ export interface MixerOutput {
   ampfactor?: number;
   /** Valid range -1.0 to 1.0; RTLSDR-Airband defaults to 0.0 when absent. */
   balance?: number;
+  /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */
+  disable?: boolean;
+}
+
+/**
+ * Streams this channel's audio to a mixer-input slot reserved by a
+ * `remote_inputs` entry in a DIFFERENT rtl_airband instance's config, over
+ * a same-host AF_UNIX SOCK_DGRAM socket (mixer_remote_input fork feature).
+ * Fork-only; same-host, same-UID transport only. Legal on any channel,
+ * including a mixer's own embedded channel — unlike local `type: "mixer"`
+ * outputs, it is not restricted to device channels. No ampfactor/balance
+ * here — those describe how the RECEIVING mixer treats this input, so they
+ * live on the receiver's remote_inputs entry instead, mirroring how a local
+ * `type: "mixer"` output already stores them mixer-side, not source-side.
+ */
+export interface MixerRemoteOutput {
+  type: "mixer_remote";
+  /** The receiving instance's remote_inputs listen_path (a filesystem AF_UNIX socket path). */
+  dest_path: string;
+  /** Must match one of the receiver's remote_inputs[].stream_id entries; must not be negative. */
+  stream_id: number;
   /** RTLSDR-Airband defaults to false when absent. Ignores this output entirely, as if it weren't configured. */
   disable?: boolean;
 }

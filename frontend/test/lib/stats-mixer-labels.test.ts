@@ -111,6 +111,41 @@ describe("buildMixerLookups", () => {
     expect(inputChannels).toEqual(new Map([["0:0", "Scan channel (Device 0 — rtlsdr)"]]));
   });
 
+  it("numbers a mixer's remote_inputs entries first (matching parse_mixers() running before parse_devices()), then channel-routed inputs after", () => {
+    const devices: Device[] = [
+      makeDevice({
+        channels: [{ freq: 151_190_000, label: "Tac 4", afc: 0, modulation: "nfm", outputs: [{ type: "mixer", name: "bcfy_1" }] }],
+      }),
+    ];
+    const mixers: Mixer[] = [
+      {
+        name: "bcfy_1",
+        outputs: [{ type: "icecast", server: "s", port: 80, mountpoint: "m", username: "u", password: "p" }],
+        remote_inputs: [
+          { listen_path: "/run/rtl-airband/bcfy_1.sock", stream_id: 0, label: "Site 2 ch A" },
+          { listen_path: "/run/rtl-airband/bcfy_1.sock", stream_id: 1 },
+        ],
+      },
+    ];
+
+    const { inputChannels } = buildMixerLookups({
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices,
+      mixers,
+    });
+
+    expect(inputChannels).toEqual(
+      new Map([
+        ["0:0", "Site 2 ch A"],
+        ["0:1", "Remote input (stream 1)"],
+        ["0:2", "151.1900 MHz — Tac 4"],
+      ])
+    );
+  });
+
   it("returns empty maps when there are no mixers", () => {
     const { mixerNames, inputChannels } = buildMixerLookups({
       multiple_demod_threads: true,

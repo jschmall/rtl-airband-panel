@@ -28,11 +28,12 @@ them, with validation before anything is written to disk.
 ## Features
 
 **Config editing**
-- Editor for devices, channels, mixers, and all six RTLSDR-Airband output
-  types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`),
-  including rdio-scanner call uploads — that output type requires
-  [this fork](https://github.com/jschmall/RTLSDR-Airband) of
-  RTLSDR-Airband, not the upstream project
+- Editor for devices, channels, mixers, and all seven RTLSDR-Airband output
+  types (`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`,
+  `mixer_remote`), including rdio-scanner call uploads — that output type
+  and `mixer_remote` (plus a mixer's `remote_inputs` block) both require
+  [this fork](https://github.com/jschmall/RTLSDR-Airband) of RTLSDR-Airband,
+  not the upstream project
 - Drag-and-drop channel reordering (mouse, touch, and keyboard)
 - Duplicate/clone buttons, and a "copy to channel" action for outputs
 - Search across all instances by frequency, modulation, or device
@@ -117,6 +118,17 @@ socket is unreachable.
   `reserve_channels`: reserves extra mixer-input headroom so a
   dynamically-added or -edited channel whose output routes into this mixer
   (`type: "mixer"`) can connect live, within that headroom, no restart.
+- **`mixer_remote` output type / mixers' `remote_inputs` field** — a
+  separate, non-upstream RTLSDR-Airband fork feature (needs a build from
+  its `mixer_remote_input` branch specifically, not the `dynamic_reload`
+  one this section is otherwise about). The two halves behave differently
+  under Apply live: a `mixer_remote` output is an ordinary output like any
+  other, so editing or removing one on an existing channel applies live
+  within that device's `reserve_channels` headroom same as always — but a
+  mixer's `remote_inputs` entries are always restart-only, since
+  RTLSDR-Airband only ever connects those slots once, at startup. See
+  [Cross-instance mixer input](#cross-instance-mixer-input-mixer_remote)
+  below for what it does and how to configure it.
 
 ### What Apply live can push without a restart
 
@@ -179,6 +191,73 @@ the panel only wires up the coarser `reload_diff` command, not per-field
 live controls. Mixer/device add still always requires a restart. See
 [issue #4](https://github.com/jschmall/rtl-airband-panel/issues/4) for a
 known follow-up (page-level test coverage for the Apply live button).
+
+## Cross-instance mixer input (`mixer_remote`)
+
+Requires an RTLSDR-Airband build from
+[`jschmall/RTLSDR-Airband`](https://github.com/jschmall/RTLSDR-Airband)'s
+`mixer_remote_input` branch — a separate fork feature from the live-apply
+one above (different branch, not yet merged to that fork's `main`); the two
+aren't related and don't require each other.
+
+Lets a mixer in one instance absorb a live audio input streamed from a
+channel in a *different* instance's process, over a Unix domain socket —
+useful on a host that runs several instances and wants to combine channels
+from separate SDRs into one mixed stream, without a network hop. The
+transport is same-host and same-OS-user only: the receiving instance's
+socket only accepts packets from a sender running as its own user (checked
+via `SCM_CREDENTIALS`, the same trust model `dynamic_reload`'s control
+socket uses via `SO_PEERCRED`), so there's no separate authentication step
+to configure and no exposure beyond the local machine.
+
+**Sending side** — any channel (a device channel, or a mixer's own
+embedded channel) gets a `mixer_remote` output, chosen from the same
+output-type dropdown as every other output type:
+
+```
+outputs: (
+  { type = "mixer_remote"; dest_path = "/run/rtl-airband/other-instance.sock"; stream_id = 0; }
+);
+```
+
+**Receiving side** — the mixer that should absorb the input gets an entry
+in its "Remote inputs" section, editable alongside its regular outputs;
+each entry reserves one mixer-input slot:
+
+```
+mixers: {
+  mymix: {
+    remote_inputs: (
+      { listen_path = "/run/rtl-airband/mymix.sock"; stream_id = 0; ampfactor = 1.0; balance = 0.0; label = "site2 ch1"; }
+    );
+    outputs: ( /* ... */ );
+  };
+};
+```
+
+`dest_path` on the sender must match `listen_path` on the receiver
+exactly, and `stream_id` must match too — that's how the receiver tells
+multiple senders apart when several share one `listen_path`. The panel
+validates both: a negative `stream_id`, an out-of-range `balance`, or two
+`remote_inputs` entries reusing the same `(listen_path, stream_id)` pair
+anywhere in the instance's config (not just within one mixer — the fork
+shares one listener registry per `listen_path` across every mixer) are all
+flagged before you can save. Keep `dest_path`/`listen_path` short — these
+are real Unix domain socket paths, capped at 107 bytes by the OS.
+
+**Live apply.** The two sides behave differently. A `mixer_remote`
+output is an ordinary channel output like any other, so editing or
+removing one on an *existing* channel applies live via Apply live, within
+that device's `reserve_channels` headroom, same as any other output-field
+change — no special restriction. A mixer's `remote_inputs` entries are
+different: RTLSDR-Airband only ever connects those slots once, at
+startup (`parse_mixers()`), so there's no live-apply path for them at
+all — adding, removing, or editing an entry always requires a restart.
+Editing `remote_inputs` and clicking Apply live still saves the config
+and reports the mixer correctly under "still needs a restart" (the fork's
+`reload_diff` was fixed to detect and report this explicitly, rather than
+silently doing nothing) — it just won't take effect until that restart
+happens.
 
 ## Screenshots
 
@@ -293,7 +372,8 @@ flag list.
 | `RTL_PANEL_FRONTEND_DIST` | `--frontend-dist` | `frontend/dist` (repo-relative) | Where to look for the frontend's build to serve as a single process; a missing build is not an error, it just falls back to API-only |
 | `RTL_PANEL_STATS_DB_PATH` | `--stats-db-path` | `~/.rtl-airband-panel/stats.db` | SQLite file the stats poller writes historical samples to |
 | `RTL_PANEL_STATS_POLL_INTERVAL_MS` | `--stats-poll-interval-ms` | `15000` | How often each instance's stats file is re-read |
-| `RTL_PANEL_STATS_RETENTION_DAYS` | `--stats-retention-days` | `7` | Samples older than this are pruned each poll cycle; `0` or negative disables pruning |
+| `RTL_PANEL_STATS_RETENTION_DAYS` | `--stats-retention-days` | `7` | Samples older than this are eligible for pruning; `0` or negative disables pruning |
+| `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` | `--stats-prune-interval-ms` | `3600000` (1 hour) | Minimum time between prune passes over the stats DB, independent of how often the poll cycle itself runs |
 
 ### Systemd control
 
@@ -351,8 +431,11 @@ cadence and records every sample into a local SQLite database
 time hasn't changed (a stopped instance doesn't get repeated identical
 rows). The Stats page charts signal-vs-squelch-threshold per channel over a
 selectable time window, plus per-channel and per-device counters as tiles.
-Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days;
-pruned on every poll cycle).
+Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days).
+Pruning itself runs on its own cadence, `RTL_PANEL_STATS_PRUNE_INTERVAL_MS`
+(default 1 hour) — decoupled from the poll interval so a DB pass (which
+scales with total accumulated row count, not with how often the poller
+ticks) doesn't run every single poll cycle.
 
 The panel's own polling always reads the stats file straight off local
 disk. Separately, on the RTLSDR-Airband fork noted under
@@ -365,10 +448,11 @@ an instance's stats from somewhere other than this panel.
 
 The JSON model covers both `multichannel`- and `scan`-mode devices,
 top-level mixer *definitions* (the `mixers: { ... }` group itself, not just
-a channel routing into one by name), all six RTLSDR-Airband output types
-(`pulse`, `file`, `rawfile`, `icecast`, `udp_stream`, `mixer`) including the
-rdio-scanner call-upload block (see the note under
-[Features](#features) — this requires the non-upstream RTLSDR-Airband
+a channel routing into one by name, plus its `remote_inputs` block), all
+seven RTLSDR-Airband output types (`pulse`, `file`, `rawfile`, `icecast`,
+`udp_stream`, `mixer`, `mixer_remote`) including the rdio-scanner
+call-upload block (see the note under [Features](#features) — this and
+`mixer_remote`/`remote_inputs` require the non-upstream RTLSDR-Airband
 fork), and per-channel options like
 `highpass`/`lowpass`/`tau`/`label`/`labels`.
 

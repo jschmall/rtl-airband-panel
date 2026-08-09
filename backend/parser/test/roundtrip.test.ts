@@ -698,6 +698,30 @@ describe("mixers", () => {
     expect(roundTripDomain(domain)).toEqual(domain);
   });
 
+  it("round-trips a mixer_remote output and a mixer's remote_inputs block", () => {
+    const mixer: Mixer = {
+      name: "mix1",
+      outputs: [{ type: "icecast", server: "s", port: 8000, mountpoint: "/m", username: "u", password: "p" }],
+      remote_inputs: [
+        { listen_path: "/run/rtl-airband/mix1.sock", stream_id: 0, ampfactor: 1.2, balance: -0.3, label: "site2 ch1" },
+        { listen_path: "/run/rtl-airband/mix1.sock", stream_id: 1 },
+      ],
+    };
+    const channel: Channel = {
+      freq: 100_000_000,
+      outputs: [{ type: "mixer_remote", dest_path: "/run/rtl-airband/mix1.sock", stream_id: 0 }],
+    };
+    const domain: RtlAirbandConfig = {
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices: [{ type: "rtlsdr", serial: "1", gain: 29, centerfreq: 100_000_000, channels: [channel] }],
+      mixers: [mixer],
+    };
+    expect(roundTripDomain(domain)).toEqual(domain);
+  });
+
   it("rejects a mixer whose own outputs include a nested mixer output", () => {
     const source = `
       multiple_demod_threads = true;
@@ -742,12 +766,20 @@ describe("fork-features fixture", () => {
     expect(udpOutput.bit_depth).toBe(16);
     expect(udpOutput.sample_rate).toBe(8000);
 
+    const mixerRemoteOutput = channels[0]!.outputs[2];
+    if (mixerRemoteOutput.type !== "mixer_remote") throw new Error("expected mixer_remote output");
+    expect(mixerRemoteOutput.dest_path).toBe("/run/rtl-airband/fork_mix.sock");
+    expect(mixerRemoteOutput.stream_id).toBe(0);
+
     expect(channels[1]!.enabled).toBe(false);
 
     const mixer = domain.mixers![0]!;
     expect(mixer.name).toBe("fork_mix");
     expect(mixer.enabled).toBe(false);
     expect(mixer.reserve_inputs).toBe(2);
+    expect(mixer.remote_inputs).toEqual([
+      { listen_path: "/run/rtl-airband/fork_mix.sock", stream_id: 0, ampfactor: 1.0, balance: 0.0, label: "site2 ch1" },
+    ]);
     const mixerOutput = mixer.outputs[0]!;
     if (mixerOutput.type !== "udp_stream") throw new Error("expected udp_stream mixer output");
     expect(mixerOutput.bit_depth).toBe(8);

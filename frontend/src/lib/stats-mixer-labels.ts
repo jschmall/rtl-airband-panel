@@ -12,25 +12,39 @@ export interface MixerLookups {
  * RTLSDR-Airband's stats file identifies mixers and mixer inputs by
  * position, not name: `mixer="N"` is the mixer's index among *enabled*
  * top-level mixers in file order, and `input="N"` is the index among that
- * mixer's inbound "mixer"-type channel outputs, also in file order --
- * disabled devices/channels/outputs/mixers are skipped entirely and never
- * consume an index (config.cpp's parse_mixers / mixer_connect_input).
+ * mixer's inbound inputs, also in connection order -- disabled
+ * devices/channels/outputs/mixers are skipped entirely and never consume an
+ * index (config.cpp's parse_mixers / mixer_connect_input). Critically,
+ * `parse_mixers()` runs BEFORE `parse_devices()` (verified against the
+ * fork's rtl_airband.cpp), and a mixer's `remote_inputs` entries connect via
+ * mixer_connect_input() *inside* parse_mixers() -- so for any mixer with
+ * remote_inputs, those entries always claim input indices `0..N-1` first,
+ * and channel-routed "mixer"-type outputs (connected later, during
+ * parse_devices()) start counting from `remote_inputs.length`, not 0.
  * This rebuilds that same numbering from the JSON model so stats tiles can
- * show the mixer name and feeding channel instead of bare indices.
+ * show the mixer name and feeding channel/remote input instead of bare
+ * indices.
  */
 export function buildMixerLookups(config: RtlAirbandConfig): MixerLookups {
   const mixerNames = new Map<string, string>();
   const inputIndexByMixerName = new Map<string, number>();
   const mixerIndexByName = new Map<string, number>();
 
+  const inputChannels = new Map<string, string>();
+
   (config.mixers ?? [])
     .filter((mixer) => !mixer.disable)
     .forEach((mixer, mixerIndex) => {
       mixerNames.set(String(mixerIndex), mixer.name);
       mixerIndexByName.set(mixer.name, mixerIndex);
+
+      const remoteInputs = mixer.remote_inputs ?? [];
+      remoteInputs.forEach((remoteInput, remoteInputIndex) => {
+        inputChannels.set(`${mixerIndex}:${remoteInputIndex}`, remoteInput.label ?? `Remote input (stream ${remoteInput.stream_id})`);
+      });
+      inputIndexByMixerName.set(mixer.name, remoteInputs.length);
     });
 
-  const inputChannels = new Map<string, string>();
   config.devices.forEach((device, deviceIndex) => {
     if (device.disable) return;
     device.channels.forEach((channel) => {

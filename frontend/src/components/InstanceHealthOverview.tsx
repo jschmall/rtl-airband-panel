@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type InstanceStatsSummary } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
-import { AUTO_REFRESH_MS } from "../lib/polling.js";
 import { formatDateTime, formatUptime } from "../lib/time-format.js";
 import { formatCpuSeconds } from "../lib/stats-format.js";
 import { HealthBadge } from "./HealthBadge.js";
@@ -16,10 +15,14 @@ function countClass(value: number): string {
  * At-a-glance status for every managed instance, shown on the landing page.
  * Instance status/uptime rides along on the shared instance list (already
  * polled by InstanceListProvider); this component only needs to poll the
- * separate stats-summary endpoint on the same cadence.
+ * separate stats-summary endpoint on the same cadence -- it does that by
+ * depending on `pollTick` rather than running its own setInterval, so this
+ * table's stats-summary fetch and the sidebar's instance-list fetch fire on
+ * the same tick instead of two independently-phased 20s timers producing
+ * re-renders roughly every 10s on average.
  */
 export function InstanceHealthOverview() {
-  const { instances } = useInstanceList();
+  const { instances, pollTick } = useInstanceList();
   const [summaries, setSummaries] = useState<Record<string, InstanceStatsSummary>>({});
 
   useEffect(() => {
@@ -34,12 +37,10 @@ export function InstanceHealthOverview() {
       }
     }
     void load();
-    const interval = setInterval(() => void load(), AUTO_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
-  }, []);
+  }, [pollTick]);
 
   if (!instances || instances.length === 0) return null;
 
