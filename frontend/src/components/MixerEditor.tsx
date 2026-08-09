@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import type { Mixer, MixerRemoteInput, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -37,6 +38,38 @@ export function MixerEditor({
   onCopyOutputToChannel,
 }: MixerEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
+  // Mirrors `mixer` so the output-level callbacks below can look up an output's
+  // current index by its uiKeyOf key at call time -- same pattern as ChannelEditor's
+  // channelRef.
+  const mixerRef = useRef(mixer);
+  mixerRef.current = mixer;
+  const handleOutputChange = useCallback(
+    (key: string | number, next: Output) => {
+      const outputs = mixerRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...mixerRef.current, outputs: updateAt(outputs, idx, next as Exclude<Output, { type: "mixer" }>) });
+    },
+    [onChange]
+  );
+  const handleOutputRemove = useCallback(
+    (key: string | number) => {
+      const outputs = mixerRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...mixerRef.current, outputs: removeAt(outputs, idx) });
+    },
+    [onChange]
+  );
+  const handleOutputDuplicate = useCallback(
+    (key: string | number) => {
+      const outputs = mixerRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...mixerRef.current, outputs: duplicateAt(outputs, idx, cloneWithNewUiKeys) });
+    },
+    [onChange]
+  );
   return (
     <Collapsible
       openSignal={openSignal}
@@ -109,15 +142,16 @@ export function MixerEditor({
           <OutputEditor
             key={uiKeyOf(output, i)}
             output={output}
+            outputIndex={i}
             excludeMixerType
-            onChange={(next) => onChange({ ...mixer, outputs: updateAt(mixer.outputs, i, next as Exclude<Output, { type: "mixer" }>) })}
-            onRemove={() => onChange({ ...mixer, outputs: removeAt(mixer.outputs, i) })}
-            onDuplicate={() => onChange({ ...mixer, outputs: duplicateAt(mixer.outputs, i, cloneWithNewUiKeys) })}
+            onChange={handleOutputChange}
+            onRemove={handleOutputRemove}
+            onDuplicate={handleOutputDuplicate}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
             channelTargets={channelTargets}
-            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
+            onCopyOutputToChannel={onCopyOutputToChannel}
           />
         ))}
       </div>

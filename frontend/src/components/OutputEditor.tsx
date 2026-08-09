@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type {
   FileOutput,
   IcecastOutput,
@@ -27,14 +27,15 @@ import {
   defaultUdpStreamOutput,
 } from "../lib/defaults.js";
 import { pathStartsWith } from "../lib/validation-path.js";
-import { withSameUiKey } from "../lib/keys.js";
+import { uiKeyOf, withSameUiKey } from "../lib/keys.js";
 import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface OutputEditorProps {
   output: Output;
-  onChange: (output: Output) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
+  outputIndex: number;
+  onChange: (key: string | number, next: Output) => void;
+  onRemove: (key: string | number) => void;
+  onDuplicate: (key: string | number) => void;
   /** A mixer's own outputs cannot themselves be of type "mixer" (RTLSDR-Airband disallows nesting). */
   excludeMixerType?: boolean;
   pathPrefix: string;
@@ -43,7 +44,7 @@ interface OutputEditorProps {
   onRevealSecret?: (fieldPath: string) => Promise<string>;
   /** Channels this output could be copied onto; omitted/empty hides "Copy to channel…" entirely. */
   channelTargets?: ChannelTarget[];
-  onCopyToChannel?: (target: ChannelTarget) => void;
+  onCopyOutputToChannel?: (output: Output, target: ChannelTarget) => void;
 }
 
 function channelTargetKey(target: ChannelTarget): string {
@@ -60,8 +61,9 @@ const OUTPUT_TYPE_DEFAULTS: Record<Output["type"], () => Output> = {
   mixer_remote: defaultMixerRemoteOutput,
 };
 
-export function OutputEditor({
+export const OutputEditor = memo(function OutputEditor({
   output,
+  outputIndex,
   onChange,
   onRemove,
   onDuplicate,
@@ -70,8 +72,10 @@ export function OutputEditor({
   jumpTarget,
   onRevealSecret,
   channelTargets,
-  onCopyToChannel,
+  onCopyOutputToChannel,
 }: OutputEditorProps) {
+  const outputKey = uiKeyOf(output, outputIndex);
+  const emitChange = useCallback((next: Output) => onChange(outputKey, next), [onChange, outputKey]);
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const revealField = onRevealSecret ? (suffix: string) => () => onRevealSecret(`${pathPrefix}.${suffix}`) : undefined;
   const hasCopyTargets = channelTargets !== undefined && channelTargets.length > 0;
@@ -114,7 +118,7 @@ export function OutputEditor({
     // Keep this slot's own identity key -- otherwise the list above re-keys it to
     // whatever key `next` happens to carry, React remounts this component fresh,
     // and the very `lastByType` cache this line reads from resets to empty.
-    onChange(withSameUiKey(next, output));
+    emitChange(withSameUiKey(next, output));
   };
 
   function handleOpenCopy() {
@@ -127,7 +131,7 @@ export function OutputEditor({
 
   function handleConfirmCopy() {
     const target = channelTargets?.find((t) => channelTargetKey(t) === copyTargetKey);
-    if (target && onCopyToChannel) onCopyToChannel(target);
+    if (target && onCopyOutputToChannel) onCopyOutputToChannel(output, target);
     setCopyOpen(false);
     copyTriggerRef.current?.focus();
   }
@@ -150,9 +154,9 @@ export function OutputEditor({
               label="Disable"
               tooltip={OUTPUT_TOOLTIPS.disable}
               checked={output.disable}
-              onChange={(v) => onChange({ ...output, disable: v } as Output)}
+              onChange={(v) => emitChange({ ...output, disable: v } as Output)}
             />
-            <button type="button" onClick={onDuplicate} className={addButtonClass}>
+            <button type="button" onClick={() => onDuplicate(outputKey)} className={addButtonClass}>
               Duplicate output
             </button>
             {hasCopyTargets && (
@@ -170,7 +174,7 @@ export function OutputEditor({
             <button
               type="button"
               onClick={() => {
-                if (window.confirm(`Remove ${output.type} output?`)) onRemove();
+                if (window.confirm(`Remove ${output.type} output?`)) onRemove(outputKey);
               }}
               className={removeButtonClass}
             >
@@ -211,16 +215,16 @@ export function OutputEditor({
         </Field>
       </div>
 
-      {output.type === "pulse" && <PulseFields output={output} onChange={onChange} />}
-      {output.type === "file" && <FileFields output={output} onChange={onChange} onRevealApiKey={revealField?.("rdio_scanner.api_key")} />}
-      {output.type === "rawfile" && <RawFileFields output={output} onChange={onChange} />}
-      {output.type === "icecast" && <IcecastFields output={output} onChange={onChange} onRevealPassword={revealField?.("password")} />}
-      {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={onChange} />}
-      {output.type === "mixer" && <MixerFields output={output} onChange={onChange} />}
-      {output.type === "mixer_remote" && <MixerRemoteFields output={output} onChange={onChange} />}
+      {output.type === "pulse" && <PulseFields output={output} onChange={emitChange} />}
+      {output.type === "file" && <FileFields output={output} onChange={emitChange} onRevealApiKey={revealField?.("rdio_scanner.api_key")} />}
+      {output.type === "rawfile" && <RawFileFields output={output} onChange={emitChange} />}
+      {output.type === "icecast" && <IcecastFields output={output} onChange={emitChange} onRevealPassword={revealField?.("password")} />}
+      {output.type === "udp_stream" && <UdpStreamFields output={output} onChange={emitChange} />}
+      {output.type === "mixer" && <MixerFields output={output} onChange={emitChange} />}
+      {output.type === "mixer_remote" && <MixerRemoteFields output={output} onChange={emitChange} />}
     </Collapsible>
   );
-}
+});
 
 function PulseFields({ output, onChange }: { output: PulseOutput; onChange: (o: Output) => void }) {
   return (

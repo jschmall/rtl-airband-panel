@@ -5,6 +5,32 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.98] - 2026-08-09
+
+### Fixed
+
+- **Stage 3 of the deferred `React.memo` editor-tree refactor (item 7,
+  tracked in #7): output level.** `OutputEditor` is now wrapped in
+  `React.memo` and takes a new required `outputIndex` prop; `ChannelEditor`,
+  `ScanChannelEditor`, and `MixerEditor` each pass it three stable
+  `useCallback` handlers (keyed by `uiKeyOf`, looked up via a new
+  per-component ref at call time) instead of a fresh
+  `onChange`/`onRemove`/`onDuplicate` closure per output per render. The
+  `onCopyToChannel` wrapper closure (`(target) => onCopyOutputToChannel(output, target)`,
+  recreated per output per render at all three call sites) is gone too —
+  `OutputEditor` now takes `onCopyOutputToChannel` directly and supplies
+  `output` itself, so the already-stable instance-wide handler can be
+  passed straight through unwrapped.
+- **Fixed `ChannelEditor`/`ScanChannelEditor`'s `copyTargets`**, which was
+  a plain `.filter()` over `channelTargets` computed fresh in the render
+  body — a new array reference every render regardless of content, which
+  alone defeated `OutputEditor`'s new `React.memo` for every output in a
+  channel whenever any field in that channel changed. Now `useMemo`'d.
+  Found the same way as the `onRevealSecret` fix in v0.4.96: a live
+  render-count check against a channel with 4 outputs showed all 4
+  re-rendering on a single-output edit until this was fixed, then only
+  the edited one.
+
 ## [0.4.97] - 2026-08-09
 
 ### Fixed

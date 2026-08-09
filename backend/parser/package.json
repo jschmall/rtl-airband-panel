@@ -1,6 +1,6 @@
 {
   "name": "@rtl-airband-panel/parser",
-  "version": "0.4.97",
+  "version": "0.4.98",
   "private": true,
   "license": "GPL-2.0",
   "description": "libconfig .conf <-> JSON model for RTLSDR-Airband instance configs",

@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -45,9 +45,49 @@ export const ChannelEditor = memo(function ChannelEditor({
 }: ChannelEditorProps) {
   const channelKey = uiKeyOf(channel, channelIndex);
   const emitChange = useCallback((next: MultichannelChannel) => onChange(channelKey, next), [onChange, channelKey]);
+  // Mirrors `channel` so the output-level callbacks below can look up an output's
+  // current index by its uiKeyOf key at call time -- same pattern as DeviceEditor's
+  // deviceRef/ConfigEditor's configRef.
+  const channelRef = useRef(channel);
+  channelRef.current = channel;
+  const handleOutputChange = useCallback(
+    (key: string | number, next: Output) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      emitChange({ ...channelRef.current, outputs: updateAt(outputs, idx, next) });
+    },
+    [emitChange]
+  );
+  const handleOutputRemove = useCallback(
+    (key: string | number) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      emitChange({ ...channelRef.current, outputs: removeAt(outputs, idx) });
+    },
+    [emitChange]
+  );
+  const handleOutputDuplicate = useCallback(
+    (key: string | number) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      emitChange({ ...channelRef.current, outputs: duplicateAt(outputs, idx, cloneWithNewUiKeys) });
+    },
+    [emitChange]
+  );
   // Excludes this channel itself from its outputs' copy-target list --
   // "Duplicate output" already covers copying an output within its own channel.
-  const copyTargets = channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex));
+  // useMemo (not a plain .filter()) so this stays referentially stable across
+  // renders where channelTargets itself didn't change -- otherwise every output
+  // in this channel would get a new channelTargets prop (and re-render) on every
+  // keystroke in ANY of this channel's other fields, defeating OutputEditor's
+  // React.memo regardless of the callback stabilization work.
+  const copyTargets = useMemo(
+    () => channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex)),
+    [channelTargets, deviceIndex, channelIndex]
+  );
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const channelTitle = `Channel ${(channel.freq / 1e6).toFixed(4)} MHz${channel.label ? ` — ${channel.label}` : ""}`;
   return (
@@ -224,14 +264,15 @@ export const ChannelEditor = memo(function ChannelEditor({
           <OutputEditor
             key={uiKeyOf(output, i)}
             output={output}
-            onChange={(next) => emitChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
-            onRemove={() => emitChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
-            onDuplicate={() => emitChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
+            outputIndex={i}
+            onChange={handleOutputChange}
+            onRemove={handleOutputRemove}
+            onDuplicate={handleOutputDuplicate}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
             channelTargets={copyTargets}
-            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
+            onCopyOutputToChannel={onCopyOutputToChannel}
           />
         ))}
       </div>

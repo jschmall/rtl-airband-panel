@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import type { Output, ScanChannel } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -51,9 +51,45 @@ export const ScanChannelEditor = memo(function ScanChannelEditor({
   onCopyOutputToChannel,
 }: ScanChannelEditorProps) {
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
+  // Mirrors `channel` so the output-level callbacks below can look up an output's
+  // current index by its uiKeyOf key at call time -- same pattern as ChannelEditor's
+  // channelRef.
+  const channelRef = useRef(channel);
+  channelRef.current = channel;
+  const handleOutputChange = useCallback(
+    (key: string | number, next: Output) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...channelRef.current, outputs: updateAt(outputs, idx, next) });
+    },
+    [onChange]
+  );
+  const handleOutputRemove = useCallback(
+    (key: string | number) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...channelRef.current, outputs: removeAt(outputs, idx) });
+    },
+    [onChange]
+  );
+  const handleOutputDuplicate = useCallback(
+    (key: string | number) => {
+      const outputs = channelRef.current.outputs;
+      const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
+      if (idx === -1) return;
+      onChange({ ...channelRef.current, outputs: duplicateAt(outputs, idx, cloneWithNewUiKeys) });
+    },
+    [onChange]
+  );
   // A scan channel is always index 0 within its own device, so its own targets are
-  // excluded the same way ChannelEditor excludes itself.
-  const copyTargets = channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex));
+  // excluded the same way ChannelEditor excludes itself. useMemo for the same
+  // reason as ChannelEditor's copyTargets -- see its comment.
+  const copyTargets = useMemo(
+    () => channelTargets.filter((t) => !(t.deviceIndex === deviceIndex && t.channelIndex === channelIndex)),
+    [channelTargets, deviceIndex, channelIndex]
+  );
   return (
     <Collapsible
       openSignal={openSignal}
@@ -163,14 +199,15 @@ export const ScanChannelEditor = memo(function ScanChannelEditor({
           <OutputEditor
             key={uiKeyOf(output, i)}
             output={output}
-            onChange={(next) => onChange({ ...channel, outputs: updateAt(channel.outputs, i, next) })}
-            onRemove={() => onChange({ ...channel, outputs: removeAt(channel.outputs, i) })}
-            onDuplicate={() => onChange({ ...channel, outputs: duplicateAt(channel.outputs, i, cloneWithNewUiKeys) })}
+            outputIndex={i}
+            onChange={handleOutputChange}
+            onRemove={handleOutputRemove}
+            onDuplicate={handleOutputDuplicate}
             pathPrefix={`${pathPrefix}.outputs[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
             channelTargets={copyTargets}
-            onCopyToChannel={(target) => onCopyOutputToChannel(output, target)}
+            onCopyOutputToChannel={onCopyOutputToChannel}
           />
         ))}
       </div>
