@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.95] - 2026-08-09
+
+### Added
+
+- **Merged `mixer_remote_input` into `master`.** Brings in the whole
+  feature set documented in the 0.4.91–0.4.94 entries directly below: the
+  `mixer_remote` output type and mixers' `remote_inputs` block for
+  cross-instance mixer routing, plus the config-cache/prune-interval/
+  tokenizer backend performance fixes and the frontend re-render fan-out
+  fixes from the 0.4.94 performance pass. `master` hadn't diverged since
+  the previous merge (`dynamic_reload`, v0.4.90), so this merge commit is
+  simply versioned one past `mixer_remote_input`'s own highest number
+  (0.4.94) rather than reconciling two independent sequences.
+
 ## [0.4.94] - 2026-08-09
 
 ### Fixed
