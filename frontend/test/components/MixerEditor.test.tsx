@@ -12,7 +12,8 @@ function Harness() {
   return (
     <MixerEditor
       mixer={mixer}
-      onChange={setMixer}
+      mixerIndex={0}
+      onChange={(_key, next) => setMixer(next)}
       onRemove={() => {}}
       onDuplicate={() => {}}
       pathPrefix="$.test"

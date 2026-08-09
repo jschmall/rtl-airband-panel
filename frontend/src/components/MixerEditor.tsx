@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { memo, useCallback, useRef } from "react";
 import type { Mixer, MixerRemoteInput, Output } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
@@ -14,9 +14,10 @@ import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface MixerEditorProps {
   mixer: Mixer;
-  onChange: (mixer: Mixer) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
+  mixerIndex: number;
+  onChange: (key: string | number, next: Mixer) => void;
+  onRemove: (key: string | number) => void;
+  onDuplicate: (key: string | number) => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
@@ -26,8 +27,9 @@ interface MixerEditorProps {
 }
 
 /** Editor for a top-level mixer definition, which channel outputs of type "mixer" route audio into by name. */
-export function MixerEditor({
+export const MixerEditor = memo(function MixerEditor({
   mixer,
+  mixerIndex,
   onChange,
   onRemove,
   onDuplicate,
@@ -37,6 +39,8 @@ export function MixerEditor({
   channelTargets,
   onCopyOutputToChannel,
 }: MixerEditorProps) {
+  const mixerKey = uiKeyOf(mixer, mixerIndex);
+  const emitChange = useCallback((next: Mixer) => onChange(mixerKey, next), [onChange, mixerKey]);
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   // Mirrors `mixer` so the output-level callbacks below can look up an output's
   // current index by its uiKeyOf key at call time -- same pattern as ChannelEditor's
@@ -48,27 +52,27 @@ export function MixerEditor({
       const outputs = mixerRef.current.outputs;
       const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
       if (idx === -1) return;
-      onChange({ ...mixerRef.current, outputs: updateAt(outputs, idx, next as Exclude<Output, { type: "mixer" }>) });
+      emitChange({ ...mixerRef.current, outputs: updateAt(outputs, idx, next as Exclude<Output, { type: "mixer" }>) });
     },
-    [onChange]
+    [emitChange]
   );
   const handleOutputRemove = useCallback(
     (key: string | number) => {
       const outputs = mixerRef.current.outputs;
       const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
       if (idx === -1) return;
-      onChange({ ...mixerRef.current, outputs: removeAt(outputs, idx) });
+      emitChange({ ...mixerRef.current, outputs: removeAt(outputs, idx) });
     },
-    [onChange]
+    [emitChange]
   );
   const handleOutputDuplicate = useCallback(
     (key: string | number) => {
       const outputs = mixerRef.current.outputs;
       const idx = outputs.findIndex((o, i) => uiKeyOf(o, i) === key);
       if (idx === -1) return;
-      onChange({ ...mixerRef.current, outputs: duplicateAt(outputs, idx, cloneWithNewUiKeys) });
+      emitChange({ ...mixerRef.current, outputs: duplicateAt(outputs, idx, cloneWithNewUiKeys) });
     },
-    [onChange]
+    [emitChange]
   );
   return (
     <Collapsible
@@ -78,15 +82,15 @@ export function MixerEditor({
       title={`Mixer — ${mixer.name || "(unnamed)"}`}
       headerActions={
         <div className="flex items-center gap-3">
-          <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => onChange({ ...mixer, disable: v })} />
-          <BoolField label="Enabled" tooltip={MIXER_TOOLTIPS.enabled} checked={mixer.enabled ?? true} onChange={(v) => onChange({ ...mixer, enabled: v })} />
-          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+          <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => emitChange({ ...mixer, disable: v })} />
+          <BoolField label="Enabled" tooltip={MIXER_TOOLTIPS.enabled} checked={mixer.enabled ?? true} onChange={(v) => emitChange({ ...mixer, enabled: v })} />
+          <button type="button" onClick={() => onDuplicate(mixerKey)} className={addButtonClass}>
             Duplicate mixer
           </button>
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`Remove mixer '${mixer.name || "(unnamed)"}'? This also deletes all of its outputs.`)) onRemove();
+              if (window.confirm(`Remove mixer '${mixer.name || "(unnamed)"}'? This also deletes all of its outputs.`)) onRemove(mixerKey);
             }}
             className={removeButtonClass}
           >
@@ -97,14 +101,14 @@ export function MixerEditor({
     >
       <div className={responsiveGrid3}>
         <Field label="Name (referenced by channel outputs of type 'mixer')" tooltip={MIXER_TOOLTIPS.name}>
-          <input className={inputClass} value={mixer.name} onChange={(e) => onChange({ ...mixer, name: e.target.value })} />
+          <input className={inputClass} value={mixer.name} onChange={(e) => emitChange({ ...mixer, name: e.target.value })} />
         </Field>
         <Field label="Highpass (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.highpass}>
           <input
             type="number"
             className={inputClass}
             value={mixer.highpass ?? ""}
-            onChange={(e) => onChange({ ...mixer, highpass: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...mixer, highpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Lowpass (optional; 0 disables)" tooltip={MIXER_TOOLTIPS.lowpass}>
@@ -112,7 +116,7 @@ export function MixerEditor({
             type="number"
             className={inputClass}
             value={mixer.lowpass ?? ""}
-            onChange={(e) => onChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
         <Field label="Reserve inputs (optional, default 0)" tooltip={MIXER_TOOLTIPS.reserveInputs}>
@@ -122,7 +126,7 @@ export function MixerEditor({
             step="1"
             className={inputClass}
             value={mixer.reserve_inputs ?? ""}
-            onChange={(e) => onChange({ ...mixer, reserve_inputs: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...mixer, reserve_inputs: numberOrUndefined(e.target.value) })}
           />
         </Field>
       </div>
@@ -133,7 +137,7 @@ export function MixerEditor({
           <button
             type="button"
             className={addButtonClass}
-            onClick={() => onChange({ ...mixer, outputs: appendItem(mixer.outputs, defaultIcecastOutput()) })}
+            onClick={() => emitChange({ ...mixer, outputs: appendItem(mixer.outputs, defaultIcecastOutput()) })}
           >
             + Add output
           </button>
@@ -164,7 +168,7 @@ export function MixerEditor({
           <button
             type="button"
             className={addButtonClass}
-            onClick={() => onChange({ ...mixer, remote_inputs: appendItem(mixer.remote_inputs ?? [], defaultMixerRemoteInput()) })}
+            onClick={() => emitChange({ ...mixer, remote_inputs: appendItem(mixer.remote_inputs ?? [], defaultMixerRemoteInput()) })}
           >
             + Add remote input
           </button>
@@ -173,14 +177,14 @@ export function MixerEditor({
           <MixerRemoteInputFields
             key={uiKeyOf(input, i)}
             input={input}
-            onChange={(next) => onChange({ ...mixer, remote_inputs: updateAt(mixer.remote_inputs ?? [], i, next) })}
-            onRemove={() => onChange({ ...mixer, remote_inputs: removeAt(mixer.remote_inputs ?? [], i) })}
+            onChange={(next) => emitChange({ ...mixer, remote_inputs: updateAt(mixer.remote_inputs ?? [], i, next) })}
+            onRemove={() => emitChange({ ...mixer, remote_inputs: removeAt(mixer.remote_inputs ?? [], i) })}
           />
         ))}
       </div>
     </Collapsible>
   );
-}
+});
 
 function MixerRemoteInputFields({
   input,

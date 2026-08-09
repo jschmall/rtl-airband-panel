@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, type ReactNode } from "react";
-import type { Device, Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import type { Device, Mixer, Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
@@ -99,6 +99,38 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
       const idx = devices.findIndex((d, i) => uiKeyOf(d, i) === key);
       if (idx === -1) return;
       onChange({ ...configRef.current, devices: duplicateAt(devices, idx, cloneWithNewUiKeys) });
+    },
+    [onChange]
+  );
+
+  // Same pattern as the device callbacks above, for MixerEditor's React.memo.
+  const handleMixerChange = useCallback(
+    (key: string | number, next: Mixer) => {
+      const mixers = configRef.current.mixers ?? [];
+      const idx = mixers.findIndex((m, i) => uiKeyOf(m, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, mixers: updateAt(mixers, idx, next) });
+    },
+    [onChange]
+  );
+  const handleMixerRemove = useCallback(
+    (key: string | number) => {
+      const mixers = configRef.current.mixers ?? [];
+      const idx = mixers.findIndex((m, i) => uiKeyOf(m, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, mixers: removeAt(mixers, idx) });
+    },
+    [onChange]
+  );
+  // A mixer's name is how channel outputs of type "mixer" reference it -- a raw clone
+  // would create two mixers answering to the same name, so blank it on the copy and
+  // let the "Add mixer" empty-name convention prompt the user to pick a new one.
+  const handleMixerDuplicate = useCallback(
+    (key: string | number) => {
+      const mixers = configRef.current.mixers ?? [];
+      const idx = mixers.findIndex((m, i) => uiKeyOf(m, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, mixers: duplicateAt(mixers, idx, (m) => ({ ...cloneWithNewUiKeys(m), name: "" })) });
     },
     [onChange]
   );
@@ -247,12 +279,10 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
           <MixerEditor
             key={uiKeyOf(mixer, i)}
             mixer={mixer}
-            onChange={(next) => onChange({ ...config, mixers: updateAt(config.mixers ?? [], i, next) })}
-            onRemove={() => onChange({ ...config, mixers: removeAt(config.mixers ?? [], i) })}
-            // A mixer's name is how channel outputs of type "mixer" reference it -- a raw clone
-            // would create two mixers answering to the same name, so blank it on the copy and
-            // let the "Add mixer" empty-name convention prompt the user to pick a new one.
-            onDuplicate={() => onChange({ ...config, mixers: duplicateAt(config.mixers ?? [], i, (m) => ({ ...cloneWithNewUiKeys(m), name: "" })) })}
+            mixerIndex={i}
+            onChange={handleMixerChange}
+            onRemove={handleMixerRemove}
+            onDuplicate={handleMixerDuplicate}
             pathPrefix={`$.mixers[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}

@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.99] - 2026-08-09
+
+### Fixed
+
+- **Stage 4 (final) of the deferred `React.memo` editor-tree refactor
+  (item 7, tracked in #7): mixer level.** `MixerEditor` is now wrapped in
+  `React.memo` and takes a new required `mixerIndex` prop; `ConfigEditor`'s
+  mixers list passes it three stable `useCallback` handlers (keyed by
+  `uiKeyOf`, looked up via `configRef`) instead of a fresh
+  `onChange`/`onRemove`/`onDuplicate` closure per mixer per render,
+  mirroring Stage 1's device-level treatment (including the
+  name-blanking-on-duplicate special case). Editing one mixer's field no
+  longer re-renders its sibling mixers. Verified live against a 3-mixer
+  fixture: only the edited mixer re-rendered; duplicate/remove round-
+  tripped correctly (3→4→3) with the blank-name-on-duplicate behavior
+  intact.
+
+  This closes out the item 7 rollout across all four levels (device,
+  channel, output, mixer) of the config editor tree. `MixerRemoteInputFields`
+  (the small `remote_inputs` list) and `OutputEditor`'s 7 per-type field
+  sub-components remain intentionally un-memoized — see #7 for the
+  reasoning.
+
 ## [0.4.98] - 2026-08-09
 
 ### Fixed
