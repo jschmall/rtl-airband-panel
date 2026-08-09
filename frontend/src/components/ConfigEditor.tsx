@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, type ReactNode } from "react";
-import type { Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import type { Device, Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
@@ -67,6 +67,38 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
         }),
       };
       onChange({ ...current, devices: updateAt(current.devices, target.deviceIndex, nextDevice) });
+    },
+    [onChange]
+  );
+
+  // Three stable callbacks (not one closure per device) so DeviceEditor's React.memo
+  // can actually bail out on siblings -- each looks up the device's current index by
+  // its uiKeyOf key via configRef at call time, rather than the .map() capturing the
+  // index directly (which would rebuild a fresh function per device, per render).
+  const handleDeviceChange = useCallback(
+    (key: string | number, next: Device) => {
+      const devices = configRef.current.devices;
+      const idx = devices.findIndex((d, i) => uiKeyOf(d, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, devices: updateAt(devices, idx, next) });
+    },
+    [onChange]
+  );
+  const handleDeviceRemove = useCallback(
+    (key: string | number) => {
+      const devices = configRef.current.devices;
+      const idx = devices.findIndex((d, i) => uiKeyOf(d, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, devices: removeAt(devices, idx) });
+    },
+    [onChange]
+  );
+  const handleDeviceDuplicate = useCallback(
+    (key: string | number) => {
+      const devices = configRef.current.devices;
+      const idx = devices.findIndex((d, i) => uiKeyOf(d, i) === key);
+      if (idx === -1) return;
+      onChange({ ...configRef.current, devices: duplicateAt(devices, idx, cloneWithNewUiKeys) });
     },
     [onChange]
   );
@@ -188,9 +220,9 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             key={uiKeyOf(device, i)}
             device={device}
             deviceIndex={i}
-            onChange={(next) => onChange({ ...config, devices: updateAt(config.devices, i, next) })}
-            onRemove={() => onChange({ ...config, devices: removeAt(config.devices, i) })}
-            onDuplicate={() => onChange({ ...config, devices: duplicateAt(config.devices, i, cloneWithNewUiKeys) })}
+            onChange={handleDeviceChange}
+            onRemove={handleDeviceRemove}
+            onDuplicate={handleDeviceDuplicate}
             pathPrefix={`$.devices[${i}]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}

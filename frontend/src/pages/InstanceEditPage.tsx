@@ -149,12 +149,19 @@ export function InstanceEditPage() {
   // the server's redaction placeholder -- fetches the unredacted config fresh
   // each time rather than caching it, since revealing a secret should stay a
   // deliberate, infrequent action (see backend `getSecrets`/`/secrets` route).
-  async function revealSecret(fieldPath: string): Promise<string> {
-    if (!name) return "";
-    const raw = await api.getSecrets(name);
-    const value = getValueAtPath(raw, fieldPath);
-    return typeof value === "string" ? value : "";
-  }
+  // useCallback (not a plain function) so this stays a stable prop identity down
+  // through ConfigEditor -- otherwise it alone would defeat React.memo on every
+  // device/channel/output editor on every keystroke, regardless of the other
+  // memoization work in that tree.
+  const revealSecret = useCallback(
+    async (fieldPath: string): Promise<string> => {
+      if (!name) return "";
+      const raw = await api.getSecrets(name);
+      const value = getValueAtPath(raw, fieldPath);
+      return typeof value === "string" ? value : "";
+    },
+    [name]
+  );
 
   async function handleSave(restart: boolean) {
     if (!name || !config || pendingAction) return;

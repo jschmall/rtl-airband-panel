@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.96] - 2026-08-09
+
+### Fixed
+
+- **Stage 1 of the deferred `React.memo` editor-tree refactor (item 7 from
+  the 0.4.94 performance pass, tracked in #7): device-level memoization.**
+  `DeviceEditor` is now wrapped in `React.memo`, and `ConfigEditor`'s
+  devices list passes it three stable callbacks (keyed by each device's
+  `uiKeyOf` identity, looked up via `configRef` at call time) instead of a
+  fresh `onChange`/`onRemove`/`onDuplicate` closure per device per render.
+  Editing one device's field no longer re-renders every other device in
+  the instance. Verified live against a 3-device fixture instance:
+  React-render-count instrumentation confirmed only the edited device
+  re-rendered after this change (both siblings re-rendered on every
+  keystroke before it).
+- **`InstanceEditPage`'s `revealSecret` callback is now a stable
+  `useCallback`** instead of a plain function re-created every render.
+  This was an unrelated-looking prop (`onRevealSecret`) that silently
+  defeated the `React.memo` work above for every device, since a
+  memoized component still re-renders if *any* prop's identity changes,
+  not just the ones this refactor targeted directly — found via the live
+  verification above, not by static reading.
+
 ## [0.4.95] - 2026-08-09
 
 ### Added

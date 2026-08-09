@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output } from "@rtl-airband-panel/parser";
 import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -56,9 +56,9 @@ function channelMatchesFilter(channel: MultichannelChannel, filter: string): boo
 interface DeviceEditorProps {
   device: Device;
   deviceIndex: number;
-  onChange: (device: Device) => void;
-  onRemove: () => void;
-  onDuplicate: () => void;
+  onChange: (key: string | number, next: Device) => void;
+  onRemove: (key: string | number) => void;
+  onDuplicate: (key: string | number) => void;
   pathPrefix: string;
   jumpTarget?: { path: string; nonce: number } | null;
   onRevealSecret?: (fieldPath: string) => Promise<string>;
@@ -80,7 +80,7 @@ function parseGain(text: string): number | string | undefined {
   return Number.isFinite(n) && text.trim() !== "" ? n : text;
 }
 
-export function DeviceEditor({
+export const DeviceEditor = memo(function DeviceEditor({
   device,
   deviceIndex,
   onChange,
@@ -92,6 +92,12 @@ export function DeviceEditor({
   channelTargets,
   onCopyOutputToChannel,
 }: DeviceEditorProps) {
+  const deviceKey = uiKeyOf(device, deviceIndex);
+  // Stable across renders (identity depends only on onChange/deviceKey, not on device's
+  // own content) so this can eventually be handed down unwrapped -- see ConfigEditor's
+  // handleCopyOutputToChannel for the same ref-free pattern (no ref needed here since
+  // `next` is always supplied fresh by the caller, never read back out of stale state).
+  const emitChange = useCallback((next: Device) => onChange(deviceKey, next), [onChange, deviceKey]);
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
@@ -166,7 +172,7 @@ export function DeviceEditor({
     const from = visibleChannels.find(({ channel, i }) => uiKeyOf(channel, i) === active.id);
     const to = visibleChannels.find(({ channel, i }) => uiKeyOf(channel, i) === over.id);
     if (!from || !to) return;
-    onChange({ ...device, channels: moveAt(device.channels, from.i, to.i) });
+    emitChange({ ...device, channels: moveAt(device.channels, from.i, to.i) });
   }
 
   return (
@@ -182,14 +188,14 @@ export function DeviceEditor({
       }
       headerActions={
         <div className="flex items-center gap-3">
-          <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => onChange({ ...device, disable: v })} />
-          <button type="button" onClick={onDuplicate} className={addButtonClass}>
+          <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => emitChange({ ...device, disable: v })} />
+          <button type="button" onClick={() => onDuplicate(deviceKey)} className={addButtonClass}>
             Duplicate device
           </button>
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`Remove device — ${device.type}? This also deletes all of its channels and outputs.`)) onRemove();
+              if (window.confirm(`Remove device — ${device.type}? This also deletes all of its channels and outputs.`)) onRemove(deviceKey);
             }}
             className={removeButtonClass}
           >
@@ -203,7 +209,7 @@ export function DeviceEditor({
           <select
             className={inputClass}
             value={device.type}
-            onChange={(e) => onChange(restoreTypeFields(device, lastByType.current[e.target.value], e.target.value))}
+            onChange={(e) => emitChange(restoreTypeFields(device, lastByType.current[e.target.value], e.target.value))}
           >
             {DEVICE_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -219,7 +225,7 @@ export function DeviceEditor({
             onChange={(e) => {
               const mode = (e.target.value || undefined) as Device["mode"];
               const modeKey = mode === "scan" ? "scan" : "multichannel";
-              onChange(restoreModeFields(device, lastByMode.current[modeKey], mode));
+              emitChange(restoreModeFields(device, lastByMode.current[modeKey], mode));
             }}
           >
             <option value="">(default: multichannel)</option>
@@ -233,7 +239,7 @@ export function DeviceEditor({
               <input
                 className={inputClass}
                 value={device.serial ?? ""}
-                onChange={(e) => onChange({ ...device, serial: e.target.value || undefined })}
+                onChange={(e) => emitChange({ ...device, serial: e.target.value || undefined })}
               />
             </Field>
             <Field label="Index (optional, used if serial is blank; default 0)" tooltip={DEVICE_TOOLTIPS.index}>
@@ -241,7 +247,7 @@ export function DeviceEditor({
                 type="number"
                 className={inputClass}
                 value={device.index ?? ""}
-                onChange={(e) => onChange({ ...device, index: numberOrUndefined(e.target.value) })}
+                onChange={(e) => emitChange({ ...device, index: numberOrUndefined(e.target.value) })}
               />
             </Field>
           </>
@@ -250,7 +256,7 @@ export function DeviceEditor({
           label={isSoapy ? "Gain (number, or 'component=value' pairs; blank = AGC)" : "Gain"}
           tooltip={isSoapy ? DEVICE_TOOLTIPS.gainSoapy : DEVICE_TOOLTIPS.gain}
         >
-          <input className={inputClass} value={gainToText(device.gain)} onChange={(e) => onChange({ ...device, gain: parseGain(e.target.value) })} />
+          <input className={inputClass} value={gainToText(device.gain)} onChange={(e) => emitChange({ ...device, gain: parseGain(e.target.value) })} />
         </Field>
         {!isScan && (
           <Field label="Center frequency (Hz)" tooltip={DEVICE_TOOLTIPS.centerfreq}>
@@ -258,7 +264,7 @@ export function DeviceEditor({
               type="number"
               className={inputClass}
               value={device.centerfreq ?? ""}
-              onChange={(e) => onChange({ ...device, centerfreq: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, centerfreq: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -270,7 +276,7 @@ export function DeviceEditor({
                 min="16001"
                 className={inputClass}
                 value={device.sample_rate ?? ""}
-                onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
+                onChange={(e) => emitChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
               />
             ) : (
               <select
@@ -282,7 +288,7 @@ export function DeviceEditor({
                     return;
                   }
                   setForceCustomSampleRate(false);
-                  onChange({ ...device, sample_rate: e.target.value === "default" ? undefined : Number(e.target.value) });
+                  emitChange({ ...device, sample_rate: e.target.value === "default" ? undefined : Number(e.target.value) });
                 }}
               >
                 <option value="default">Default (2.560 MSPS)</option>
@@ -302,7 +308,7 @@ export function DeviceEditor({
               min="16001"
               className={inputClass}
               value={device.sample_rate ?? ""}
-              onChange={(e) => onChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, sample_rate: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -314,7 +320,7 @@ export function DeviceEditor({
             type="number"
             className={inputClass}
             value={device.correction ?? ""}
-            onChange={(e) => onChange({ ...device, correction: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...device, correction: numberOrUndefined(e.target.value) })}
           />
         </Field>
         {isRtl && (
@@ -324,7 +330,7 @@ export function DeviceEditor({
               min="0"
               className={inputClass}
               value={device.bandwidth ?? ""}
-              onChange={(e) => onChange({ ...device, bandwidth: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, bandwidth: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -333,7 +339,7 @@ export function DeviceEditor({
             type="number"
             className={inputClass}
             value={device.tau ?? ""}
-            onChange={(e) => onChange({ ...device, tau: numberOrUndefined(e.target.value) })}
+            onChange={(e) => emitChange({ ...device, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
         {!isScan && (
@@ -344,7 +350,7 @@ export function DeviceEditor({
               step="1"
               className={inputClass}
               value={device.reserve_channels ?? ""}
-              onChange={(e) => onChange({ ...device, reserve_channels: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, reserve_channels: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -357,7 +363,7 @@ export function DeviceEditor({
               step="1"
               className={inputClass}
               value={device.buffers ?? ""}
-              onChange={(e) => onChange({ ...device, buffers: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, buffers: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -369,7 +375,7 @@ export function DeviceEditor({
               step="1"
               className={inputClass}
               value={device.num_buffers ?? ""}
-              onChange={(e) => onChange({ ...device, num_buffers: numberOrUndefined(e.target.value) })}
+              onChange={(e) => emitChange({ ...device, num_buffers: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}
@@ -379,7 +385,7 @@ export function DeviceEditor({
               <input
                 className={inputClass}
                 value={device.device_string ?? ""}
-                onChange={(e) => onChange({ ...device, device_string: e.target.value || undefined })}
+                onChange={(e) => emitChange({ ...device, device_string: e.target.value || undefined })}
               />
             </Field>
             <Field label="Channel (optional, default 0)" tooltip={DEVICE_TOOLTIPS.channel}>
@@ -387,14 +393,14 @@ export function DeviceEditor({
                 type="number"
                 className={inputClass}
                 value={device.channel ?? ""}
-                onChange={(e) => onChange({ ...device, channel: numberOrUndefined(e.target.value) })}
+                onChange={(e) => emitChange({ ...device, channel: numberOrUndefined(e.target.value) })}
               />
             </Field>
             <Field label="Antenna (optional)" tooltip={DEVICE_TOOLTIPS.antenna}>
               <input
                 className={inputClass}
                 value={device.antenna ?? ""}
-                onChange={(e) => onChange({ ...device, antenna: e.target.value || undefined })}
+                onChange={(e) => emitChange({ ...device, antenna: e.target.value || undefined })}
               />
             </Field>
           </>
@@ -418,7 +424,7 @@ export function DeviceEditor({
               <button
                 type="button"
                 className={addButtonClass}
-                onClick={() => onChange({ ...device, channels: appendItem(device.channels, defaultChannel()) })}
+                onClick={() => emitChange({ ...device, channels: appendItem(device.channels, defaultChannel()) })}
               >
                 + Add channel
               </button>
@@ -430,7 +436,7 @@ export function DeviceEditor({
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}
             deviceIndex={deviceIndex}
             channelIndex={0}
-            onChange={(next) => onChange({ ...device, channels: [next] })}
+            onChange={(next) => emitChange({ ...device, channels: [next] })}
             pathPrefix={`${pathPrefix}.channels[0]`}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
@@ -453,11 +459,11 @@ export function DeviceEditor({
                       deviceIndex={deviceIndex}
                       channelIndex={i}
                       highlighted={justDuplicatedKey !== null && uiKeyOf(channel, i) === justDuplicatedKey}
-                      onChange={(next) => onChange({ ...device, channels: updateAt(device.channels, i, next) })}
-                      onRemove={() => onChange({ ...device, channels: removeAt(device.channels, i) })}
+                      onChange={(next) => emitChange({ ...device, channels: updateAt(device.channels, i, next) })}
+                      onRemove={() => emitChange({ ...device, channels: removeAt(device.channels, i) })}
                       onDuplicate={() => {
                         const nextChannels = duplicateAt(device.channels, i, cloneWithNewUiKeys);
-                        onChange({ ...device, channels: nextChannels });
+                        emitChange({ ...device, channels: nextChannels });
                         setJustDuplicatedKey(uiKeyOf(nextChannels[i + 1]!, i + 1));
                       }}
                       pathPrefix={`${pathPrefix}.channels[${i}]`}
@@ -475,4 +481,4 @@ export function DeviceEditor({
       </div>
     </Collapsible>
   );
-}
+});

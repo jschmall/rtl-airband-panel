@@ -13,7 +13,7 @@ function Harness() {
     <DeviceEditor
       device={device}
       deviceIndex={0}
-      onChange={setDevice}
+      onChange={(_key, next) => setDevice(next)}
       onRemove={() => {}}
       onDuplicate={() => {}}
       pathPrefix="$.test"
