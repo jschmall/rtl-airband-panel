@@ -7,7 +7,19 @@ import type { StatsStore } from "./store.js";
 export interface PollerOptions {
   intervalMs: number;
   retentionDays: number;
+  /**
+   * Minimum time between prune() runs. prune() does a DELETE over the whole
+   * samples table, an anti-join DELETE over series, and an incremental
+   * vacuum -- real work whose cost scales with total accumulated row count,
+   * not with how often the poller happens to tick. Running it every
+   * intervalMs (default 15s) regardless of whether anything is actually
+   * expired wastes a full synchronous DB pass most cycles. Defaults to
+   * DEFAULT_PRUNE_INTERVAL_MS if omitted.
+   */
+  pruneIntervalMs?: number;
 }
+
+const DEFAULT_PRUNE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 // stats_filepath comes straight from an instance's own config, with no
 // restriction on what it points at (see backend/validate's post_write_script
@@ -45,6 +57,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 export class StatsPoller {
   private timer: NodeJS.Timeout | undefined;
   private readonly lastMtimeMs = new Map<string, number>();
+  /** undefined means "never pruned yet" -- the first pollOnce() always prunes. */
+  private lastPruneMs: number | undefined;
   // Tracks whichever pollOnce() call is currently running (or the last one
   // that finished), so stop() can await it — closing the stats DB out from
   // under a poll cycle still in flight would otherwise throw inside a
@@ -87,10 +101,17 @@ export class StatsPoller {
         this.onError(info.name, err);
       }
     }
-    try {
-      this.statsStore.prune(this.options.retentionDays);
-    } catch (err) {
-      this.onError("<prune>", err);
+    const pruneIntervalMs = this.options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
+    const now = Date.now();
+    if (this.lastPruneMs === undefined || now - this.lastPruneMs >= pruneIntervalMs) {
+      // Set before running so a failed prune doesn't get retried every single
+      // cycle until it succeeds -- it'll be retried after the next interval instead.
+      this.lastPruneMs = now;
+      try {
+        this.statsStore.prune(this.options.retentionDays);
+      } catch (err) {
+        this.onError("<prune>", err);
+      }
     }
   }
 

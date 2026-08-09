@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readdir, readFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { promises as fsPromises } from "node:fs";
+import { readdir, readFile, writeFile, utimes } from "node:fs/promises";
 import path from "node:path";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { ConfigStore } from "../src/config-store.js";
@@ -92,5 +93,65 @@ describe("ConfigStore backups", () => {
 
     expect(await readdir(path.join(instancesDir, ".backups", "rtl_a"))).toHaveLength(1);
     await expect(readdir(path.join(instancesDir, ".backups", "rtl_b"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+describe("ConfigStore parse cache", () => {
+  it("does not re-read the file on a second read when nothing changed", async () => {
+    await store.write("rtl_x", minimalConfig());
+    const first = await store.read("rtl_x");
+
+    const readFileSpy = vi.spyOn(fsPromises, "readFile");
+    const second = await store.read("rtl_x");
+
+    expect(readFileSpy).not.toHaveBeenCalled();
+    expect(second).toEqual(first);
+    readFileSpy.mockRestore();
+  });
+
+  it("re-reads and reflects new content when the file changes on disk", async () => {
+    await store.write("rtl_x", minimalConfig({ stats_filepath: "/tmp/original.txt" }));
+    await store.read("rtl_x"); // populate the cache
+
+    const confPath = path.join(instancesDir, "rtl_x.conf");
+    const raw = await readFile(confPath, "utf8");
+    await writeFile(confPath, raw.replace("/tmp/original.txt", "/tmp/changed-externally.txt"), "utf8");
+    // Force a distinct mtime in case the write above lands within the same
+    // filesystem timestamp granularity as the cached stat.
+    const future = new Date(Date.now() + 5000);
+    await utimes(confPath, future, future);
+
+    const updated = await store.read("rtl_x");
+    expect(updated.stats_filepath).toBe("/tmp/changed-externally.txt");
+  });
+
+  it("reflects new content immediately after write() invalidates the cache", async () => {
+    await store.write("rtl_x", minimalConfig({ stats_filepath: "/tmp/a.txt" }));
+    await store.read("rtl_x");
+    await store.write("rtl_x", minimalConfig({ stats_filepath: "/tmp/b.txt" }));
+
+    const updated = await store.read("rtl_x");
+    expect(updated.stats_filepath).toBe("/tmp/b.txt");
+  });
+
+  it("drops the cache entry on remove()", async () => {
+    await store.write("rtl_x", minimalConfig());
+    await store.read("rtl_x");
+    await store.remove("rtl_x");
+
+    await expect(store.read("rtl_x")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("readRaw and readWithVersion share the same cache as read and see the same updates", async () => {
+    await store.write("rtl_x", minimalConfig({ stats_filepath: "/tmp/a.txt" }));
+    const { version: v1 } = await store.readWithVersion("rtl_x");
+
+    await store.write("rtl_x", minimalConfig({ stats_filepath: "/tmp/b.txt" }));
+    const { config, version: v2 } = await store.readWithVersion("rtl_x");
+    const raw = await store.readRaw("rtl_x");
+
+    expect(v2).not.toBe(v1);
+    expect(config.stats_filepath).toBe("/tmp/b.txt");
+    expect(raw).toContain("/tmp/b.txt");
   });
 });

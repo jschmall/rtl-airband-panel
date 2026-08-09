@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFile, utimes } from "node:fs/promises";
 import path from "node:path";
 import { StatsPoller } from "../../src/stats/poller.js";
@@ -103,7 +103,7 @@ describe("StatsPoller.pollOnce", () => {
     expect(statsStore.latest("rtl_huge")).toEqual([]);
   });
 
-  it("prunes on every poll cycle", async () => {
+  it("prunes on the first poll cycle", async () => {
     const statsPath = path.join(h.instancesDir, "stats.txt");
     await writeFile(statsPath, STATS_TEXT, "utf8");
     await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
@@ -113,6 +113,46 @@ describe("StatsPoller.pollOnce", () => {
     await poller.pollOnce();
 
     expect(statsStore.history("rtl_x", { metric: "old" })).toEqual([]);
+  });
+
+  it("does not re-prune on the immediately following poll cycle", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7, pruneIntervalMs: 60_000 });
+    const pruneSpy = vi.spyOn(statsStore, "prune");
+    await poller.pollOnce();
+    await poller.pollOnce();
+
+    expect(pruneSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("prunes again once pruneIntervalMs has elapsed", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7, pruneIntervalMs: 1 });
+    const pruneSpy = vi.spyOn(statsStore, "prune");
+    await poller.pollOnce();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await poller.pollOnce();
+
+    expect(pruneSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("defaults pruneIntervalMs to 1 hour when not given", async () => {
+    const statsPath = path.join(h.instancesDir, "stats.txt");
+    await writeFile(statsPath, STATS_TEXT, "utf8");
+    await writeConfWithStatsPath(h.instancesDir, "rtl_x", statsPath);
+
+    const poller = new StatsPoller(h.configStore, statsStore, { intervalMs: 1000, retentionDays: 7 });
+    const pruneSpy = vi.spyOn(statsStore, "prune");
+    await poller.pollOnce();
+    await poller.pollOnce();
+
+    expect(pruneSpy).toHaveBeenCalledTimes(1);
   });
 
   it("reports a prune failure via onError instead of rejecting the whole poll (e.g. DB closed mid-cycle during shutdown)", async () => {

@@ -54,4 +54,9 @@ describe("loadConfig", () => {
     expect(config.host).toBe("0.0.0.0");
     expect(config.port).toBe(9090);
   });
+
+  it("defaults statsPruneIntervalMs to 1 hour and honors RTL_PANEL_STATS_PRUNE_INTERVAL_MS", () => {
+    expect(loadConfig({}).statsPruneIntervalMs).toBe(60 * 60 * 1000);
+    expect(loadConfig({ RTL_PANEL_STATS_PRUNE_INTERVAL_MS: "60000" }).statsPruneIntervalMs).toBe(60_000);
+  });
 });

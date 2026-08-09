@@ -30,8 +30,10 @@ export interface ApiConfig {
   statsDbPath: string;
   /** How often to re-read each instance's stats file. */
   statsPollIntervalMs: number;
-  /** Samples older than this are pruned on each poll cycle. 0 or negative disables pruning (keep forever). */
+  /** Samples older than this are eligible for pruning. 0 or negative disables pruning (keep forever). */
   statsRetentionDays: number;
+  /** Minimum time between prune passes over the stats DB -- see StatsPoller's PollerOptions doc. */
+  statsPruneIntervalMs: number;
   /**
    * How long to wait for a response from an instance's dynamic_reload
    * control socket (see UnixControlSocketClient) before treating it as
@@ -82,6 +84,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     statsDbPath: env.RTL_PANEL_STATS_DB_PATH ?? path.join(os.homedir(), ".rtl-airband-panel", "stats.db"),
     statsPollIntervalMs: env.RTL_PANEL_STATS_POLL_INTERVAL_MS ? Number(env.RTL_PANEL_STATS_POLL_INTERVAL_MS) : 15_000,
     statsRetentionDays: env.RTL_PANEL_STATS_RETENTION_DAYS ? Number(env.RTL_PANEL_STATS_RETENTION_DAYS) : 7,
+    statsPruneIntervalMs: env.RTL_PANEL_STATS_PRUNE_INTERVAL_MS ? Number(env.RTL_PANEL_STATS_PRUNE_INTERVAL_MS) : 60 * 60 * 1000,
     controlSocketTimeoutMs: env.RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS ? Number(env.RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS) : 8000,
     frontendDistPath: env.RTL_PANEL_FRONTEND_DIST ?? DEFAULT_FRONTEND_DIST,
   };

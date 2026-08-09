@@ -28,8 +28,23 @@ const BACKUP_DIR_NAME = ".backups";
 /** How many prior versions of a single instance's .conf to keep before pruning the oldest. */
 const MAX_BACKUPS_PER_INSTANCE = 10;
 
+interface CacheEntry {
+  mtimeMs: number;
+  size: number;
+  raw: string;
+  config: RtlAirbandConfig;
+  version: string;
+}
+
 /** File I/O over the .conf directory. No systemd concerns live here. */
 export class ConfigStore {
+  // Parsing is expensive (libconfig-style tokenize/parse/domain-map) and this
+  // store is read once per instance on every stats-poll tick and every
+  // GET /instances call, almost always against a file that hasn't changed
+  // since the last read -- so cache the parse and only redo it when the
+  // file's mtime/size no longer match what's cached.
+  private readonly cache = new Map<string, CacheEntry>();
+
   constructor(private readonly instancesDir: string) {}
 
   async list(): Promise<InstanceFileInfo[]> {
@@ -59,18 +74,42 @@ export class ConfigStore {
   }
 
   async read(name: string): Promise<RtlAirbandConfig> {
-    const source = await fs.readFile(confFilePath(this.instancesDir, name), "utf8");
-    return parseConfigFile(source);
+    return (await this.readCached(name)).config;
   }
 
   async readRaw(name: string): Promise<string> {
-    return fs.readFile(confFilePath(this.instancesDir, name), "utf8");
+    return (await this.readCached(name)).raw;
   }
 
   /** Like `read`, but also returns a version identifier for the exact content read — see `hashConfigText`. */
   async readWithVersion(name: string): Promise<{ config: RtlAirbandConfig; version: string }> {
-    const raw = await this.readRaw(name);
-    return { config: parseConfigFile(raw), version: hashConfigText(raw) };
+    const { config, version } = await this.readCached(name);
+    return { config, version };
+  }
+
+  /**
+   * Returns the cached parse if the file's mtime/size still match what's
+   * cached, otherwise re-reads and re-parses and refreshes the cache. A
+   * stat-then-maybe-read instead of always-read so an unchanged file costs
+   * one stat() call instead of a full read+parse.
+   */
+  private async readCached(name: string): Promise<CacheEntry> {
+    const target = confFilePath(this.instancesDir, name);
+    const stat = await fs.stat(target);
+    const cached = this.cache.get(name);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      return cached;
+    }
+    const raw = await fs.readFile(target, "utf8");
+    const entry: CacheEntry = {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      raw,
+      config: parseConfigFile(raw),
+      version: hashConfigText(raw),
+    };
+    this.cache.set(name, entry);
+    return entry;
   }
 
   /**
@@ -91,11 +130,16 @@ export class ConfigStore {
     const tmp = `${target}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`;
     await fs.writeFile(tmp, text, "utf8");
     await fs.rename(tmp, target);
+    // Invalidate rather than repopulate: a stat() right after rename can race
+    // filesystem mtime resolution, so it's simpler to just let the next
+    // read re-stat from scratch than to risk caching a stale entry.
+    this.cache.delete(name);
     return hashConfigText(text);
   }
 
   async remove(name: string): Promise<void> {
     await fs.rm(confFilePath(this.instancesDir, name), { force: true });
+    this.cache.delete(name);
   }
 
   private async backupBeforeOverwrite(name: string): Promise<void> {

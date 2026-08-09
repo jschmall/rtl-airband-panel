@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "@rtl-airband-panel/validate";
@@ -101,7 +101,14 @@ export function InstanceEditPage() {
     loadConfig();
   }, [loadConfig]);
 
-  const isDirty = config !== null && savedConfig !== null && JSON.stringify(config) !== JSON.stringify(savedConfig);
+  // Two full-tree JSON.stringify passes over the whole config -- memoized so
+  // it only re-runs when config/savedConfig actually change identity, not on
+  // every render (e.g. the background instance-list poll re-rendering this
+  // page while the user is mid-edit and neither config nor savedConfig moved).
+  const isDirty = useMemo(
+    () => config !== null && savedConfig !== null && JSON.stringify(config) !== JSON.stringify(savedConfig),
+    [config, savedConfig]
+  );
 
   // Covers an actual tab close/refresh/navigating to a URL outside the SPA.
   // In-app navigation (sidebar, header logo, "View stats") goes through

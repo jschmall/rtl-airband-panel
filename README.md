@@ -372,7 +372,8 @@ flag list.
 | `RTL_PANEL_FRONTEND_DIST` | `--frontend-dist` | `frontend/dist` (repo-relative) | Where to look for the frontend's build to serve as a single process; a missing build is not an error, it just falls back to API-only |
 | `RTL_PANEL_STATS_DB_PATH` | `--stats-db-path` | `~/.rtl-airband-panel/stats.db` | SQLite file the stats poller writes historical samples to |
 | `RTL_PANEL_STATS_POLL_INTERVAL_MS` | `--stats-poll-interval-ms` | `15000` | How often each instance's stats file is re-read |
-| `RTL_PANEL_STATS_RETENTION_DAYS` | `--stats-retention-days` | `7` | Samples older than this are pruned each poll cycle; `0` or negative disables pruning |
+| `RTL_PANEL_STATS_RETENTION_DAYS` | `--stats-retention-days` | `7` | Samples older than this are eligible for pruning; `0` or negative disables pruning |
+| `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` | `--stats-prune-interval-ms` | `3600000` (1 hour) | Minimum time between prune passes over the stats DB, independent of how often the poll cycle itself runs |
 
 ### Systemd control
 
@@ -430,8 +431,11 @@ cadence and records every sample into a local SQLite database
 time hasn't changed (a stopped instance doesn't get repeated identical
 rows). The Stats page charts signal-vs-squelch-threshold per channel over a
 selectable time window, plus per-channel and per-device counters as tiles.
-Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days;
-pruned on every poll cycle).
+Retention is capped by `RTL_PANEL_STATS_RETENTION_DAYS` (default 7 days).
+Pruning itself runs on its own cadence, `RTL_PANEL_STATS_PRUNE_INTERVAL_MS`
+(default 1 hour) — decoupled from the poll interval so a DB pass (which
+scales with total accumulated row count, not with how often the poller
+ticks) doesn't run every single poll cycle.
 
 The panel's own polling always reads the stats file straight off local
 disk. Separately, on the RTLSDR-Airband fork noted under

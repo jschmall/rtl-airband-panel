@@ -27,9 +27,30 @@ interface InstanceListContextValue {
    * to clear a "Restarting..." label once it's done) or not, as needed.
    */
   pollBriefly: () => Promise<void>;
+  /**
+   * Bumped once per background poll tick (not on route-triggered refreshes).
+   * Other components that need to refetch their own data on the same
+   * cadence -- e.g. InstanceHealthOverview's separate stats-summary endpoint
+   * -- can depend on this instead of running their own independent
+   * setInterval, so all background polling fires in lockstep on one shared
+   * clock rather than several timers drifting out of phase with each other.
+   */
+  pollTick: number;
 }
 
 const InstanceListContext = createContext<InstanceListContextValue | null>(null);
+
+/**
+ * InstanceSummary is a flat, JSON-serializable shape with no cycles, so a
+ * stringify comparison is a cheap, reliable way to tell "nothing actually
+ * changed" apart from "a new array came back with the same content" --
+ * without it, every background poll tick replaces `instances` with a new
+ * array identity even when unchanged, which cascades into a re-render of
+ * every consumer of this context (most of the always-mounted app shell).
+ */
+export function sameInstanceList(a: InstanceSummary[] | null, b: InstanceSummary[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 /**
  * Single shared source of truth for the instance list, so the sidebar (per-
@@ -42,11 +63,12 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pollTick, setPollTick] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
       const list = await api.listInstances();
-      setInstances(list);
+      setInstances((prev) => (sameInstanceList(prev, list) ? prev : list));
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load instances");
@@ -54,15 +76,23 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Re-fetch on every navigation so creates/deletes/renames/saves triggered
-  // from anywhere keep this always-visible state in sync, and also poll in the
-  // background (matching the stats page's cadence) so a unit that dies, or a
-  // pending-restart flag set by another tab/session, shows up without the user
-  // having to click around to trigger a route change.
+  // from anywhere keep this always-visible state in sync.
   useEffect(() => {
     void refresh();
-    const interval = setInterval(() => void refresh(), AUTO_REFRESH_MS);
-    return () => clearInterval(interval);
   }, [refresh, location.pathname]);
+
+  // Separate background poll on its own fixed cadence, independent of
+  // navigation, so a unit that dies, or a pending-restart flag set by another
+  // tab/session, shows up without the user having to click around to trigger
+  // a route change. Split from the effect above (rather than one effect doing
+  // both) so navigating around doesn't reset this timer's phase.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refresh();
+      setPollTick((t) => t + 1);
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   const pollBriefly = useCallback(async () => {
     for (let i = 0; i < 5; i++) {
@@ -82,8 +112,8 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   }, [instances, searchQuery]);
 
   const value = useMemo(
-    () => ({ instances, filteredInstances, searchQuery, setSearchQuery, error, refresh, pollBriefly }),
-    [instances, filteredInstances, searchQuery, error, refresh, pollBriefly]
+    () => ({ instances, filteredInstances, searchQuery, setSearchQuery, error, refresh, pollBriefly, pollTick }),
+    [instances, filteredInstances, searchQuery, error, refresh, pollBriefly, pollTick]
   );
 
   return <InstanceListContext.Provider value={value}>{children}</InstanceListContext.Provider>;

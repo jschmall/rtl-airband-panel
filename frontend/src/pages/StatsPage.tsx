@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { api, ApiError, type InstanceSummary, type StatSample } from "../api/client.js";
+import { api, ApiError, type StatSample } from "../api/client.js";
+import { useInstanceList } from "../state/InstanceListContext.js";
 import { BufferHealthTile } from "../components/stats/BufferHealthTile.js";
 import { isOutputCounterSample, OutputStats } from "../components/stats/OutputStats.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
@@ -85,11 +86,13 @@ export function StatsPage() {
   const location = useLocation();
   const initialInstanceName = (location.state as { instanceName?: string } | null)?.instanceName;
 
-  const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
+  // Instance list is shared app-wide state (InstanceListProvider already polls
+  // it) rather than a redundant fetch of its own -- this page previously did
+  // its own api.listInstances() on mount, duplicating both the request and
+  // (pre-caching) the backend's per-instance config re-parse behind it.
+  const { instances, error, refresh: refreshInstances } = useInstanceList();
   const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(initialInstanceName ?? null);
   const [latest, setLatest] = useState<StatSample[] | null>(null);
-  // Blocking: nothing on this page can render without the instance list.
-  const [error, setError] = useState<string | null>(null);
   // Non-blocking: a stats/history poll failing (e.g. a transient network blip)
   // shouldn't tear down the whole page -- it self-heals on the next poll tick,
   // so this just shows a small inline warning above the still-working UI.
@@ -102,20 +105,10 @@ export function StatsPage() {
   // match the mixer topology, which doesn't change without a restart.
   const [mixerLookups, setMixerLookups] = useState<MixerLookups>(EMPTY_MIXER_LOOKUPS);
 
-  const loadInstances = useCallback(async () => {
-    setError(null);
-    try {
-      const list = await api.listInstances();
-      setInstances(list);
-      setSelectedInstanceName((current) => (current && list.some((i) => i.name === current) ? current : (list[0]?.name ?? null)));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't reach the server. Check your connection and try again.");
-    }
-  }, []);
-
   useEffect(() => {
-    void loadInstances();
-  }, [loadInstances]);
+    if (!instances) return;
+    setSelectedInstanceName((current) => (current && instances.some((i) => i.name === current) ? current : (instances[0]?.name ?? null)));
+  }, [instances]);
 
   const channels = useMemo(() => (latest ? discoverChannels(latest) : []), [latest]);
   const deviceSamples = useMemo(() => (latest ? latest.filter((s) => !s.metric.startsWith("channel_")) : []), [latest]);
@@ -236,7 +229,7 @@ export function StatsPage() {
     return (
       <div className="space-y-3 rounded border border-red-500/40 bg-red-500/10 p-4">
         <p className="text-red-300">{error}</p>
-        <button type="button" onClick={() => void loadInstances()} className="text-sm text-sky-400 hover:text-sky-300">
+        <button type="button" onClick={() => void refreshInstances()} className="text-sm text-sky-400 hover:text-sky-300">
           Retry
         </button>
       </div>
@@ -282,9 +275,9 @@ export function StatsPage() {
                 {bufferHealthByDevice.map((bh) => (
                   <BufferHealthTile key={`buffer-health-${bh.device}`} device={bh.device} overflow={bh.overflow} underrun={bh.underrun} tooltip={BUFFER_HEALTH_TOOLTIP} />
                 ))}
-                {otherDeviceSamples.map((sample, i) => (
+                {otherDeviceSamples.map((sample) => (
                   <StatTile
-                    key={i}
+                    key={`${sample.metric}-${canonicalizeLabels(sample.labels)}`}
                     label={titleCaseMetric(sample.metric)}
                     value={sample.metric === "process_cpu_seconds_total" ? formatCpuSeconds(sample.value) : sample.value}
                     sublabel={resolveMixerSampleLabel(sample.metric, sample.labels, mixerLookups) ?? humanizeLabels(sample.labels)}

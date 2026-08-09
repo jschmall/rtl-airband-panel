@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
@@ -22,25 +22,54 @@ interface ConfigEditorProps {
 }
 
 export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, afterGlobalSettings }: ConfigEditorProps) {
-  const channelTargets = useMemo(() => buildChannelTargets(config.devices), [config.devices]);
+  // Kept alongside the plain `config` prop so callbacks below can be built with
+  // useCallback (stable across renders where the thing they depend on didn't
+  // change) while still always reading the *current* config when they run --
+  // see handleCopyOutputToChannel, which needs both properties at once.
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  // buildChannelTargets is cheap (just a flatten over one instance's own
+  // devices/channels), but config.devices gets a new array identity on every
+  // edit anywhere in the tree, not just edits that actually change a target's
+  // label -- so a plain useMemo keyed on config.devices would still hand every
+  // device/mixer editor a new channelTargets reference on every keystroke.
+  // Comparing against the previous result and reusing its identity when
+  // nothing actually changed keeps that prop stable for the (common) case of
+  // editing something that isn't a channel's identifying freq/label.
+  const channelTargetsRef = useRef<ChannelTarget[]>([]);
+  const channelTargets = useMemo(() => {
+    const next = buildChannelTargets(config.devices);
+    if (JSON.stringify(next) === JSON.stringify(channelTargetsRef.current)) {
+      return channelTargetsRef.current;
+    }
+    channelTargetsRef.current = next;
+    return next;
+  }, [config.devices]);
 
   // Appends a copy of `output` onto the target channel's outputs -- used by the
   // "Copy to channel…" action on every OutputEditor (channel and mixer outputs alike).
-  // Always appends, never replaces, mirroring how "Duplicate output" behaves.
-  function handleCopyOutputToChannel(output: Output, target: ChannelTarget) {
-    const targetDevice = config.devices[target.deviceIndex];
-    if (!targetDevice) return;
-    const targetChannel = targetDevice.channels[target.channelIndex];
-    if (!targetChannel) return;
-    const nextDevice = {
-      ...targetDevice,
-      channels: updateAt(targetDevice.channels, target.channelIndex, {
-        ...targetChannel,
-        outputs: appendItem(targetChannel.outputs, cloneWithNewUiKeys(output)),
-      }),
-    };
-    onChange({ ...config, devices: updateAt(config.devices, target.deviceIndex, nextDevice) });
-  }
+  // Always appends, never replaces, mirroring how "Duplicate output" behaves. Reads
+  // configRef instead of closing over `config` directly so this callback's own
+  // identity stays stable across renders (only `onChange` can ever change it).
+  const handleCopyOutputToChannel = useCallback(
+    (output: Output, target: ChannelTarget) => {
+      const current = configRef.current;
+      const targetDevice = current.devices[target.deviceIndex];
+      if (!targetDevice) return;
+      const targetChannel = targetDevice.channels[target.channelIndex];
+      if (!targetChannel) return;
+      const nextDevice = {
+        ...targetDevice,
+        channels: updateAt(targetDevice.channels, target.channelIndex, {
+          ...targetChannel,
+          outputs: appendItem(targetChannel.outputs, cloneWithNewUiKeys(output)),
+        }),
+      };
+      onChange({ ...current, devices: updateAt(current.devices, target.deviceIndex, nextDevice) });
+    },
+    [onChange]
+  );
 
   return (
     <div className="space-y-6">

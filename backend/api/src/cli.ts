@@ -14,6 +14,7 @@ const OPTIONS = {
   "stats-db-path": { type: "string" },
   "stats-poll-interval-ms": { type: "string" },
   "stats-retention-days": { type: "string" },
+  "stats-prune-interval-ms": { type: "string" },
   "control-socket-timeout-ms": { type: "string" },
   "frontend-dist": { type: "string" },
   "env-file": { type: "string" },
@@ -49,6 +50,7 @@ export function parseCliArgs(argv: string[]): CliResult {
   if (values["stats-db-path"] !== undefined) overrides.statsDbPath = values["stats-db-path"];
   if (values["stats-poll-interval-ms"] !== undefined) overrides.statsPollIntervalMs = Number(values["stats-poll-interval-ms"]);
   if (values["stats-retention-days"] !== undefined) overrides.statsRetentionDays = Number(values["stats-retention-days"]);
+  if (values["stats-prune-interval-ms"] !== undefined) overrides.statsPruneIntervalMs = Number(values["stats-prune-interval-ms"]);
   if (values["control-socket-timeout-ms"] !== undefined) overrides.controlSocketTimeoutMs = Number(values["control-socket-timeout-ms"]);
   if (values["frontend-dist"] !== undefined) overrides.frontendDistPath = values["frontend-dist"];
 
@@ -76,6 +78,7 @@ Options:
   --stats-db-path <path>        SQLite file for historical stats samples (default: ~/.rtl-airband-panel/stats.db)
   --stats-poll-interval-ms <n>  How often each instance's stats file is re-read (default: 15000)
   --stats-retention-days <n>    Stats samples older than this are pruned; 0 disables pruning (default: 7)
+  --stats-prune-interval-ms <n> Minimum time between prune passes over the stats DB (default: 3600000, i.e. 1 hour)
   --control-socket-timeout-ms <n>  How long to wait for a dynamic_reload control socket response before falling back to restart-based save (default: 8000)
   --frontend-dist <path>        Where to look for the built frontend to serve (default: frontend/dist)
   --env-file <path>             Load environment variables from this .env file (default: .env in the directory you ran npm/node from, if present)

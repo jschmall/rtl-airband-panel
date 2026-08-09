@@ -32,6 +32,8 @@ describe("parseCliArgs", () => {
       "5000",
       "--stats-retention-days",
       "3",
+      "--stats-prune-interval-ms",
+      "60000",
       "--frontend-dist",
       "/tmp/dist",
     ]);
@@ -48,6 +50,7 @@ describe("parseCliArgs", () => {
       statsDbPath: "/tmp/stats.db",
       statsPollIntervalMs: 5000,
       statsRetentionDays: 3,
+      statsPruneIntervalMs: 60000,
       frontendDistPath: "/tmp/dist",
     });
   });

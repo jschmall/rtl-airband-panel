@@ -25,6 +25,14 @@ class SourceError extends Error {
   }
 }
 
+// Sticky (`y`) so exec() matches starting exactly at lastIndex against the
+// full source string, instead of the number/identifier branches doing
+// source.slice(i) per token -- that slice re-copies the entire remainder of
+// the file on every single token, making a full tokenize pass roughly
+// quadratic in file size rather than linear.
+const NUMBER_RE = /[+-]?(0[xX][0-9a-fA-F]+|\d+\.\d+([eE][+-]?\d+)?|\d+[eE][+-]?\d+|\.\d+([eE][+-]?\d+)?|\d+)(L{1,2})?/y;
+const IDENT_RE = /[A-Za-z0-9_*-]+/y;
+
 export function tokenize(source: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
@@ -103,9 +111,8 @@ export function tokenize(source: string): Token[] {
 
     // numbers: optional sign, digits, optional '.', optional exponent, optional hex, optional L/l suffix
     if (/[0-9]/.test(c) || (c === "-" && /[0-9.]/.test(peek(1))) || (c === "+" && /[0-9.]/.test(peek(1)))) {
-      const match = /^[+-]?(0[xX][0-9a-fA-F]+|\d+\.\d+([eE][+-]?\d+)?|\d+[eE][+-]?\d+|\.\d+([eE][+-]?\d+)?|\d+)(L{1,2})?/.exec(
-        source.slice(i)
-      );
+      NUMBER_RE.lastIndex = i;
+      const match = NUMBER_RE.exec(source);
       if (!match) {
         throw new SourceError(`Invalid number literal near '${c}'`, startLine, startCol);
       }
@@ -117,8 +124,8 @@ export function tokenize(source: string): Token[] {
 
     // identifiers / booleans / keywords (also settings' group/list intro like "devices:")
     if (/[A-Za-z_*]/.test(c)) {
-      const match = /^[A-Za-z0-9_*-]+/.exec(source.slice(i));
-      const raw = match![0];
+      IDENT_RE.lastIndex = i;
+      const raw = IDENT_RE.exec(source)![0];
       advance(raw.length);
       if (raw === "true" || raw === "false" || raw === "TRUE" || raw === "FALSE") {
         tokens.push({ type: "bool", raw, line: startLine, col: startCol });

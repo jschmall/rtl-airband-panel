@@ -5,6 +5,54 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.94] - 2026-08-09
+
+### Fixed
+
+- **Eliminated the redundant per-instance config re-parsing that was the
+  likely cause of periodic CPU spikes on multi-instance deployments.**
+  `ConfigStore` had no cache, so every stats-poll tick (every 15s) and every
+  `GET /instances` call re-read and re-parsed **every** instance's `.conf`
+  file from disk, even though nothing had changed — with N instances
+  configured, that's N full libconfig-style parses every 15-20 seconds,
+  clustered into the same event-loop tick. `ConfigStore` now caches each
+  instance's parsed config keyed on the file's mtime/size, invalidating only
+  on an actual write, rename, or external change.
+- **Fixed a roughly-quadratic tokenizer bug.** The number/identifier token
+  branches did `source.slice(i)` on every single token — re-copying the
+  entire remainder of the file each time — making one full parse cost scale
+  with file size squared rather than linearly. Replaced with a sticky (`y`
+  flag) regex that matches in place. This compounds with the cache fix above:
+  every parse that does still happen (cold cache, first load) is now cheap
+  too.
+- **Decoupled the stats DB prune pass from the poll interval.** `prune()`
+  (a `DELETE` over the whole samples table, an anti-join `DELETE` over
+  series, and an incremental vacuum — all synchronous, all blocking the
+  event loop) ran unconditionally on every single stats-poll tick regardless
+  of whether anything was actually expired. It now runs on its own cadence,
+  `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` (default 1 hour, new CLI flag
+  `--stats-prune-interval-ms`), independent of `RTL_PANEL_STATS_POLL_INTERVAL_MS`.
+- **Stopped the frontend's background instance-list poll from cascading a
+  re-render through the whole app shell every 20 seconds regardless of
+  whether anything changed.** `InstanceListContext` now compares the freshly
+  polled list against the current one and only replaces state (and thus only
+  changes the context value's identity) when something actually differs.
+- **Memoized `InstanceEditPage`'s unsaved-changes check**, which did two full
+  `JSON.stringify` passes over the whole instance config on every render,
+  including renders caused by the unrelated background list poll while a
+  user was mid-edit.
+- **Merged `InstanceHealthOverview`'s independent 20s poll timer into the
+  same clock `InstanceListContext` already runs**, instead of two
+  independently-phased timers producing app re-renders roughly every 10
+  seconds on average.
+- **Removed `StatsPage`'s redundant `listInstances()` fetch** — it now reads
+  from the same shared `InstanceListContext` every other page already uses,
+  instead of duplicating the request (and, pre-cache-fix above, duplicating
+  a full re-parse of every instance's config) on every mount.
+- Fixed an unstable array-index React key on the Stats page's device-counter
+  tiles; stabilized `ConfigEditor`'s `channelTargets`/copy-to-channel handler
+  so they don't change identity on every keystroke.
+
 ## [0.4.93] - 2026-08-07
 
 ### Fixed
