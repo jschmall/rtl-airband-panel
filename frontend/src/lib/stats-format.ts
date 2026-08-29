@@ -20,19 +20,28 @@ export function formatCpuSeconds(seconds: number | undefined): string {
   return seconds === undefined ? "—" : seconds.toFixed(2);
 }
 
-const compactCountFormat = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-
 /**
- * Abbreviates an ever-growing counter for tile display, e.g. buffer_underrun_count
- * on a healthy, rarely-restarted instance can reach the millions over weeks of
- * uptime: 418 -> "418", 48213 -> "48.2K", 1432905 -> "1.4M". Pair with
- * `exactCount()` (e.g. in a tooltip) so the precise value stays one hover away.
+ * Plain-English display names for device/output metrics that would otherwise
+ * fall back to titleCaseMetric()'s naive title-casing (e.g. "Icecast
+ * Disconnect Count") -- covers the metrics that show up in the Device
+ * counters table and the Output stats cards.
  */
-export function formatCompactCount(value: number): string {
-  return compactCountFormat.format(value);
-}
+const FRIENDLY_METRIC_LABELS: Record<string, string> = {
+  buffer_overflow_count: "Buffer overflows",
+  buffer_underrun_count: "Buffer underruns",
+  output_overrun_count: "Output overruns",
+  centerfreq_retune_failure_count: "Retune failures",
+  process_cpu_seconds_total: "CPU time (s)",
+  icecast_disconnect_count: "Icecast disconnects",
+  lame_encode_failure_count: "MP3 encode failures",
+  file_write_failure_count: "File write failures",
+  udp_stream_dropped_packet_count: "UDP packets dropped",
+  pulse_disconnect_count: "PulseAudio disconnects",
+  rdio_scanner_queue_drop_count: "rdio-scanner queue drops",
+  rdio_scanner_upload_failure_count: "rdio-scanner upload failures",
+};
 
-/** Full precision with thousands separators, for a tooltip alongside a formatCompactCount() display. */
-export function exactCount(value: number): string {
-  return value.toLocaleString("en-US");
+/** Friendly display name for a metric, falling back to titleCaseMetric() for anything not in the map -- never hard-fails on an unlisted metric. */
+export function friendlyMetricLabel(metric: string): string {
+  return FRIENDLY_METRIC_LABELS[metric] ?? titleCaseMetric(metric);
 }

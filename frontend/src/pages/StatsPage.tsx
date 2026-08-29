@@ -2,20 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type StatSample } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
-import { BufferHealthTile } from "../components/stats/BufferHealthTile.js";
+import { DeviceCountersTable } from "../components/stats/DeviceCountersTable.js";
 import { isOutputCounterSample, OutputStats } from "../components/stats/OutputStats.js";
 import { SeriesChart, type Series } from "../components/stats/SeriesChart.js";
 import { StatTile } from "../components/stats/StatTile.js";
 import { TimeRangePicker } from "../components/stats/TimeRangePicker.js";
 import { deriveSquelchThresholdSeries } from "../lib/stats-derive.js";
-import { BUFFER_HEALTH_TOOLTIP, CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP, deviceMetricTooltip } from "../lib/stats-descriptions.js";
-import { formatCpuSeconds, humanizeLabels, titleCaseMetric } from "../lib/stats-format.js";
-import { buildMixerLookups, resolveMixerSampleLabel, type MixerLookups } from "../lib/stats-mixer-labels.js";
+import { CTCSS_TOOLTIP, SNR_CHART_TOOLTIP, SQUELCH_FLAPS_TOOLTIP, SQUELCH_OPENS_TOOLTIP } from "../lib/stats-descriptions.js";
+import { buildMixerLookups, type MixerLookups } from "../lib/stats-mixer-labels.js";
 import { CATEGORICAL } from "../lib/stats-palette.js";
 import { inputClass } from "../components/styles.js";
 import { AUTO_REFRESH_MS } from "../lib/polling.js";
 
-const EMPTY_MIXER_LOOKUPS: MixerLookups = { mixerNames: new Map(), inputChannels: new Map() };
+const EMPTY_MIXER_LOOKUPS: MixerLookups = { mixerNames: new Map(), inputChannels: new Map(), deviceChannels: new Map() };
 
 interface ChannelOption {
   key: string;
@@ -47,35 +46,6 @@ function discoverChannels(latest: StatSample[]): ChannelOption[] {
     }
   }
   return [...byKey.values()];
-}
-
-interface BufferHealth {
-  device: string;
-  overflow: number | undefined;
-  underrun: number | undefined;
-}
-
-/**
- * buffer_overflow_count and buffer_underrun_count are always device-labeled
- * (see input-common.h / rtl_airband.cpp in RTLSDR-Airband) and read together
- * -- see BUFFER_HEALTH_TOOLTIP -- so they're grouped into one tile per
- * device instead of rendering through the generic per-sample tile loop.
- */
-function groupBufferHealth(samples: StatSample[]): BufferHealth[] {
-  const byDevice = new Map<string, BufferHealth>();
-  for (const sample of samples) {
-    if (sample.metric !== "buffer_overflow_count" && sample.metric !== "buffer_underrun_count") continue;
-    const device = sample.labels["device"];
-    if (device === undefined) continue;
-    let entry = byDevice.get(device);
-    if (!entry) {
-      entry = { device, overflow: undefined, underrun: undefined };
-      byDevice.set(device, entry);
-    }
-    if (sample.metric === "buffer_overflow_count") entry.overflow = sample.value;
-    else entry.underrun = sample.value;
-  }
-  return [...byDevice.values()];
 }
 
 function findValue(samples: StatSample[], metric: string): number | undefined {
@@ -116,17 +86,8 @@ export function StatsPage() {
   // section below the chart instead of the device tile grid -- a mixer with a dozen inputs would
   // otherwise dwarf the rest of the page with one tile per input.
   const deviceOnlySamples = useMemo(() => deviceSamples.filter((s) => s.labels["mixer"] === undefined), [deviceSamples]);
-  const bufferHealthByDevice = useMemo(() => groupBufferHealth(deviceOnlySamples), [deviceOnlySamples]);
-  // Everything buffer health and OutputStats already cover is pulled out of the generic tile loop below.
-  const otherDeviceSamples = useMemo(
-    () =>
-      deviceOnlySamples.filter(
-        (s) =>
-          !((s.metric === "buffer_overflow_count" || s.metric === "buffer_underrun_count") && s.labels["device"] !== undefined) &&
-          !isOutputCounterSample(s)
-      ),
-    [deviceOnlySamples]
-  );
+  // Everything OutputStats already covers is pulled out of the device counters table.
+  const otherDeviceSamples = useMemo(() => deviceOnlySamples.filter((s) => !isOutputCounterSample(s)), [deviceOnlySamples]);
   const selectedChannel = channels.find((c) => c.key === selectedChannelKey) ?? channels[0];
   const channelSamples = useMemo(
     () => (latest && selectedChannel ? latest.filter((s) => canonicalizeLabels(s.labels) === selectedChannel.key) : []),
@@ -268,26 +229,6 @@ export function StatsPage() {
         </p>
       ) : (
         <>
-          {deviceOnlySamples.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium text-slate-400">Device counters (latest)</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {bufferHealthByDevice.map((bh) => (
-                  <BufferHealthTile key={`buffer-health-${bh.device}`} device={bh.device} overflow={bh.overflow} underrun={bh.underrun} tooltip={BUFFER_HEALTH_TOOLTIP} />
-                ))}
-                {otherDeviceSamples.map((sample) => (
-                  <StatTile
-                    key={`${sample.metric}-${canonicalizeLabels(sample.labels)}`}
-                    label={titleCaseMetric(sample.metric)}
-                    value={sample.metric === "process_cpu_seconds_total" ? formatCpuSeconds(sample.value) : sample.value}
-                    sublabel={resolveMixerSampleLabel(sample.metric, sample.labels, mixerLookups) ?? humanizeLabels(sample.labels)}
-                    tooltip={deviceMetricTooltip(sample.metric)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="space-y-4 border-t border-slate-800 pt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {channels.length > 0 && (
@@ -310,6 +251,8 @@ export function StatsPage() {
             </div>
 
             <SeriesChart title="Signal vs squelch threshold (dBFS)" series={snrSeries} tooltip={SNR_CHART_TOOLTIP} />
+
+            <DeviceCountersTable samples={otherDeviceSamples} />
 
             <OutputStats samples={deviceSamples} mixerLookups={mixerLookups} />
 

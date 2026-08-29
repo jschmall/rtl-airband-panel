@@ -5,6 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.100] - 2026-08-29
+
+### Changed
+
+- **Reworked the Stats page layout.** The signal/squelch chart now sits at
+  the top of the page (below the instance/channel/range pickers), since
+  it's the most useful info at a glance; the device counters and output
+  stats sections both moved below it and are now collapsible, collapsed by
+  default, using the shared `Collapsible` component instead of (for output
+  stats) a bespoke local toggle.
+- **Device counters are now a table, not a tile grid.** The old
+  `BufferHealthTile`/`StatTile` grid is replaced by a new
+  `DeviceCountersTable`: one row per device, one column per device-scoped
+  counter (columns derived from whatever metrics are actually present, so a
+  new device metric just becomes a new trailing column), with a small
+  process-wide caption below the table for metrics with no `device` label
+  (currently just CPU time).
+- **Output stats labeling is friendlier.** Device-channel group titles now
+  show the channel's configured label when it has one, falling back to
+  "Channel N" (position among that device's enabled channels) instead of
+  raw "Device X, Channel Y" indices; metric names throughout (device
+  counters table and output stats cards) use a new `friendlyMetricLabel()`
+  plain-English map instead of the naive title-cased metric name, falling
+  back to the old title-casing for anything not in the map.
+
+### Fixed
+
+- Migrating the output stats group cards onto the shared `Collapsible`
+  component surfaced a narrow-viewport layout bug: a long group title could
+  wrap onto two lines while the summary line (rendered as a flex sibling,
+  not inside the title's own wrapping flow) vertically centered into the
+  gap between them, visually overlapping the title. Fixed by keeping the
+  group title on one line with truncation instead of wrapping.
+
 ## [0.4.99] - 2026-08-09
 
 ### Fixed

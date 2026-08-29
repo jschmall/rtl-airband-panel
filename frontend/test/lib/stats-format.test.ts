@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCpuSeconds, humanizeLabels, titleCaseMetric } from "../../src/lib/stats-format.js";
+import { formatCpuSeconds, friendlyMetricLabel, humanizeLabels, titleCaseMetric } from "../../src/lib/stats-format.js";
 
 describe("titleCaseMetric", () => {
   it("strips channel_ prefix and _count/_counter/_total suffixes", () => {
@@ -27,5 +27,16 @@ describe("formatCpuSeconds", () => {
 
   it("shows an em dash when the metric hasn't been reported", () => {
     expect(formatCpuSeconds(undefined)).toBe("—");
+  });
+});
+
+describe("friendlyMetricLabel", () => {
+  it("returns the mapped plain-English name for a known metric", () => {
+    expect(friendlyMetricLabel("icecast_disconnect_count")).toBe("Icecast disconnects");
+    expect(friendlyMetricLabel("buffer_overflow_count")).toBe("Buffer overflows");
+  });
+
+  it("falls back to titleCaseMetric() for an unmapped metric", () => {
+    expect(friendlyMetricLabel("pulse_underflow_count")).toBe(titleCaseMetric("pulse_underflow_count"));
   });
 });

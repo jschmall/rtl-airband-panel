@@ -43,6 +43,3 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
 export function deviceMetricTooltip(metric: string): string | undefined {
   return DEVICE_METRIC_TOOLTIPS[metric];
 }
-
-export const BUFFER_HEALTH_TOOLTIP =
-  "Overflow counts times this device's sample buffer wasn't drained quickly enough (may indicate insufficient CPU power). Underrun counts times the demod thread found insufficient input data and had to wait -- expected to climb steadily under normal, healthy load, so read it as a trend rather than an absolute value. A device where Underrun goes flat while Overflow climbs indicates the demod thread is CPU-saturated rather than starved for input.";

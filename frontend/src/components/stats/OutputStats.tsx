@@ -1,8 +1,9 @@
-import { useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import type { StatSample } from "../../api/client.js";
+import { Collapsible } from "../Collapsible.js";
 import { deviceMetricTooltip } from "../../lib/stats-descriptions.js";
-import { titleCaseMetric } from "../../lib/stats-format.js";
-import type { MixerLookups } from "../../lib/stats-mixer-labels.js";
+import { friendlyMetricLabel } from "../../lib/stats-format.js";
+import { resolveDeviceChannelLabel, type MixerLookups } from "../../lib/stats-mixer-labels.js";
 import { Tooltip } from "../Tooltip.js";
 
 interface OutputStatsProps {
@@ -119,7 +120,11 @@ function buildOutputGroups(samples: StatSample[], lookups: MixerLookups): Output
     const channel = sample.labels["channel"];
     const group =
       device !== undefined && channel !== undefined
-        ? getGroup(`device:${device}:channel:${channel}`, "device-channel", `Device ${device}, Channel ${channel}`)
+        ? getGroup(
+            `device:${device}:channel:${channel}`,
+            "device-channel",
+            resolveDeviceChannelLabel(device, channel, lookups) ?? `Device ${device}, Channel ${channel}`
+          )
         : getGroup("process-wide", "process-wide", "Process-wide");
     group.otherOutputCounters.push({ key: `${output ?? "none"}:${sample.metric}`, metric: sample.metric, output: output ?? "—", value: sample.value });
   }
@@ -140,7 +145,6 @@ function outputFailureTotal(group: OutputGroup): number {
 }
 
 function OutputGroupCard({ group }: { group: OutputGroup }) {
-  const [expanded, setExpanded] = useState(false);
   const inputsWithDrops = group.inputs.filter((i) => i.value > 0).length;
   const failureTotal = outputFailureTotal(group);
 
@@ -167,80 +171,80 @@ function OutputGroupCard({ group }: { group: OutputGroup }) {
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-      <button type="button" onClick={() => setExpanded((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
-        <span className="font-medium text-slate-200">
-          <span className="mr-1 inline-block w-3 text-slate-500">{expanded ? "▾" : "▸"}</span>
-          {group.title}
-        </span>
-        <span className="shrink-0 text-xs text-slate-400">
-          {summaryParts.map((part, i) => (
-            <span key={part.key}>
-              {i > 0 && ", "}
-              {part}
-            </span>
-          ))}
-        </span>
-      </button>
-
-      {expanded && (group.inputs.length > 0 || group.otherOutputCounters.length > 0) && (
-        <div className="mt-3 space-y-3 border-t border-slate-800 pt-3">
-          {group.inputs.length > 0 && (
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-slate-400">
-                  <th className="py-1 pr-4">Input</th>
-                  <th className="py-1 pr-4 text-right">Overruns</th>
+      <Collapsible
+        // truncate (not the default wrapping text) keeps this on one line so the header
+        // row's own flex-wrap -- not this span's internal text-wrap -- is what decides
+        // whether the summary line moves below the title at narrow widths; letting the
+        // title wrap here instead let the summary vertically center into the gap between
+        // the title's wrapped lines and visually overlap it (found empirically at phone width).
+        title={<span className="block truncate font-medium text-slate-200">{group.title}</span>}
+        headerActions={
+          <span className="shrink-0 text-xs text-slate-400">
+            {summaryParts.map((part, i) => (
+              <span key={part.key}>
+                {i > 0 && ", "}
+                {part}
+              </span>
+            ))}
+          </span>
+        }
+      >
+        {group.inputs.length > 0 && (
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="text-slate-400">
+                <th className="py-1 pr-4">Input</th>
+                <th className="py-1 pr-4 text-right">Overruns</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.inputs.map((input) => (
+                <tr key={input.key} className="border-t border-slate-800 text-slate-300">
+                  <td className="py-1 pr-4">{input.label}</td>
+                  <td className={`py-1 pr-4 text-right tabular-nums ${input.value > 0 ? "font-semibold text-amber-300" : ""}`}>
+                    {input.value}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {group.inputs.map((input) => (
-                  <tr key={input.key} className="border-t border-slate-800 text-slate-300">
-                    <td className="py-1 pr-4">{input.label}</td>
-                    <td className={`py-1 pr-4 text-right tabular-nums ${input.value > 0 ? "font-semibold text-amber-300" : ""}`}>
-                      {input.value}
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {group.otherOutputCounters.length > 0 && (
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="text-slate-400">
+                <th className="py-1 pr-4">Output counter</th>
+                <th className="py-1 pr-4">Output</th>
+                <th className="py-1 pr-4 text-right">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.otherOutputCounters.map((counter) => {
+                const tooltip = deviceMetricTooltip(counter.metric);
+                const label = friendlyMetricLabel(counter.metric);
+                return (
+                  <tr key={counter.key} className="border-t border-slate-800 text-slate-300">
+                    <td className="py-1 pr-4">
+                      {tooltip ? (
+                        <Tooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
+                          {label}
+                        </Tooltip>
+                      ) : (
+                        label
+                      )}
+                    </td>
+                    <td className="py-1 pr-4">{counter.output}</td>
+                    <td className={`py-1 pr-4 text-right tabular-nums ${counter.value > 0 ? "font-semibold text-amber-300" : ""}`}>
+                      {counter.value}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {group.otherOutputCounters.length > 0 && (
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-slate-400">
-                  <th className="py-1 pr-4">Output counter</th>
-                  <th className="py-1 pr-4">Output</th>
-                  <th className="py-1 pr-4 text-right">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.otherOutputCounters.map((counter) => {
-                  const tooltip = deviceMetricTooltip(counter.metric);
-                  const label = titleCaseMetric(counter.metric);
-                  return (
-                    <tr key={counter.key} className="border-t border-slate-800 text-slate-300">
-                      <td className="py-1 pr-4">
-                        {tooltip ? (
-                          <Tooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
-                            {label}
-                          </Tooltip>
-                        ) : (
-                          label
-                        )}
-                      </td>
-                      <td className="py-1 pr-4">{counter.output}</td>
-                      <td className={`py-1 pr-4 text-right tabular-nums ${counter.value > 0 ? "font-semibold text-amber-300" : ""}`}>
-                        {counter.value}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </Collapsible>
     </div>
   );
 }
@@ -256,13 +260,10 @@ export function OutputStats({ samples, mixerLookups }: OutputStatsProps) {
   if (groups.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <h2 className="text-sm font-medium text-slate-400">Output stats</h2>
-      <div className="space-y-2">
-        {groups.map((group) => (
-          <OutputGroupCard key={group.key} group={group} />
-        ))}
-      </div>
-    </div>
+    <Collapsible title={<span className="text-sm font-medium text-slate-400">Output stats</span>} defaultOpen={false}>
+      {groups.map((group) => (
+        <OutputGroupCard key={group.key} group={group} />
+      ))}
+    </Collapsible>
   );
 }

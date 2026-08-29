@@ -6,6 +6,8 @@ export interface MixerLookups {
   mixerNames: Map<string, string>;
   /** "mixerIndex:inputIndex" (as they appear in input_overrun_count's labels) -> the feeding channel's display label. */
   inputChannels: Map<string, string>;
+  /** "deviceIndex:channelIndex" (as they appear in device/channel-scoped output counters' labels) -> that channel's Output stats group title. */
+  deviceChannels: Map<string, string>;
 }
 
 /**
@@ -65,7 +67,30 @@ export function buildMixerLookups(config: RtlAirbandConfig): MixerLookups {
     });
   });
 
-  return { mixerNames, inputChannels };
+  const deviceChannels = new Map<string, string>();
+  config.devices
+    .filter((device) => !device.disable)
+    .forEach((device, deviceIndex) => {
+      let channelIndex = 0;
+      device.channels.forEach((channel) => {
+        if (channel.disable) return;
+        const label = isMultichannelChannel(channel) && channel.label ? channel.label : `Channel ${channelIndex + 1}`;
+        deviceChannels.set(`${deviceIndex}:${channelIndex}`, label);
+        channelIndex += 1;
+      });
+    });
+
+  return { mixerNames, inputChannels, deviceChannels };
+}
+
+/**
+ * Renders an Output stats device-channel group's title: the channel's own
+ * configured label when it has one, otherwise "Channel N" by position among
+ * that device's enabled channels (1-indexed) -- never the raw device/channel
+ * indices RTLSDR-Airband uses internally, which aren't meaningful to a user.
+ */
+export function resolveDeviceChannelLabel(device: string, channel: string, lookups: MixerLookups): string | undefined {
+  return lookups.deviceChannels.get(`${device}:${channel}`);
 }
 
 /**

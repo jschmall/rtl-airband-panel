@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Device, Mixer } from "@rtl-airband-panel/parser";
-import { buildMixerLookups, resolveMixerSampleLabel } from "../../src/lib/stats-mixer-labels.js";
+import { buildMixerLookups, resolveDeviceChannelLabel, resolveMixerSampleLabel } from "../../src/lib/stats-mixer-labels.js";
 
 function makeDevice(overrides: Partial<Device> = {}): Device {
   return {
@@ -157,12 +157,84 @@ describe("buildMixerLookups", () => {
     expect(mixerNames.size).toBe(0);
     expect(inputChannels.size).toBe(0);
   });
+
+  it("labels a device-channel group by the channel's configured label, falling back to position when unlabeled", () => {
+    const devices: Device[] = [
+      makeDevice({
+        channels: [
+          { freq: 151_190_000, label: "Tac 4", afc: 0, modulation: "nfm", outputs: [{ type: "icecast", server: "s", port: 80, mountpoint: "m", username: "u", password: "p" }] },
+          { freq: 151_257_500, afc: 0, modulation: "nfm", outputs: [{ type: "icecast", server: "s", port: 80, mountpoint: "m", username: "u", password: "p" }] },
+        ],
+      }),
+    ];
+
+    const { deviceChannels } = buildMixerLookups({
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices,
+    });
+
+    expect(deviceChannels).toEqual(
+      new Map([
+        ["0:0", "Tac 4"],
+        ["0:1", "Channel 2"],
+      ])
+    );
+  });
+
+  it("skips disabled devices and channels when numbering deviceChannels, and falls back to Channel N for a scan-mode channel", () => {
+    const devices: Device[] = [
+      makeDevice({ disable: true, channels: [{ freq: 151_000_000, afc: 0, modulation: "nfm", outputs: [] }] }),
+      makeDevice({
+        serial: "2",
+        channels: [
+          { freq: 151_100_000, disable: true, afc: 0, modulation: "nfm", outputs: [] },
+          { freq: 151_300_000, label: "Kept", afc: 0, modulation: "nfm", outputs: [] },
+        ],
+      }),
+      makeDevice({ serial: "3", mode: "scan", channels: [{ freqs: [151_000_000, 151_100_000], afc: 0, outputs: [] }] }),
+    ];
+
+    const { deviceChannels } = buildMixerLookups({
+      multiple_demod_threads: true,
+      multiple_output_threads: true,
+      stats_filepath: "/tmp/stats.txt",
+      localtime: true,
+      devices,
+    });
+
+    expect(deviceChannels).toEqual(
+      new Map([
+        ["0:0", "Kept"],
+        ["1:0", "Channel 1"],
+      ])
+    );
+  });
+});
+
+describe("resolveDeviceChannelLabel", () => {
+  const lookups = {
+    mixerNames: new Map(),
+    inputChannels: new Map(),
+    deviceChannels: new Map([["0:1", "Tac 4"]]),
+  };
+
+  it("resolves a device/channel pair to its Output stats group title", () => {
+    expect(resolveDeviceChannelLabel("0", "1", lookups)).toBe("Tac 4");
+  });
+
+  it("returns undefined when the pair isn't in the lookup, so callers can fall back to raw indices", () => {
+    expect(resolveDeviceChannelLabel("0", "9", lookups)).toBeUndefined();
+  });
 });
 
 describe("resolveMixerSampleLabel", () => {
   const lookups = {
     mixerNames: new Map([["0", "bcfy_1"]]),
     inputChannels: new Map([["0:1", "151.1900 MHz — Tac 4"]]),
+    deviceChannels: new Map(),
   };
 
   it("resolves an input_overrun_count sample to the mixer name and feeding channel", () => {
