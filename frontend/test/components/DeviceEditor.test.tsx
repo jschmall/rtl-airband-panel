@@ -100,3 +100,17 @@ describe("DeviceEditor reserve_channels field", () => {
     expect(screen.getByLabelText(/Reserve channels/)).toHaveValue(4);
   });
 });
+
+describe("DeviceEditor frequency-range summary", () => {
+  it("shows the occupied channel range and usable window above the channel list", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+
+    // defaultDevice() starts with centerfreq 0, sample_rate 0, and one channel at freq 0 --
+    // a degenerate but valid case: single-channel range collapses to one value, and the
+    // usable window (bwLimit = 0) collapses to the same centerfreq on both sides.
+    expect(screen.getByText("Channel: 0.0000 MHz (device window: 0.0000–0.0000 MHz)")).toBeInTheDocument();
+  });
+});

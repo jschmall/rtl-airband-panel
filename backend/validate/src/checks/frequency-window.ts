@@ -2,8 +2,13 @@ import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
 import type { ValidationIssue } from "../types.js";
 import { DEFAULT_SAMPLE_RATE_HZ } from "../rtlsdr-defaults.js";
 
-/** RTLSDR-Airband's own soft threshold (config.cpp, warn_if_freq_not_in_range). */
-const SOFT_BW_THRESHOLD = 0.9;
+/**
+ * RTLSDR-Airband's own soft threshold (config.cpp, warn_if_freq_not_in_range).
+ * Exported so callers outside this check (e.g. the frontend's device-editor
+ * "usable window" display) can compute the exact same window this check
+ * warns against, instead of duplicating the literal.
+ */
+export const SOFT_BW_THRESHOLD = 0.9;
 
 /**
  * Warns (not errors — RTLSDR-Airband itself only logs a warning and keeps

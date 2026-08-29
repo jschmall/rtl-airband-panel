@@ -16,6 +16,7 @@ import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
 import { isMultichannelChannel, isScanChannel, type ChannelTarget } from "../lib/channel-targets.js";
+import { channelFrequencyRangeHz, deviceUsableWindowHz } from "../lib/frequency-range.js";
 
 /** Wraps a channel row with a drag handle for reordering -- outputs within a channel are never draggable, so this only ever wraps a whole ChannelEditor. */
 function SortableChannelRow({ id, children }: { id: string | number; children: ReactNode }) {
@@ -109,6 +110,18 @@ export const DeviceEditor = memo(function DeviceEditor({
   const isMiri = device.type === "mirisdr";
   const isRtl = device.type === "rtlsdr";
   const isScan = device.mode === "scan";
+
+  // At-a-glance occupied range + usable-window summary shown above the channel list --
+  // see frequency-range.ts. deviceUsableWindowHz mirrors backend/validate's
+  // checkFrequencyWindow exactly, so this can never disagree with that check's warning.
+  const channelRange = channelFrequencyRangeHz(device);
+  const usableWindow = deviceUsableWindowHz(device);
+  const formatMHz = (hz: number) => (hz / 1e6).toFixed(4);
+  const frequencyRangeSummary = channelRange
+    ? `${channelRange.min === channelRange.max ? "Channel" : "Channels"}: ${formatMHz(channelRange.min)}` +
+      `${channelRange.min === channelRange.max ? "" : `–${formatMHz(channelRange.max)}`} MHz` +
+      (usableWindow ? ` (device window: ${formatMHz(usableWindow.min)}–${formatMHz(usableWindow.max)} MHz)` : "")
+    : undefined;
 
   // Remembers the last-edited device state for each Type and each Mode visited in this
   // editing session, so flipping either dropdown away and back restores what was there
@@ -477,6 +490,7 @@ export const DeviceEditor = memo(function DeviceEditor({
             )}
           </div>
         </div>
+        {frequencyRangeSummary && <p className="text-xs text-slate-400">{frequencyRangeSummary}</p>}
         {isScan ? (
           <ScanChannelEditor
             channel={device.channels.find(isScanChannel) ?? defaultScanChannel()}

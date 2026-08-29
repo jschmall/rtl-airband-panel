@@ -67,7 +67,7 @@ export { isValid } from "./types.js";
 export { computeBin, DEFAULT_FFT_SIZE, MIN_FFT_SIZE, MAX_FFT_SIZE } from "./fft.js";
 export { DEFAULT_SAMPLE_RATE_HZ, MIN_SAMPLE_RATE_HZ, RTLSDR_SAMPLE_RATE_DEAD_ZONE, RTLSDR_COMMON_SAMPLE_RATES_HZ } from "./rtlsdr-defaults.js";
 export { STANDARD_CTCSS_TONES } from "./ctcss-tones.js";
-export { checkFrequencyWindow } from "./checks/frequency-window.js";
+export { checkFrequencyWindow, SOFT_BW_THRESHOLD } from "./checks/frequency-window.js";
 export { checkBinCollisions } from "./checks/bin-collision.js";
 export { checkCtcssTones } from "./checks/ctcss.js";
 export { checkScanMode } from "./checks/scan-mode.js";

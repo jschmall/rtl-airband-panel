@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.101] - 2026-08-29
+
+### Added
+
+- **Device edit page shows an at-a-glance channel frequency-range summary.**
+  Above each device's channel list, a new line shows the lowest/highest
+  configured channel frequency (e.g. "Channels: 146.8000–147.0000 MHz")
+  alongside the device's usable tuning window (e.g. "device window:
+  146.2700–147.5300 MHz") — useful for spotting free room when adding a new
+  channel. The window figure reuses `backend/validate`'s
+  `checkFrequencyWindow` formula exactly (its `SOFT_BW_THRESHOLD` constant
+  is now a public export for this purpose), so it can never disagree with
+  that check's own `frequency-out-of-window` warning. Scan-mode devices show
+  the occupied range across their scan list but no window, matching that
+  check's own exclusion (no fixed capture window in scan mode). New pure
+  helpers `channelFrequencyRangeHz()`/`deviceUsableWindowHz()` in
+  `frontend/src/lib/frequency-range.ts`.
+
 ## [0.4.100] - 2026-08-29
 
 ### Changed
