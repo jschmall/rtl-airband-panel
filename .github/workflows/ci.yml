@@ -52,3 +52,25 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  # Black-box comparison of the TypeScript API and the Rust panel: same
+  # requests, same responses, same files left on disk.
+  api-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+      - run: npm run build:deps
+      - run: npm run build --workspace=backend/api
+      - run: cargo build -p rtl-airband-panel
+      - run: node scripts/api-parity.mjs

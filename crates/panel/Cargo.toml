@@ -1,0 +1,43 @@
+[package]
+name = "rtl-airband-panel"
+description = "Web control panel for RTLSDR-Airband instances"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "rtl-airband-panel"
+path = "src/main.rs"
+
+[lib]
+name = "panel"
+path = "src/lib.rs"
+
+[dependencies]
+airband-config = { path = "../airband-config" }
+airband-supervisor = { path = "../airband-supervisor" }
+airband-validate = { path = "../airband-validate" }
+axum = { version = "0.8", features = ["ws"] }
+base64 = "0.22"
+clap = { version = "4", features = ["derive", "env"] }
+dotenvy = "0.15"
+futures = "0.3"
+mime_guess = "2"
+rusqlite = { version = "0.37", features = ["bundled"] }
+rust-embed = { version = "8", features = ["interpolate-folder-path"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream = { version = "0.1", features = ["sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+tokio-tungstenite = "0.27"

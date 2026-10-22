@@ -140,7 +140,7 @@ async fn stats_http_endpoint() {
 async fn mock_units_track_state() {
     let units = MockUnits::default();
     let unit = "rtl_151.service";
-    assert_eq!(units.status(unit).await.unwrap().active_state, ActiveState::Inactive);
+    assert_eq!(units.status(unit).await.unwrap().active_state, ActiveState::Unknown);
     units.restart(unit).await.unwrap();
     let running = units.status(unit).await.unwrap();
     assert_eq!(running.active_state, ActiveState::Active);

@@ -384,9 +384,10 @@ impl MockUnits {
     }
 
     fn status_of(s: &MockState, unit: &str) -> UnitStatus {
+        // Same default the TS mock reported for a unit it has never touched.
         s.statuses.get(unit).cloned().unwrap_or(UnitStatus {
             unit: unit.to_string(),
-            active_state: ActiveState::Inactive,
+            active_state: ActiveState::Unknown,
             sub_state: "dead".into(),
             active_enter_timestamp: None,
         })

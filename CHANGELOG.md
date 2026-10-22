@@ -5,6 +5,66 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.107] - 2026-10-22
+
+### Added
+
+- **`crates/panel`: the Rust panel server (`rtl-airband-panel` binary).**
+  It replaces `backend/api` with the same REST API: every route, JSON shape,
+  status code, ETag/If-Match behavior, `_matchIndex` secret pairing, and SSE
+  log stream. The existing React frontend works against it unchanged. It
+  reads and writes the same instances-directory state (`.pending-restarts.json`,
+  `.instance-options.json`, `.backups/`) and the same stats DB schema, so it
+  can take over an existing deployment in place. Settings use the same
+  `RTL_PANEL_*` env vars and flags.
+  - Built on axum. The release build is a single 12 MB binary with the
+    frontend and SQLite built in.
+  - `scripts/api-parity.mjs` starts both backends in mock mode on copies of
+    the same instances directory and sends them 54 identical requests:
+    reads, saves, conflicts, validation failures, secret restoration,
+    live apply, options, restart, rename, create, import, stats, metrics and
+    delete. Responses and the files left on disk match exactly. A new
+    `api-parity` CI job runs it.
+- **Live-apply planning in the API.**
+  - New `POST /api/instances/:name/plan` predicts what applying an edited
+    config would do, without writing it.
+  - Save (without restart) and apply-live responses now carry a `plan` with
+    the method, live changes, restart-only changes, interruptions and
+    `baselineKnown`.
+  - The panel records each instance's started/applied config under
+    `.running/`, so predictions compare against what the process actually
+    loaded, including `reserve_channels` capacity from its last start.
+- **`/api/ws` push channel:** a hello on connect, `health` snapshots whenever
+  a unit's status changes, and `instance-changed` after every mutation.
+  Clients that fall behind are disconnected so they resync. The frontend
+  doesn't use it yet.
+- **Authentication and request hardening.**
+  - Optional HTTP Basic auth (`RTL_PANEL_PASSWORD`, `RTL_PANEL_USERNAME`).
+    The panel refuses to listen on a non-loopback address without it unless
+    `--allow-unauthenticated` is passed. `/api/health` stays open for
+    monitors.
+  - State-changing requests and WebSocket upgrades with a foreign `Origin`
+    are refused.
+  - A loopback-bound panel only answers loopback `Host` names (DNS-rebinding
+    guard).
+  - Rate limits are kept from the TS API: 300/min per IP, 60/min per
+    mutating route.
+  - helmet-equivalent security headers, minus HSTS and
+    upgrade-insecure-requests, which break plain-HTTP LAN access.
+- **`RTL_PANEL_DEFAULT_SERVICE_USER` / `_GROUP`:** the default `User=`/
+  `Group=` for generated instance units when no per-instance override is
+  set. The default is empty, the same as before. Set it to the panel's own
+  user so live apply's control socket accepts the panel.
+
+### Fixed
+
+- **Pending-restart is no longer cleared by a live apply that missed
+  changes.** It is cleared only when `reload_diff` skipped nothing *and* the
+  prediction found nothing restart-only. The TS panel cleared it whenever
+  `reload_diff` reported nothing skipped, even for changes `reload_diff`
+  silently ignores (any global setting, a mixer's outputs, device serial,
+  ...), so the panel reported those changes as applied when they weren't.
+
 ## [0.4.106] - 2026-10-22
 
 ### Added
