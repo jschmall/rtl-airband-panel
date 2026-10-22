@@ -5,6 +5,59 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.106] - 2026-10-22
+
+### Added
+
+- **`crates/airband-supervisor`: controlling rtl_airband instances from
+  outside the process.** This is the Rust replacement for `backend/api`'s
+  systemd, control-socket and stats layers.
+  - `UnitManager` trait, ported from `SystemdAdapter`, with two
+    implementations:
+    - `SudoSystemctl`: scoped by unit-name prefix, with argv pinned by a
+      test to match `deploy/rtl-airband-panel.sudoers`.
+    - `MockUnits`: records calls instead of touching the system.
+  - `status_many` covers every unit in one `systemctl show` call.
+  - Journal reading and following. rtl_airband's `-j` JSON log lines are
+    unwrapped into level + message.
+  - Control-socket client: `reload_diff`, plus `retune`, `set_gain`,
+    `set_sample_rate`, `set_bandwidth`, `set_correction`,
+    `channel_enable`/`channel_disable` and `mixer_enable`/`mixer_disable`.
+  - Stats reader, from `stats_filepath` or the fork's `stats_http`
+    endpoint. It skips unchanged files and has size and time caps.
+  - Rendering instance unit files, and parsing an existing unit's
+    `ExecStart` to find which binary and config an instance actually runs.
+  - `rtl_airband -v` version detection, a per-instance keyed mutex, and
+    instance-name rules.
+- **Live-apply vs restart prediction (`plan_change`).** Before a config is
+  written, it predicts whether `reload_diff` can apply the change live or the
+  instance's unit must restart, and which channels or devices a live apply
+  briefly interrupts. It mirrors the fork's `compute_and_apply_diff()`
+  (v6.3.0), including its channel-signature rules: values are rendered with
+  C++ `%g` (6 significant digits), and literal types matter. It also covers
+  what `reload_diff` drops without reporting:
+  - Anything outside its scope: global settings, a mixer's own outputs and
+    filters, and device serial/buffers/reserve_channels.
+  - Per-driver setters that return ENOTSUP: mirisdr has no live
+    gain/bandwidth/correction, and soapysdr has no live correction (and
+    refuses live sample_rate).
+  - Float `correction`/`bandwidth` values, which `reload_diff` misreads as MHz.
+  - Edits smaller than its float signature precision.
+
+  Added channels are checked against `reserve_channels` headroom from the
+  config the process started with. On all 12 real deployment configs, an
+  unchanged re-save is correctly predicted as "no change" and a gain edit as
+  live.
+- **`cargo run -p airband-supervisor --example plan -- running.conf next.conf`**
+  (or `--resave running.conf`), a dev tool that prints the prediction as JSON.
+
+### Fixed
+
+- **The example sudoers rule now allows the panel's status call.** The
+  status query requests `ActiveEnterTimestamp` (and now `--timestamp=utc`),
+  but the rule only allowed `ActiveState`/`SubState`. sudo matches arguments
+  literally, so every status check in sudo mode was refused.
+
 ## [0.4.105] - 2026-10-22
 
 ### Added
