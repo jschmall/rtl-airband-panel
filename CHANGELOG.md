@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.104] - 2026-10-22
+
+### Added
+
+- **Checked the Rust parser against 12 real deployment configs (not
+  committed; they contain credentials).** The TS and Rust parsers produce an
+  identical domain model and byte-identical written files for all 12. A
+  key-by-key comparison of each original file with the panel's rewrite of
+  it shows all 3,475 settings kept with the same meaning: none missing, none
+  added, none changed. The only differences are comments, whitespace, and
+  float-MHz values written as integer Hz, which rtl_airband reads
+  identically. None of the 12 contain settings the panel doesn't model.
+- **New corpus case `ok-live-coverage.conf`** for the four setting
+  combinations the real configs use that the fixtures didn't cover:
+  `disable` on mixer and udp_stream outputs, and `disable`/`send_tx_tags` on
+  a mixer's own icecast output. Its golden is recorded from the TS parser
+  like the others.
+- **`cargo run -p airband-config --example dump -- <file.conf>`**, a dev
+  tool that prints the Rust parser's view of a config (domain model, written
+  text, and syntax trees) in the same JSON shape as the parity goldens, for
+  checking real configs against the TS parser.
+
 ## [0.4.103] - 2026-10-22
 
 First commit on the `rust` branch (Rust rewrite; see CLAUDE.md).

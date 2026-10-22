@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "airband-config"
-version = "0.4.103"
+version = "0.4.104"
 dependencies = [
  "regex",
  "serde",
