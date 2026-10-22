@@ -100,9 +100,9 @@ Design reference: TrunkRecorder/trunk-recorder-pro (GPL-3) — borrow
 patterns, never copy code.
 
 ## Branches
-- `master` — shipping version.
-- `airband-bundle` — fork bundling, static build, release workflow,
-  install script (next).
+- `master` — shipping version. Fork bundling, the static release build
+  and install.sh landed from `airband-bundle` in v0.4.116; new work goes on
+  a fresh topic branch.
 Confirm which branch new work targets before the first commit.
 
 ## Priorities, in order

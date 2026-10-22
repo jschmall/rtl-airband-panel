@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.116] - 2026-10-22
+
+### Changed
+
+- **Merged the `airband-bundle` branch into `master` (v0.4.114 to
+  v0.4.115).** This took two merges: pull request #8 brought in v0.4.114,
+  and a follow-up merge brought in v0.4.115. `master` now builds release
+  downloads with the jschmall/RTLSDR-Airband fork bundled:
+  - the fork as a submodule pinned at v6.3.1;
+  - a static (musl) `rtl_airband` and panel per architecture (amd64,
+    arm64), built by `scripts/build-release.sh` and the Release workflow;
+  - `install.sh` for installing, upgrading and uninstalling;
+  - README, DEPLOYMENT and DEVELOPMENT docs for release installs.
+- **CLAUDE.md:** the branch list no longer names `airband-bundle` as the
+  next branch.
+
 ## [0.4.115] - 2026-10-22
 
 ### Changed
