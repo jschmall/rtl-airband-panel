@@ -19,6 +19,8 @@ A Cargo workspace plus one npm workspace (the frontend):
 | [`crates/panel`](./crates/panel) | The `rtl-airband-panel` binary: axum HTTP API, `/api/ws` push channel, SQLite stats history, auth and request guards, the instance service, the embedded frontend. |
 | [`crates/airband-wasm`](./crates/airband-wasm) | `airband-validate` compiled to WebAssembly for live validation in the editor. |
 | [`frontend`](./frontend) | React + Vite + Tailwind UI. Its config/validation types and constants are generated from the Rust crates. |
+| [`vendor/RTLSDR-Airband`](https://github.com/jschmall/RTLSDR-Airband) | The fork, as a git submodule pinned to a release tag. Only the release build uses it. |
+| [`packaging`](./packaging) | Release build (`Dockerfile`), `install.sh`, the udev rule and kernel-driver blacklist. |
 
 ```
 .conf file  <──parse/serialize──>  domain model  <──validate──>  {errors, warnings}
@@ -98,6 +100,77 @@ Open `http://localhost:5173`. Vite proxies `/api/*` (including the
 `VITE_API_PROXY_TARGET`). Point `--instances-dir` at a copy if you plan to
 save. To check a built frontend without rebuilding the binary, pass
 `--frontend-dist frontend/dist`.
+
+## Releases
+
+A release is a tarball per architecture,
+`rtl-airband-panel-vX.Y.Z-linux-{amd64,arm64}.tar.gz`, holding both
+programs (`bin/`), `install.sh`, the files it installs (`deploy/`), the
+docs, and a `VERSIONS` file. Both programs are fully static (musl), so one
+tarball runs on any Linux distribution of that architecture.
+
+### Building one
+
+```bash
+git submodule update --init      # once, after cloning
+scripts/build-release.sh amd64   # or arm64; output in dist/
+```
+
+It needs Docker with buildx. Building for the other architecture works
+through QEMU (`docker run --privileged --rm tonistiigi/binfmt --install
+arm64`) but is slow: about 25 minutes for arm64 on a 4-core x86 machine,
+with the dependency layers already cached.
+`packaging/Dockerfile` does the work in stages:
+
+- **`airband-deps`**: Alpine with static libraries for everything
+  rtl_airband links. speex, rtl-sdr-blog's librtlsdr and libmirisdr-4 have
+  no static Alpine packages, so they're built from source at pinned
+  versions.
+- **`airband`**: builds the submodule (exported with `git archive`, so the
+  fork's version script reports the tag), runs its unit tests, and checks
+  the binary has no dynamic dependencies. The fork's CMake isn't changed;
+  the static link comes from the cache variables in the Dockerfile, which
+  explains each one. One source patch is applied:
+  `packaging/airband-static-drivers.patch`. The fork finds its input
+  drivers with `dlsym()`, which can't work in a static binary, so the patch
+  falls back to the drivers linked in. If a fork bump makes the patch fail
+  to apply, the build stops there.
+- **`frontend`**, **`panel`**: the frontend, then the panel with it
+  embedded, for the musl target.
+
+Bundled rtl_airband has NFM, rdio-scanner, RTL-SDR and Mirics support;
+PulseAudio and SoapySDR are off (they need a sound server or runtime
+plugins, neither of which fits a static binary).
+
+### Publishing
+
+The Release workflow (`.github/workflows/release.yml`) builds both
+architectures on GitHub's runners for every `v*` tag push and keeps the
+tarballs as workflow artifacts. Nothing is published automatically. To
+publish, run the workflow by hand (Actions → Release → Run workflow) with
+the tag. That creates the GitHub release from the tarballs and their
+`.sha256` files, with that version's CHANGELOG entry as the notes.
+
+### Bumping the bundled fork
+
+The submodule is always pinned to a fork release tag:
+
+```bash
+git -C vendor/RTLSDR-Airband fetch --tags
+git -C vendor/RTLSDR-Airband checkout vX.Y.Z
+git add vendor/RTLSDR-Airband
+```
+
+Commit that on its own, with the usual version bump and a CHANGELOG entry
+naming the old and new fork versions. In the same pass, check the fork's
+changes for:
+
+- new config settings (they're kept as unknown settings until the panel
+  models them);
+- new CMake options or libraries (`packaging/Dockerfile`);
+- changes to `src/input-common.cpp` (the static-drivers patch).
+
+Then run `scripts/build-release.sh amd64` and check its unit tests pass.
 
 ## How it works
 

@@ -1,0 +1,3 @@
+[submodule "vendor/RTLSDR-Airband"]
+	path = vendor/RTLSDR-Airband
+	url = https://github.com/jschmall/RTLSDR-Airband.git

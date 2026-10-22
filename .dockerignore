@@ -1,0 +1,12 @@
+# Docker build context for packaging/Dockerfile: only what the build copies.
+**
+!package.json
+!package-lock.json
+!frontend
+frontend/node_modules
+frontend/dist
+!Cargo.toml
+!Cargo.lock
+!.cargo
+!crates
+!packaging/airband-static-drivers.patch

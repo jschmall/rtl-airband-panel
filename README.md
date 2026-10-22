@@ -45,7 +45,7 @@ restart only the one you changed.
 
 ## Which RTLSDR-Airband do I need?
 
-The panel works with standard RTLSDR-Airband. A few features need
+The release download includes a build of
 [`jschmall/RTLSDR-Airband`](https://github.com/jschmall/RTLSDR-Airband), a
 fork that tracks upstream and adds:
 
@@ -54,15 +54,79 @@ fork that tracks upstream and adds:
 - combining channels from different SDRs into one mix (`mixer_remote`)
 - structured JSON logs, and a stats HTTP endpoint
 
-The editor marks fork-only settings as such. Standard RTLSDR-Airband
-ignores most of them, but a few (the `mixer_remote` output type, JSON
-logging) stop it from starting.
+New instances you create in the panel use that build. Instances you
+already have keep running whatever `rtl_airband` their service points at,
+so you can switch them over one at a time, or not at all.
+
+The panel also works with standard RTLSDR-Airband. The editor marks
+fork-only settings as such. Standard RTLSDR-Airband ignores most of them,
+but a few (the `mixer_remote` output type, JSON logging) stop it from
+starting.
+
+The bundled `rtl_airband` supports RTL-SDR and Mirics dongles, with
+narrowband FM and rdio-scanner uploads. It's built without PulseAudio and
+SoapySDR output/input; if you need those, build the fork yourself and point
+the panel at it (`RTL_PANEL_RTL_AIRBAND_BIN`).
 
 ## Installing
 
-There are no ready-made downloads yet, so you build the panel yourself. It
-takes a few minutes on a PC. A Raspberry Pi can build it too, but slowly
-(think tens of minutes on a Pi 4, with at least 2 GB of RAM).
+### From a release (recommended)
+
+Releases are on the
+[Releases page](https://github.com/jschmall/rtl-airband-panel/releases),
+for 64-bit Intel/AMD (`amd64`) and 64-bit ARM (`arm64`: a Raspberry Pi 3,
+4 or 5 running a 64-bit OS). Both programs are self-contained, so they
+work on any Linux with systemd: Debian, Ubuntu, Raspberry Pi OS and others.
+
+```bash
+# pick the file for your machine (uname -m: x86_64 = amd64, aarch64 = arm64)
+curl -LO https://github.com/jschmall/rtl-airband-panel/releases/download/vX.Y.Z/rtl-airband-panel-vX.Y.Z-linux-amd64.tar.gz
+tar xzf rtl-airband-panel-vX.Y.Z-linux-amd64.tar.gz
+cd rtl-airband-panel-vX.Y.Z-linux-amd64
+sudo ./install.sh
+```
+
+The installer sets up:
+
+- the panel and the bundled `rtl_airband`, in
+  `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`; an
+  `rtl_airband` you already have there is left alone);
+- an `rtl-airband-panel` account that runs the panel and new instances;
+- access to SDR dongles without root (a udev rule, and a blacklist that
+  stops the kernel's TV drivers from grabbing them; if they're already
+  loaded, reboot once);
+- the panel's settings in `/etc/rtl-airband-panel/panel.env`;
+- a narrow `sudo` rule so the panel can start, stop and restart instance
+  services;
+- the panel's own service, started now and at every boot.
+
+Then open <http://localhost:3000> on that machine. Useful options (see
+`./install.sh --help`):
+
+| Option | |
+| --- | --- |
+| `--listen-all` | Reachable from your whole network; generates a login password and prints it |
+| `--instances-dir DIR` | Where your instance configs live (default `/etc/rtl-airband-panel/instances`) |
+| `--unit-prefix rtl_` | Only let the panel manage services whose names start with `rtl_` |
+| `--no-start` | Install but don't start the panel yet |
+
+**Upgrading:** download the new release and run `sudo ./install.sh` again.
+It replaces both programs and keeps your settings. Running instances keep
+the old `rtl_airband` until each one is restarted.
+
+**Uninstalling:** `sudo ./install.sh --uninstall` removes the programs, the
+panel's service and its system files. It keeps your configs, settings,
+stats and every instance's own service.
+
+**Already running the old Node.js panel?** The installer backs up its
+service file and replaces it; see
+[Migrating from the Node.js panel](./DEPLOYMENT.md#migrating-from-the-nodejs-panel).
+
+### Building from source
+
+Building takes a few minutes on a PC. A Raspberry Pi can build it too, but
+slowly (think tens of minutes on a Pi 4, with at least 2 GB of RAM). This
+builds only the panel; `rtl_airband` comes from your own install.
 
 **1. Install the build tools.** On Debian, Ubuntu or Raspberry Pi OS:
 
@@ -91,14 +155,18 @@ sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
 rtl-airband-panel --version
 ```
 
-That's one file with everything built in. You can copy it to another
-machine of the same kind (for example, from one 64-bit Intel/AMD Debian box
-to another) instead of building there too.
+That's one file with everything built in. To run it as a service, follow
+[DEPLOYMENT.md](./DEPLOYMENT.md). To build the full release tarball
+(including `rtl_airband`) yourself, see
+[DEVELOPMENT.md](./DEVELOPMENT.md#releases).
 
 ## Trying it out
 
-Start with a **copy** of your configs, so nothing you try can affect your
-running radios:
+The installer's panel manages real services straight away. To look around
+first without any risk (or after building from source), run the panel by
+hand against a **copy** of your configs, so nothing you try can affect your
+running radios (add `--port 3001` if the installed panel is already using
+3000):
 
 ```bash
 mkdir -p ~/panel-test

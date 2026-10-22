@@ -12,20 +12,31 @@ The panel is moving away from supporting arbitrary/vanilla RTLSDR-Airband
 builds. It ships with — and is developed against — a pinned build of the
 jschmall/RTLSDR-Airband fork (github.com/jschmall/RTLSDR-Airband), which
 itself tracks upstream rtl-airband/RTLSDR-Airband via periodic merges.
-- Instances run the bundled `rtl_airband` binary. The panel verifies this
-  via `rtl_airband -v` (prints a `git describe` version) rather than
-  assuming it.
+- New instances run the bundled `rtl_airband` binary (install.sh points
+  `RTL_PANEL_RTL_AIRBAND_BIN` at it); existing instances keep whatever
+  their unit's `ExecStart` runs. Never assume which build a unit runs:
+  `rtl_airband -v` (`airband_supervisor::binary_version`) is how to find
+  out. That check isn't surfaced in the panel yet.
 - Fork-only config features (control_socket_path / live reload,
   reserve_channels / reserve_inputs, rdio_scanner, mixer_remote,
   send_tx_tags, stats_http, `-j` JSON logging) are first-class, not
   optional extras.
 - New firmware-side features land in the fork first, then the panel adds
-  config support. When the fork changes, the panel's pinned fork ref is
-  bumped in a single, dedicated commit (procedure to be documented once the
-  `airband-bundle` branch lands — fork is planned as a git submodule at
-  `vendor/RTLSDR-Airband`).
-- End goal: a release tarball per architecture containing the panel binary,
-  a static `rtl_airband` binary, and an `install.sh`.
+  config support. The fork is a git submodule at `vendor/RTLSDR-Airband`,
+  pinned to a fork release tag (never a bare commit: the release names the
+  rtl_airband version it ships, taken from the tag). Bumping the pin is its
+  own commit: `git -C vendor/RTLSDR-Airband fetch --tags && git -C
+  vendor/RTLSDR-Airband checkout vX.Y.Z && git add vendor/RTLSDR-Airband`,
+  plus the usual version bump and a CHANGELOG entry naming the old and new
+  fork versions. Check the fork's diff for new config keys (they survive as
+  `unknown_settings` until modeled) and new CMake options/dependencies
+  (packaging/Dockerfile) in the same pass.
+- Releases: a tarball per architecture (amd64, arm64) with the static panel
+  binary, a static `rtl_airband` built from the pinned fork, and
+  `install.sh` (`scripts/build-release.sh`, `packaging/`, the Release
+  workflow). Bundled builds have PulseAudio and SoapySDR off (runtime
+  plugins/sound server); people who need those build rtl_airband themselves
+  and point `RTL_PANEL_RTL_AIRBAND_BIN` at it.
 
 ## Architecture constraints (do not violate)
 - RTLSDR-Airband config is parsed once at process startup into

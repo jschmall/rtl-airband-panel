@@ -2,9 +2,20 @@
 
 This covers running rtl-airband-panel as a long-lived service, rather than
 just starting it in a terminal to try it out. See [README.md](./README.md)
-for building the binary and a first run, and its
+for installing and a first run, and its
 [Settings](./README.md#settings) section for every setting
 mentioned here.
+
+**If you installed from a release, `install.sh` has already done the
+service setup below:** the service account, `panel.env`, the sudoers rule
+and the panel's unit. You don't need to repeat those steps. The rest of
+this page still applies: network access, the reverse proxy, logs and
+backups. To change a setting, edit `/etc/rtl-airband-panel/panel.env` and
+`sudo systemctl restart rtl-airband-panel`. Re-running `install.sh` never
+overwrites that file.
+
+The steps below are for a panel built from source, or for setting things up
+by hand.
 
 ## Running the panel as a systemd service
 
@@ -69,7 +80,8 @@ RTLSDR-Airband instance.
 
 ### Updating
 
-Build the new version (see [Installing](./README.md#installing)), then:
+From a release: run the new release's `sudo ./install.sh`. From source:
+build the new version (see [Installing](./README.md#installing)), then:
 
 ```bash
 sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
@@ -144,6 +156,17 @@ binary replaces it in place: it reads and writes the same instances
 directory, the same `.pending-restarts.json`, `.instance-options.json` and
 `.backups/`, and the same stats database, and takes the same `RTL_PANEL_*`
 settings.
+
+**With a release:** run `sudo ./install.sh --instances-dir <your configs
+folder>`. It stops the old service, saves its unit as
+`rtl-airband-panel.service.node-backup`, and installs the new one with a
+fresh `panel.env` and sudoers rule. Copy any other settings from your old
+`.env` into `/etc/rtl-airband-panel/panel.env` (step 3 below), and make
+sure the panel's user (`--user`, default `rtl-airband-panel`) can read and
+write your configs folder. If your old panel ran as a different account,
+pass that with `--user` instead.
+
+**By hand:**
 
 1. Stop the old panel: `sudo systemctl disable --now rtl-airband-panel`.
 2. Install the binary and the new unit as above, replacing
