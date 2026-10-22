@@ -1,0 +1,9 @@
+# Installed by rtl-airband-panel's install.sh: lets members of the plugdev
+# group (which the panel's service user is added to) open SDR dongles
+# without root. Reload with: udevadm control --reload && udevadm trigger
+# RTL2832U dongles (generic, RTL-SDR Blog V3/V4, NooElec, ...)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# Mirics MSi2500 / SDRplay RSP1
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1df7", ATTRS{idProduct}=="2500", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1df7", ATTRS{idProduct}=="3000", MODE="0660", GROUP="plugdev", TAG+="uaccess"

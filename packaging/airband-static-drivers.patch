@@ -1,0 +1,48 @@
+--- a/src/input-common.cpp
++++ b/src/input-common.cpp
+@@ -32,17 +32,38 @@
+ 
+ typedef input_t* (*input_new_func_t)(void);
+ 
++// Fully static (musl) builds have no dynamic symbol table, so dlsym() can't
++// find the drivers. Weak references resolve to the drivers compiled into
++// this binary, or to NULL for the ones that weren't.
++extern "C" input_t* rtlsdr_input_new(void) __attribute__((weak));
++extern "C" input_t* mirisdr_input_new(void) __attribute__((weak));
++extern "C" input_t* soapysdr_input_new(void) __attribute__((weak));
++extern "C" input_t* file_input_new(void) __attribute__((weak));
++
++static input_new_func_t static_input_new(char const* const type) {
++    if (strcmp(type, "rtlsdr") == 0) return rtlsdr_input_new;
++    if (strcmp(type, "mirisdr") == 0) return mirisdr_input_new;
++    if (strcmp(type, "soapysdr") == 0) return soapysdr_input_new;
++    if (strcmp(type, "file") == 0) return file_input_new;
++    return NULL;
++}
++
+ input_t* input_new(char const* const type) {
+     assert(type != NULL);
++    input_new_func_t fptr = NULL;
+     void* dlhandle = dlopen(NULL, RTLD_NOW);
+-    assert(dlhandle != NULL);
+-    char* fname = NULL;
+-    int chars_written = asprintf(&fname, "%s_input_new", type);
+-    if (chars_written <= 0) {
+-        return NULL;
++    if (dlhandle != NULL) {
++        char* fname = NULL;
++        int chars_written = asprintf(&fname, "%s_input_new", type);
++        if (chars_written <= 0) {
++            return NULL;
++        }
++        fptr = (input_new_func_t)dlsym(dlhandle, fname);
++        free(fname);
++    }
++    if (fptr == NULL) {
++        fptr = static_input_new(type);
+     }
+-    input_new_func_t fptr = (input_new_func_t)dlsym(dlhandle, fname);
+-    free(fname);
+     if (fptr == NULL) {
+         return NULL;
+     }

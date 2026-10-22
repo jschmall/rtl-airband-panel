@@ -5,6 +5,74 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.114] - 2026-10-22
+
+### Added
+
+- **Release downloads with a bundled RTLSDR-Airband.** Running
+  `scripts/build-release.sh amd64|arm64` produces
+  `rtl-airband-panel-vX.Y.Z-linux-<arch>.tar.gz`, which holds:
+  - the panel;
+  - a static `rtl_airband` built from the jschmall/RTLSDR-Airband fork (now
+    a git submodule at `vendor/RTLSDR-Airband`, pinned to v6.3.0);
+  - `install.sh`;
+  - the docs.
+
+  Both programs are fully static (musl), so they run on any Linux of that
+  architecture. The build is in `packaging/Dockerfile`:
+  - it runs the fork's 323 unit tests;
+  - it refuses a binary with any dynamic dependency;
+  - bundled rtl_airband has NFM, rdio-scanner, RTL-SDR and Mirics support,
+    with PulseAudio and SoapySDR off.
+- **`install.sh`** sets up:
+  - a service account in `plugdev`;
+  - both programs under `/usr/local/lib/rtl-airband-panel` (linked from
+    `/usr/local/bin`, never replacing an `rtl_airband` already there);
+  - a udev rule and a DVB-driver blacklist, so dongles work without root;
+  - `/etc/rtl-airband-panel/panel.env`, written once and kept on upgrade;
+  - a sudoers rule checked with `visudo` before it's installed (optional
+    `--unit-prefix` scoping);
+  - the panel's service, started and enabled.
+
+  Options: `--listen-all` generates and prints a login password. Re-running
+  upgrades in place. `--uninstall` removes the programs and keeps configs,
+  settings, stats and instance services. An old Node.js panel unit is
+  backed up and replaced. New instances get units that run the bundled
+  `rtl_airband` as the panel's account, so the control socket's same-user
+  check passes.
+- **Release workflow** (`.github/workflows/release.yml`): builds both
+  architectures on native GitHub runners for every `v*` tag and keeps them
+  as artifacts. Running it by hand publishes a GitHub release, with notes
+  taken from this changelog.
+
+  **arm64 isn't buildable yet.** The fork's unit test
+  `DiffApplyTest.channel_enabled_diff_calls_channel_enable_disable` has a
+  race: it zero-initialises `pending_enable_request` (0 means "disable";
+  real code uses -1). It fails every time under QEMU and may fail on native
+  arm runners. The fix goes into the fork, followed by a pin bump.
+
+### Changed
+
+- **README:** installing from a release is now the main path; building from
+  source is the alternative. "Which RTLSDR-Airband do I need?" explains the
+  bundled build.
+- **DEPLOYMENT.md:** notes what `install.sh` already does, and covers
+  migrating from the Node.js panel with it.
+- **DEVELOPMENT.md:** new Releases section covering building, publishing
+  and bumping the bundled fork.
+- **CLAUDE.md:** fork pin-bump procedure filled in. It no longer claims the
+  panel verifies each instance's binary; that check exists
+  (`binary_version`) but isn't surfaced yet.
+
+### Fixed
+
+- **Static rtl_airband builds can find their input drivers.** The fork
+  looks drivers up with `dlsym()`, which a static binary can't do, so every
+  device failed with "unsupported device type".
+  `packaging/airband-static-drivers.patch` adds a fallback to the drivers
+  linked in. It's applied only in the release build; the fork itself is
+  unchanged.
+
 ## [0.4.113] - 2026-10-22
 
 ### Changed
