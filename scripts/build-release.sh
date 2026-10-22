@@ -23,7 +23,10 @@ version="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json | head -1)"
 # The pinned fork must sit exactly on a tag: releases name the rtl_airband
 # version they ship, and the fork's version script takes it from the
 # exported directory name.
-git submodule update --init vendor/RTLSDR-Airband
+# Only initialise it when it's missing: `submodule update` on a checked-out
+# submodule resets it to the committed pin, silently discarding a pin bump
+# that hasn't been staged yet.
+[ -e vendor/RTLSDR-Airband/.git ] || git submodule update --init vendor/RTLSDR-Airband
 # (Shallow CI checkouts may lack the fork's tags; fetch them if needed.)
 git -C vendor/RTLSDR-Airband describe --tags --exact-match >/dev/null 2>&1 \
   || git -C vendor/RTLSDR-Airband fetch --quiet --tags origin || true
