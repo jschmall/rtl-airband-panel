@@ -5,6 +5,36 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.109] - 2026-10-22
+
+### Added
+
+- **README: "Rust panel: download, build, and run"**, covering:
+  - getting the source (branch or tag);
+  - build tools: Rust 1.85+, a C compiler, and Node 20+ to build the UI;
+  - the build order (frontend first, because Cargo embeds `frontend/dist`
+    at compile time);
+  - a read-only first run in mock mode against a copy of the instance
+    configs;
+  - installing as a systemd service in place of the Node.js panel, with
+    `panel.env`, the required sudoers update, migrating existing state, and
+    the service user live apply needs;
+  - the settings that are new or changed versus the TypeScript backend;
+  - what to include when reporting problems.
+
+  Every step was checked on a fresh clone: the clean build, then the mock-mode
+  first run serving the embedded UI.
+- **`deploy/rtl-airband-panel-rust.service`**, an example unit for the
+  binary, reading settings from `/etc/rtl-airband-panel/panel.env`.
+- **`.env.example`:** the Rust-only settings (auth, default service
+  user/group, control-socket timeout, frontend override).
+
+### Fixed
+
+- **`RTL_PANEL_ALLOW_UNAUTHENTICATED` accepts `1/0`, `yes/no`, `on/off`.**
+  Previously only `true`/`false` worked, and any other value aborted startup
+  with a parse error.
+
 ## [0.4.108] - 2026-10-22
 
 ### Changed

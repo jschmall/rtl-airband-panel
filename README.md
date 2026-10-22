@@ -11,6 +11,12 @@ remembering which unit to restart doesn't scale much past a couple of
 instances. This panel gives you one place to view, edit, and restart all of
 them, with validation before anything is written to disk.
 
+> **`rust` branch:** the panel is being rebuilt as a single Rust binary
+> (`rtl-airband-panel`) that serves the same API and the same web UI. To try
+> it, see [Rust panel: download, build, and run](#rust-panel-download-build-and-run).
+> The Node.js instructions further down still work on this branch and
+> describe the TypeScript backend the Rust binary replaces.
+
 ## Project goals
 
 - **Safe by default.** A config write that fails validation never touches
@@ -280,6 +286,213 @@ The stats page: device counters, a signal-vs-squelch-threshold chart for a
 selected channel, mixer stats, and channel counters:
 
 ![Stats page](./docs/screenshots/stats.png)
+
+## Rust panel: download, build, and run
+
+The Rust panel is one ~12 MB executable with the web UI and SQLite built in.
+It serves the same API as the TypeScript backend, so the same browser UI works
+against it. It reads and writes the same files (instance `.conf`s,
+`.pending-restarts.json`, `.instance-options.json`, `.backups/`, the stats
+database), so it can take over an existing install in place. Node.js is only
+needed to *build* it, not to run it.
+
+New compared to the TypeScript backend:
+
+- **Change preview.** The editor shows, before you save, whether a change can
+  be applied live over the control socket or needs a restart, and what a live
+  apply would briefly interrupt. It accounts for what RTLSDR-Airband's
+  `reload_diff` silently ignores, so a live apply no longer reports success
+  for a change that never reached the running process.
+- **Live updates.** Status changes and other users' edits arrive as they
+  happen (a WebSocket at `/api/ws`), instead of a 20-second poll.
+- **Login.** HTTP Basic auth (`RTL_PANEL_PASSWORD`). The panel refuses to
+  listen on anything other than localhost without it.
+- **New UI.** Status lights per instance, an overview of every instance, and
+  a light theme.
+- **Unknown settings are kept.** Config keys the panel doesn't model (newer
+  RTLSDR-Airband options, hand-added keys) are written back unchanged instead
+  of being dropped on save.
+
+### 1. Get the source
+
+```bash
+git clone --branch rust https://github.com/jschmall/rtl-airband-panel.git
+cd rtl-airband-panel
+```
+
+To build a specific version instead of the branch tip, check out its tag
+(every commit is tagged, e.g. `git checkout v0.4.109`), or download that
+tag's source archive from
+`https://github.com/jschmall/rtl-airband-panel/archive/refs/tags/<tag>.tar.gz`.
+There are no prebuilt binaries yet; the release workflow that will produce
+them is planned for the `airband-bundle` branch.
+
+### 2. Install the build tools
+
+On the machine you build on:
+
+- **Rust 1.85 or newer**, via [rustup](https://rustup.rs):
+  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- **A C compiler** (SQLite is compiled in):
+  `sudo apt install build-essential` on Debian/Ubuntu/Raspberry Pi OS
+- **Node.js 20+ and npm**, to build the web UI that gets embedded in the
+  binary (see [Installing](#installing) for checking your version)
+
+Building natively on a Raspberry Pi works but is slow (expect tens of
+minutes on a Pi 4) and wants at least 2 GB of RAM.
+
+### 3. Build
+
+```bash
+npm ci
+npm run build:deps                  # TypeScript packages the UI still takes types from
+npm run build --workspace=frontend  # the web UI, embedded at compile time
+cargo build --release -p rtl-airband-panel
+```
+
+The order matters. Cargo embeds whatever is in `frontend/dist` when it
+compiles, so build the frontend first, and rebuild the binary after any
+frontend change.
+
+The result is `target/release/rtl-airband-panel`. It depends only on the
+system C library, so you can copy it to another machine with the same CPU
+architecture and the same or a newer glibc (for example, build on one
+x86_64 Debian 12 box and run on another). Check it with:
+
+```bash
+./target/release/rtl-airband-panel --version
+./target/release/rtl-airband-panel --help
+```
+
+### 4. Try it without touching anything live
+
+Run it in mock mode against a **copy** of your instance configs. Mock mode
+(the default) never calls `systemctl`, but saving in the UI does write
+`.conf` files in the instances directory, which is why this uses a copy:
+
+```bash
+mkdir -p ~/panel-test
+cp /path/to/your/instances/*.conf ~/panel-test/
+./target/release/rtl-airband-panel --instances-dir ~/panel-test --port 3100
+```
+
+Open `http://localhost:3100`. On a headless host, tunnel the port from your
+desktop with `ssh -L 3100:localhost:3100 you@host` and open the same URL
+locally. In mock mode, unit statuses read "Unknown" until you start or
+restart an instance from the UI. This can run alongside an existing panel on
+a different port.
+
+### 5. Install it as a service
+
+These steps replace the TypeScript backend's `rtl-airband-panel.service`
+(see [DEPLOYMENT.md](./DEPLOYMENT.md)) with the binary. Both use the same
+files, so you can switch back by reversing them.
+
+1. **Stop the Node.js panel** if it's running, so two panels never manage
+   the same directory at once:
+
+   ```bash
+   sudo systemctl disable --now rtl-airband-panel
+   ```
+
+2. **Install the binary and unit:**
+
+   ```bash
+   sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
+   sudo cp deploy/rtl-airband-panel-rust.service /etc/systemd/system/rtl-airband-panel.service
+   ```
+
+   Edit `User=` in the unit if your panel doesn't run as `rtl-airband-panel`.
+
+3. **Write its settings** to `/etc/rtl-airband-panel/panel.env`. It's
+   readable only by the panel's user because it holds the password:
+
+   ```bash
+   sudo install -m 0600 -o rtl-airband-panel /dev/null /etc/rtl-airband-panel/panel.env
+   sudoedit /etc/rtl-airband-panel/panel.env
+   ```
+
+   For example:
+
+   ```ini
+   RTL_PANEL_INSTANCES_DIR=/etc/rtl-airband-panel/instances
+   RTL_PANEL_STATS_DB_PATH=/home/rtl-airband-panel/.rtl-airband-panel/stats.db
+   RTL_PANEL_HOST=0.0.0.0
+   RTL_PANEL_PASSWORD=pick-a-long-password
+   RTL_PANEL_SYSTEMD_MODE=sudo
+   RTL_PANEL_SUDO_UNIT_PREFIX=rtl_
+   RTL_PANEL_RTL_AIRBAND_BIN=/usr/local/bin/rtl_airband
+   RTL_PANEL_DEFAULT_SERVICE_USER=rtl-airband-panel
+   ```
+
+   Point `RTL_PANEL_INSTANCES_DIR` and `RTL_PANEL_STATS_DB_PATH` at your
+   existing ones to keep your instances, pending-restart state, backups and
+   stats history. See [.env.example](./.env.example) for every setting.
+
+4. **Update the sudoers rule.** This step is required in sudo mode, even if
+   you already have the rule from the Node.js panel. The panel's status
+   query now asks systemd for when each unit started, and sudo matches
+   arguments exactly. Without the new line every status check is refused.
+   Reinstall the rule from this branch:
+
+   ```bash
+   sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel
+   sudo chmod 0440 /etc/sudoers.d/rtl-airband-panel
+   sudo visudo -cf /etc/sudoers.d/rtl-airband-panel
+   ```
+
+   Re-apply any edits you made to the old copy, such as the username, the
+   `rtl_` unit prefix, or the unit directory.
+
+5. **Start it:**
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now rtl-airband-panel
+   journalctl -u rtl-airband-panel -f
+   ```
+
+   Your browser asks for the username (`admin` unless you set
+   `RTL_PANEL_USERNAME`) and password. Basic auth sends the password with
+   every request, so put the panel behind an HTTPS reverse proxy
+   ([DEPLOYMENT.md](./DEPLOYMENT.md)) if it's reachable beyond a trusted LAN.
+
+**Live apply and the service user.** The control socket only accepts
+connections from the same user `rtl_airband` runs as. Units the panel
+generates get `User=`/`Group=` from the instance's own setting (instance page
+→ Service account) or, failing that, from `RTL_PANEL_DEFAULT_SERVICE_USER`/
+`_GROUP`. Existing units keep whatever they were installed with until you
+save that instance's service account or options again.
+
+### Settings that differ from the TypeScript backend
+
+Everything in the [Configuration](#configuration) table works the same way,
+by flag or environment variable. The Rust panel adds:
+
+| Environment variable | Flag | Default | Purpose |
+|---|---|---|---|
+| `RTL_PANEL_PASSWORD` | `--password` | unset | HTTP Basic auth password; required when `RTL_PANEL_HOST` isn't loopback |
+| `RTL_PANEL_USERNAME` | `--username` | `admin` | HTTP Basic auth username |
+| `RTL_PANEL_ALLOW_UNAUTHENTICATED` | `--allow-unauthenticated` | `false` | Listen beyond localhost without a password (anyone who can reach the port can edit configs and restart units) |
+| `RTL_PANEL_DEFAULT_SERVICE_USER` / `_GROUP` | `--default-service-user` / `--default-service-group` | unset | `User=`/`Group=` for generated instance units without a per-instance setting |
+| `RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS` | `--control-socket-timeout-ms` | `8000` | How long to wait for a live-apply response before giving up |
+
+And changes two existing settings:
+
+- `RTL_PANEL_LOG_LEVEL` takes a filter such as `info`, `debug`, or
+  `panel=debug,info`.
+- `RTL_PANEL_FRONTEND_DIST` is optional. By default the UI built into the
+  binary is served.
+
+The `.env` file is read from the current directory (or `--env-file`), then
+real environment variables, then flags, highest last, the same as before.
+
+### Reporting problems
+
+Include `rtl-airband-panel --version`, the relevant lines from
+`journalctl -u rtl-airband-panel`, and the `x-request-id` response header of
+a failed request if you have it. That id also tags the panel's audit log
+line for the action.
 
 ## Installing
 

@@ -65,7 +65,13 @@ pub struct Settings {
 
     /// Serve without auth on a non-loopback address. Anyone who can reach
     /// the port can then edit configs and restart units.
-    #[arg(long, env = "RTL_PANEL_ALLOW_UNAUTHENTICATED", default_value_t = false)]
+    #[arg(
+        long,
+        env = "RTL_PANEL_ALLOW_UNAUTHENTICATED",
+        default_value_t = false,
+        action = clap::ArgAction::SetTrue,
+        value_parser = clap::builder::BoolishValueParser::new()
+    )]
     pub allow_unauthenticated: bool,
 
     /// tracing filter, e.g. info, debug, rtl_airband_panel=debug.
