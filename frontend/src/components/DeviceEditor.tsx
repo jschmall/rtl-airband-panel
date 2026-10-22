@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Device, MultichannelChannel, Output, ScanChannel } from "@rtl-airband-panel/parser";
-import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
+import type { Device, MultichannelChannel, Output, ScanChannel } from "../types/config.js";
+import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "../generated/constants.js";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -112,8 +112,8 @@ export const DeviceEditor = memo(function DeviceEditor({
   const isScan = device.mode === "scan";
 
   // At-a-glance occupied range + usable-window summary shown above the channel list --
-  // see frequency-range.ts. deviceUsableWindowHz mirrors backend/validate's
-  // checkFrequencyWindow exactly, so this can never disagree with that check's warning.
+  // see frequency-range.ts. deviceUsableWindowHz mirrors crates/airband-validate's
+  // frequency_window check exactly, so this can never disagree with that check's warning.
   const channelRange = channelFrequencyRangeHz(device);
   const usableWindow = deviceUsableWindowHz(device);
   const formatMHz = (hz: number) => (hz / 1e6).toFixed(4);

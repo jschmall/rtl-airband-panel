@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 100500000,
+            "outputs": [
+              {
+                "type": "udp_stream",
+                "dest_address": "127.0.0.1",
+                "dest_port": "5005"
+              },
+              {
+                "type": "udp_stream",
+                "dest_address": "127.0.0.1",
+                "dest_port": "http",
+                "bit_depth": 16,
+                "sample_rate": 16000,
+                "continuous": true
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 100500000;\n        outputs: (\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = \"5005\";\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = \"http\";\n            bit_depth = 16;\n            sample_rate = 16000;\n            continuous = true;\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 100.5;\n        outputs: (\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = 5005;\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = \"http\";\n            bit_depth = 16;\n            sample_rate = 16000;\n            continuous = true;\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

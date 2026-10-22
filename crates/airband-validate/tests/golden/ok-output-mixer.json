@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-unused",
+      "path": "$.mixers[1]",
+      "message": "mixer 'mix2' has no channel outputs routed into it; RTLSDR-Airband has nothing to write to this mixer and will exit at startup"
+    }
+  ],
+  "warnings": []
+}

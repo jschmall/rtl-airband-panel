@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "A mixer's outputs cannot themselves be of type 'mixer' (at $.mixers.mix1.outputs[0])"
+}

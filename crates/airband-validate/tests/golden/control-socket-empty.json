@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "control-socket-path-empty",
+      "path": "$.control_socket_path",
+      "message": "control_socket_path, if set, must not be empty"
+    }
+  ],
+  "warnings": []
+}

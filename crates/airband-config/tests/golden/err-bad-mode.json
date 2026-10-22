@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Invalid mode value 'fast' (must be one of: multichannel, scan) (at $.devices[0])"
+}

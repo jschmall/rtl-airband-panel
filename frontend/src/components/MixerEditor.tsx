@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef } from "react";
-import type { Mixer, MixerRemoteInput, Output } from "@rtl-airband-panel/parser";
+import type { Mixer, MixerRemoteInput, Output } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";

@@ -1,0 +1,17 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "ctcss-near-standard-tone",
+      "path": "$.devices[0].channels[0].ctcss[1]",
+      "message": "ctcss value 67.1 Hz is close to but not exactly the standard tone 67 Hz — likely a typo"
+    },
+    {
+      "severity": "warning",
+      "code": "ctcss-non-positive",
+      "path": "$.devices[0].channels[0].ctcss[2]",
+      "message": "ctcss value -1 Hz is not positive; RTLSDR-Airband ignores it and CTCSS squelch is disabled"
+    }
+  ]
+}

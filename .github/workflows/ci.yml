@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, rust]
   pull_request:
     branches: [master]
 
 jobs:
-  build-and-test:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,14 +18,28 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      # Required before build/test -- backend/api and frontend both depend on
-      # the compiled output of backend/parser and backend/validate.
-      - run: npm run build:deps
-
-      - run: npm run build
-
-      - run: npm test --workspace=backend/parser
-      - run: npm test --workspace=backend/validate
-      - run: npm test --workspace=backend/api
       - run: npm test --workspace=frontend
+      - run: npm run build --workspace=frontend
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Also regenerates frontend/src/generated (ts-rs); fail if the committed
+      # TypeScript types no longer match the Rust model.
+      - run: cargo test --workspace
+      - name: Check generated TypeScript types are current
+        run: git diff --exit-code -- frontend/src/generated ':!frontend/src/generated/wasm'
+      # The committed browser validator (frontend/src/generated/wasm) is built
+      # locally with scripts/build-wasm.sh; here, just make sure it still builds.
+      - run: cargo build --release --target wasm32-unknown-unknown -p airband-wasm

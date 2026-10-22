@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-output-balance-out-of-range",
+      "path": "$.devices[0].channels[0].outputs[1]",
+      "message": "balance 1.5 is out of allowed range <-1.0;1.0>"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-output-balance-out-of-range",
+      "path": "$.devices[0].channels[0].outputs[2]",
+      "message": "balance -1.01 is out of allowed range <-1.0;1.0>"
+    }
+  ],
+  "warnings": []
+}

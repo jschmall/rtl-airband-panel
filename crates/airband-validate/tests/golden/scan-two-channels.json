@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "scan-mode-single-channel",
+      "path": "$.devices[0]",
+      "message": "device is in scan mode but has 2 channel entries; scan mode allows exactly one"
+    }
+  ],
+  "warnings": []
+}

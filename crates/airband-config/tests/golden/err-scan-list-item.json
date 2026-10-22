@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected 'freqs' to be numeric (at $.devices[0].channels[0][1])"
+}

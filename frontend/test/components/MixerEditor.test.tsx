@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Mixer } from "@rtl-airband-panel/parser";
+import type { Mixer } from "../../src/types/config.js";
 import { MixerEditor } from "../../src/components/MixerEditor.js";
 import { defaultMixer } from "../../src/lib/defaults.js";
 

@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-serial-or-index-required",
+      "path": "$.devices[0]",
+      "message": "device type 'mirisdr' requires either 'serial' or 'index' to select a dongle"
+    }
+  ],
+  "warnings": []
+}

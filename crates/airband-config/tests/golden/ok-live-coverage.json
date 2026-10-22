@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": true,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 151160000,
+            "outputs": [
+              {
+                "type": "mixer",
+                "name": "all",
+                "disable": true
+              },
+              {
+                "type": "udp_stream",
+                "dest_address": "127.0.0.1",
+                "dest_port": "6001",
+                "disable": false
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 151780000
+      }
+    ],
+    "mixers": [
+      {
+        "name": "all",
+        "outputs": [
+          {
+            "type": "icecast",
+            "server": "ice.example.com",
+            "port": 8000,
+            "mountpoint": "/all",
+            "username": "source",
+            "password": "pw",
+            "send_tx_tags": true,
+            "disable": false
+          }
+        ]
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 151780000;\n    channels: (\n      {\n        freq = 151160000;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"all\";\n            disable = true;\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = \"6001\";\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  all: {\n    outputs: (\n      {\n        type = \"icecast\";\n        server = \"ice.example.com\";\n        port = 8000;\n        mountpoint = \"/all\";\n        username = \"source\";\n        password = \"pw\";\n        send_tx_tags = true;\n        disable = false;\n      }\n    );\n  };\n};\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 151.78;\n    channels: (\n      {\n        freq = 151.16;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"all\";\n            disable = true;\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"127.0.0.1\";\n            dest_port = 6001;\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  all: {\n    outputs: (\n      {\n        type = \"icecast\";\n        server = \"ice.example.com\";\n        port = 8000;\n        mountpoint = \"/all\";\n        username = \"source\";\n        password = \"pw\";\n        send_tx_tags = true;\n        disable = false;\n      }\n    );\n  };\n};\n"
+}

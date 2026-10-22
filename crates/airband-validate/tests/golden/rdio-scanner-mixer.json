@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "rdio-scanner-requires-split-on-transmission",
+      "path": "$.mixers[0].outputs[0]",
+      "message": "rdio_scanner requires split_on_transmission to be true on the same output"
+    }
+  ],
+  "warnings": []
+}

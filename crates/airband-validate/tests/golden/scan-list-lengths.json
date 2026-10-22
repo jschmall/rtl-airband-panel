@@ -1,0 +1,60 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "scan-list-too-short",
+      "path": "$.devices[0].channels[0].labels",
+      "message": "'labels' has 2 entries but 'freqs' has 3; RTLSDR-Airband requires at least one entry per scanned frequency"
+    },
+    {
+      "severity": "error",
+      "code": "scan-list-too-short",
+      "path": "$.devices[0].channels[0].ampfactor",
+      "message": "'ampfactor' has 1 entries but 'freqs' has 3; RTLSDR-Airband requires at least one entry per scanned frequency"
+    },
+    {
+      "severity": "error",
+      "code": "scan-list-too-short",
+      "path": "$.devices[0].channels[0].notch",
+      "message": "'notch' has 2 entries but 'freqs' has 3; RTLSDR-Airband requires at least one entry per scanned frequency"
+    },
+    {
+      "severity": "error",
+      "code": "scan-list-too-short",
+      "path": "$.devices[0].channels[0].bandwidth",
+      "message": "'bandwidth' has 1 entries but 'freqs' has 3; RTLSDR-Airband requires at least one entry per scanned frequency"
+    },
+    {
+      "severity": "error",
+      "code": "scan-list-too-short",
+      "path": "$.devices[0].channels[0].squelch_snr_threshold",
+      "message": "'squelch_snr_threshold' has 2 entries but 'freqs' has 3; RTLSDR-Airband requires at least one entry per scanned frequency"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-threshold-and-snr-threshold-both-set",
+      "path": "$.devices[0].channels[0]",
+      "message": "squelch_threshold and squelch_snr_threshold can't both be set on the same channel"
+    }
+  ],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "scan-list-too-long",
+      "path": "$.devices[0].channels[0].modulations",
+      "message": "'modulations' has 4 entries but 'freqs' only has 3; the extra entries are ignored"
+    },
+    {
+      "severity": "warning",
+      "code": "scan-list-too-long",
+      "path": "$.devices[0].channels[0].ctcss",
+      "message": "'ctcss' has 4 entries but 'freqs' only has 3; the extra entries are ignored"
+    },
+    {
+      "severity": "warning",
+      "code": "scan-list-too-long",
+      "path": "$.devices[0].channels[0].squelch_threshold",
+      "message": "'squelch_threshold' has 5 entries but 'freqs' only has 3; the extra entries are ignored"
+    }
+  ]
+}

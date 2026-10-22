@@ -1,0 +1,41 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "lowpass-below-highpass",
+      "path": "$.devices[0].channels[0]",
+      "message": "lowpass (100) must be greater than or equal to highpass (200)"
+    },
+    {
+      "severity": "error",
+      "code": "ampfactor-negative",
+      "path": "$.devices[0].channels[0].ampfactor",
+      "message": "ampfactor -0.5 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-threshold-positive",
+      "path": "$.devices[0].channels[0].squelch_threshold",
+      "message": "squelch_threshold 1 must be less than or equal to 0"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-snr-threshold-invalid",
+      "path": "$.devices[0].channels[2].squelch_snr_threshold",
+      "message": "squelch_snr_threshold -2 must be greater than or equal to 0 (or exactly -1 to use the default)"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-threshold-and-snr-threshold-both-set",
+      "path": "$.devices[0].channels[2]",
+      "message": "squelch_threshold and squelch_snr_threshold can't both be set on the same channel"
+    },
+    {
+      "severity": "error",
+      "code": "notch-q-non-positive",
+      "path": "$.devices[0].channels[0].notch_q",
+      "message": "notch_q 0 must be greater than 0.0"
+    }
+  ],
+  "warnings": []
+}

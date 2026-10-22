@@ -2,92 +2,57 @@
 
 This covers running rtl-airband-panel as a long-lived service, rather than
 just starting it in a terminal to try it out. See [README.md](./README.md)
-for install and first-run instructions, and the
-[Configuration](./README.md#configuration) section for every environment
-variable and flag mentioned here.
-
-## Making the panel reachable on your network
-
-By default the server only listens on `127.0.0.1` (this machine only). To
-reach it from other devices on your LAN, bind it to all interfaces:
-
-```bash
-npm start --workspace=backend/api -- --host 0.0.0.0
-```
-
-Then open `http://<this-machine's-LAN-IP>:3000` from another device.
-
-There is no authentication on this API. Binding to `0.0.0.0` means anyone on
-your network can read and write instance configs and trigger restarts (and,
-in `sudo` systemd mode, real `systemctl` actions). `127.0.0.1` is the
-default specifically so that reaching a wider network is a choice you make
-on purpose.
-
-## Running behind a reverse proxy
-
-The live log viewer (the "Logs" section on an instance's edit page) streams
-via Server-Sent Events — a single long-lived HTTP response. nginx (and most
-reverse proxies) buffer a proxied response by default, which breaks this:
-instead of arriving live, log lines get held back and delivered in delayed
-bursts, or not at all until the connection eventually closes. If you're
-putting this panel behind nginx, disable buffering and raise the read
-timeout for its API traffic:
-
-```nginx
-location /api/instances/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_buffering off;
-    proxy_read_timeout 3600s;
-    chunked_transfer_encoding on;
-}
-```
-
-The backend also sends `X-Accel-Buffering: no` on the stream response itself
-(nginx's own opt-out header), so no operator action is needed for that
-specific piece — but `proxy_buffering off` above is still the primary fix,
-and the only one that also helps with other proxies that don't honor that
-header. The stream sends a small heartbeat comment every 15 seconds as a
-second line of defense against any intermediary timing out an idle-looking
-connection, but `proxy_read_timeout` is the right place to fix that for
-nginx specifically.
+for building the binary and a first run, and its
+[Configuration](./README.md#configuration) section for every setting
+mentioned here.
 
 ## Running the panel as a systemd service
 
-Running the panel process directly in a terminal (or backgrounded with
-`&`/`nohup`) means it doesn't survive a reboot or restart itself if it
-crashes. An example unit file is provided at
-[`deploy/rtl-airband-panel.service`](./deploy/rtl-airband-panel.service) —
-this manages the *panel's own* process, separate from the per-instance
-`rtl_<name>.service` units the panel itself creates and controls for each
+An example unit is provided at
+[`deploy/rtl-airband-panel.service`](./deploy/rtl-airband-panel.service).
+It manages the *panel's own* process, separate from the per-instance
+`<name>.service` units the panel creates and controls for each
 RTLSDR-Airband instance.
 
-1. Clone and build the app in its final location, e.g.
-   `/opt/rtl-airband-panel`:
+1. Install the binary (see [Installing](./README.md#installing)):
 
    ```bash
-   sudo git clone https://github.com/jschmall/rtl-airband-panel.git /opt/rtl-airband-panel
-   cd /opt/rtl-airband-panel
-   sudo npm install
-   sudo npm run build:deps
-   sudo npm run build
+   sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
    ```
 
-2. Create a dedicated system user to run the panel as (avoid running it as
+2. Create a dedicated system user to run the panel as (don't run it as
    `root`):
 
    ```bash
-   sudo useradd --system --create-home --home-dir /opt/rtl-airband-panel --shell /usr/sbin/nologin rtl-airband-panel
-   sudo chown -R rtl-airband-panel:rtl-airband-panel /opt/rtl-airband-panel
+   sudo useradd --system --create-home --home-dir /var/lib/rtl-airband-panel --shell /usr/sbin/nologin rtl-airband-panel
+   sudo mkdir -p /etc/rtl-airband-panel/instances
+   sudo chown -R rtl-airband-panel:rtl-airband-panel /etc/rtl-airband-panel
    ```
 
-3. Copy your `.env` (see [Configuration](./README.md#configuration)) to
-   `/opt/rtl-airband-panel/.env` if you're using one, owned by the same
-   user.
+3. Write its settings to `/etc/rtl-airband-panel/panel.env`, readable only
+   by that user since it can hold the password:
 
-4. Install the unit file, adjusting `WorkingDirectory`, `User`, and
-   `EnvironmentFile` inside it first if your install path or user differs
-   from the example:
+   ```bash
+   sudo install -m 0600 -o rtl-airband-panel /dev/null /etc/rtl-airband-panel/panel.env
+   sudoedit /etc/rtl-airband-panel/panel.env
+   ```
+
+   For example:
+
+   ```ini
+   RTL_PANEL_INSTANCES_DIR=/etc/rtl-airband-panel/instances
+   RTL_PANEL_STATS_DB_PATH=/var/lib/rtl-airband-panel/stats.db
+   RTL_PANEL_SYSTEMD_MODE=sudo
+   RTL_PANEL_SUDO_UNIT_PREFIX=rtl_
+   RTL_PANEL_RTL_AIRBAND_BIN=/usr/local/bin/rtl_airband
+   RTL_PANEL_DEFAULT_SERVICE_USER=rtl-airband-panel
+   RTL_PANEL_DEFAULT_SERVICE_GROUP=rtl-airband-panel
+   ```
+
+   See [`.env.example`](./.env.example) for every setting.
+
+4. Install and start the unit, adjusting `User=` and `EnvironmentFile=`
+   inside it first if yours differ:
 
    ```bash
    sudo cp deploy/rtl-airband-panel.service /etc/systemd/system/
@@ -102,20 +67,56 @@ RTLSDR-Airband instance.
    sudo journalctl -u rtl-airband-panel -f
    ```
 
-If you're running with `RTL_PANEL_SYSTEMD_MODE=sudo` (see
-[Systemd control](./README.md#systemd-control)) so the panel can restart
-real `rtl_airband` instances, the `rtl-airband-panel` system user needs
-passwordless `sudo` access to `systemctl` and `journalctl` — don't grant it
-blanket `sudo` access. Instance naming is entirely up to you (see
-[Systemd control](./README.md#systemd-control) for how to scope this to
-only your instances), but even without that extra scoping, the example rule
-at [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers)
-still limits the grant to exactly the `systemctl`/`journalctl`/`tee`/`rm`
-commands the sudo adapter issues, never a blanket `sudo systemctl` or
-`sudo ALL`. The adapter also always calls `sudo` with `-n` (non-interactive),
-so a missing or out-of-date sudoers rule fails with a clean, loggable error
-instead of `sudo` ever falling back to a password prompt on the controlling
-terminal:
+### Updating
+
+Build the new version (see [Installing](./README.md#installing)), then:
+
+```bash
+sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
+sudo systemctl restart rtl-airband-panel
+```
+
+Restarting the panel never restarts any `rtl_airband` instance; they're
+separate units. Check the [CHANGELOG](./CHANGELOG.md) for anything an
+update asks you to change, such as the sudoers rule.
+
+## Making the panel reachable on your network
+
+By default the panel only listens on `127.0.0.1` (this machine only). To
+reach it from other devices on your LAN, set a password and bind it to all
+interfaces:
+
+```ini
+RTL_PANEL_HOST=0.0.0.0
+RTL_PANEL_PASSWORD=pick-a-long-password
+```
+
+Then open `http://<this-machine's-LAN-IP>:3000`; your browser asks for the
+username (`admin` unless you set `RTL_PANEL_USERNAME`) and password. The
+panel refuses to start on a non-loopback address without a password
+unless you set `RTL_PANEL_ALLOW_UNAUTHENTICATED=true`, in which case anyone
+who can reach the port can edit configs and restart units.
+
+Basic auth sends the password with every request, so put the panel behind
+an HTTPS reverse proxy (below) if it's reachable from anywhere you don't
+fully trust. The panel also refuses state-changing requests from other
+sites (an `Origin` check), and rate-limits requests per client: 300 a minute
+overall, 60 a minute for each action that writes configs or touches
+systemd.
+
+## Allowing real systemd control (sudo mode)
+
+With `RTL_PANEL_SYSTEMD_MODE=sudo` (see
+[Systemd control](./README.md#systemd-control)) the panel runs real
+`systemctl`/`journalctl` commands through `sudo`, so its user needs
+passwordless `sudo` for exactly those commands, never a blanket grant. The
+example rule at
+[`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers)
+allows only the exact `systemctl`/`journalctl`/`tee`/`rm` invocations the
+panel issues. sudo matches arguments literally, and a test in the panel
+pins its commands to this file. Adjust the username, the `rtl_` unit prefix
+(or drop it, see [Systemd control](./README.md#systemd-control)) and the
+unit directory, then:
 
 ```bash
 sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel
@@ -123,28 +124,109 @@ sudo chmod 0440 /etc/sudoers.d/rtl-airband-panel
 sudo visudo -c -f /etc/sudoers.d/rtl-airband-panel
 ```
 
-### Updating a systemd-managed install
+The panel always calls `sudo -n` (non-interactive), so a missing or
+out-of-date rule fails with a clean, logged error rather than a password
+prompt.
 
-After a `git pull` on a systemd-managed install, rebuild and restart instead
-of manually starting the server:
+## Migrating from the Node.js panel
 
-```bash
-cd /opt/rtl-airband-panel
-sudo -u rtl-airband-panel git pull
-sudo -u rtl-airband-panel npm install
-sudo -u rtl-airband-panel npm run build:deps
-sudo -u rtl-airband-panel npm run build
-sudo systemctl restart rtl-airband-panel
+Versions up to v0.4.110 shipped a Node.js backend (`backend/api`). The
+binary replaces it in place: it reads and writes the same instances
+directory, the same `.pending-restarts.json`, `.instance-options.json` and
+`.backups/`, and the same stats database, and takes the same `RTL_PANEL_*`
+settings.
+
+1. Stop the old panel: `sudo systemctl disable --now rtl-airband-panel`.
+2. Install the binary and the new unit as above, replacing
+   `/etc/systemd/system/rtl-airband-panel.service`. The old unit ran
+   `/usr/bin/node backend/api/dist/index.js` from the repo checkout.
+3. Move your settings into `panel.env`, or point `EnvironmentFile=` at your
+   existing `.env`. `RTL_PANEL_FRONTEND_DIST` is no longer needed (the UI is
+   built in), and `RTL_PANEL_LOG_LEVEL` takes the new filter syntax (plain
+   levels like `info` still work).
+4. **In sudo mode, reinstall the sudoers rule.** The status query now asks
+   systemd for each unit's start time (`--property=ActiveEnterTimestamp
+   --timestamp=utc`), which the old rule doesn't allow, so every status
+   check would be refused.
+5. If the panel now listens beyond localhost, set `RTL_PANEL_PASSWORD`.
+6. `sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel`.
+
+The panel adds a `.running/` directory next to your configs (what each
+instance was started with, for live-apply predictions).
+
+## Running behind a reverse proxy
+
+The live log viewer (the "Logs" section on an instance's edit page) streams
+via Server-Sent Events — a single long-lived HTTP response. nginx (and most
+reverse proxies) buffer a proxied response by default, which breaks this:
+instead of arriving live, log lines get held back and delivered in delayed
+bursts, or not at all until the connection eventually closes. If you're
+putting this panel behind nginx, disable buffering and raise the read
+timeout for its API traffic:
+
+```nginx
+location /api/instances/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    chunked_transfer_encoding on;
+}
 ```
 
-If you're updating an install from before the Node 20 requirement was
-added, upgrade Node on this machine first — `npm install` will fail (or the
-server will fail to start) on Node 18.
+The panel also sends `X-Accel-Buffering: no` on the stream response itself
+(nginx's own opt-out header), so no operator action is needed for that
+specific piece — but `proxy_buffering off` above is still the primary fix,
+and the only one that also helps with other proxies that don't honor that
+header. The stream sends a small heartbeat comment every 15 seconds as a
+second line of defense against any intermediary timing out an idle-looking
+connection, but `proxy_read_timeout` is the right place to fix that for
+nginx specifically.
+
+The panel's live-update channel is a WebSocket at `/api/ws`, so the proxy
+also needs to pass WebSocket upgrades through. And the rest of the panel
+(`location /`) needs the same `Host` handling:
+
+```nginx
+location /api/ws {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;
+}
+
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+}
+```
+
+Without the WebSocket block the UI still works; it just falls back to
+refreshing every 20 seconds (the rail footer shows "Polling" instead of
+"Live").
+
+**`Host` must be passed through, and allowed.** The panel refuses
+state-changing requests and WebSocket upgrades whose `Origin` doesn't match
+the `Host` header, so the proxy must forward the browser's `Host`
+(`proxy_set_header Host $host`, as above), not nginx's default
+`127.0.0.1:3000`. A panel bound to `127.0.0.1` also only answers loopback
+host names, as a guard against DNS rebinding, so tell it your proxy's
+public name:
+
+```ini
+RTL_PANEL_ALLOWED_HOSTS=panel.example.com
+```
+
+(comma-separated for several names). Without it, requests through the
+proxy get `403 Host not allowed`.
 
 ## Logs & backups
 
-**Panel logs.** By default the panel's own process writes structured JSON
-log lines to stdout — it has no log file or rotation of its own. Running it
+**Panel logs.** By default the panel's own process writes log lines to
+stdout — it has no log file or rotation of its own. Running it
 via the systemd unit above means journald owns storage and rotation for you
 (`journalctl -u rtl-airband-panel`, subject to your system's normal
 journald retention config, e.g. `SystemMaxUse=` in
@@ -152,7 +234,7 @@ journald retention config, e.g. `SystemMaxUse=` in
 `SyslogIdentifier=rtl-airband-panel`, so `journalctl -t rtl-airband-panel`
 works as an alternative to `-u rtl-airband-panel`. Set `RTL_PANEL_LOG_FILE`
 (or `--log-file`) to a path instead if you'd rather the panel write NDJSON
-straight to a dedicated file — rotation of that file is then on you (e.g.
+(NDJSON) straight to a dedicated file — rotation of that file is then on you (e.g.
 `logrotate`), same as if you'd run the panel directly in a terminal or
 backgrounded with `nohup`/`&` (not recommended for anything long-running)
 without redirecting its stdout yourself.
@@ -163,9 +245,9 @@ own PAM session-open/close and command-audit lines, written by `sudo`
 itself straight to syslog (typically `/var/log/auth.log` or equivalent) —
 independent of the panel's process and unaffected by this setting, since
 it's the OS's `sudo`/PAM stack doing the logging, not the panel. The
-frontend's background health poll batches every instance's status check
-into one `sudo systemctl show` call per poll cycle rather than one call per
-instance specifically to keep that volume from scaling with instance count;
+panel batches every instance's status check into one `sudo systemctl show`
+call rather than one call per instance specifically to keep that volume
+from scaling with instance count;
 if you still want to relocate what's left, that's a syslog/rsyslog-side
 routing rule for `sudo`'s facility, not something the panel can configure.
 
@@ -173,13 +255,15 @@ By default, the panel logs mutating actions (create/update/delete/rename/
 restart/import) as one audit line each, plus warnings and errors — it does
 *not* log a line for every HTTP request, so routine UI polling (the
 instance list, stats, `/metrics` scrapes) doesn't flood the journal.
-`RTL_PANEL_LOG_LEVEL` (default `info`) is a further volume knob on top of
+Every response carries an `x-request-id` header, and the audit line for
+the same action is tagged with it. `RTL_PANEL_LOG_LEVEL` (default `info`)
+is a further volume knob on top of
 that default, not the primary fix for request noise: raising it to `warn`
 also silences the audit lines (they're logged at `info`), including a
 failed save's validation errors, so an operator who wants "quiet but keep
 every failed save visible" should leave it at `info` and rely on the
-request-logging default alone. Lower it to `debug`/`trace` for
-troubleshooting.
+request-logging default alone. Lower it to `debug`/`trace` (or e.g.
+`panel=debug,info`) for troubleshooting.
 
 **Stats database.** `RTL_PANEL_STATS_DB_PATH` (default
 `~/.rtl-airband-panel/stats.db`) is regenerable, not authoritative: it's a

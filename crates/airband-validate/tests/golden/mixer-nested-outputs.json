@@ -1,0 +1,29 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-output-rawfile-not-allowed",
+      "path": "$.mixers[0].outputs[0]",
+      "message": "rawfile output is not allowed for mixers"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-output-split-on-transmission-not-allowed",
+      "path": "$.mixers[0].outputs[0]",
+      "message": "split_on_transmission is not allowed for mixers"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-output-split-on-transmission-not-allowed",
+      "path": "$.mixers[0].outputs[1]",
+      "message": "split_on_transmission is not allowed for mixers"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-output-pulse-stream-name-required",
+      "path": "$.mixers[0].outputs[2]",
+      "message": "pulse outputs of mixers must have stream_name defined"
+    }
+  ],
+  "warnings": []
+}

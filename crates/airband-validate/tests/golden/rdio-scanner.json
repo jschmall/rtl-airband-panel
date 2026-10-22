@@ -1,0 +1,35 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "rdio-scanner-requires-split-on-transmission",
+      "path": "$.devices[0].channels[0].outputs[0]",
+      "message": "rdio_scanner requires split_on_transmission to be true on the same output"
+    },
+    {
+      "severity": "error",
+      "code": "rdio-scanner-invalid-timeout",
+      "path": "$.devices[0].channels[0].outputs[0].rdio_scanner.timeout_ms",
+      "message": "rdio_scanner timeout_ms must be greater than 0 (0 means libcurl never times out)"
+    },
+    {
+      "severity": "error",
+      "code": "rdio-scanner-invalid-max-retries",
+      "path": "$.devices[0].channels[0].outputs[0].rdio_scanner.max_retries",
+      "message": "rdio_scanner max_retries must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "rdio-scanner-not-supported-on-scan-mode",
+      "path": "$.devices[1].channels[0].outputs[0]",
+      "message": "rdio_scanner is not supported on scan-mode channels — talkgroup_id and the other per-channel fields are fixed at config time and can't track the frequency currently being scanned"
+    },
+    {
+      "severity": "error",
+      "code": "rdio-scanner-invalid-queue-depth",
+      "path": "$.rdio_scanner_queue_depth",
+      "message": "rdio_scanner_queue_depth must be greater than 0"
+    }
+  ],
+  "warnings": []
+}

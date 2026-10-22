@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "send-tx-tags-not-supported-on-scan-mode",
+      "path": "$.devices[0].channels[0].outputs[0]",
+      "message": "send_tx_tags is not supported on scan-mode channels — the frequency itself changes at runtime there; use send_scan_freq_tags instead"
+    }
+  ],
+  "warnings": []
+}

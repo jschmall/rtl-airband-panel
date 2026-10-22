@@ -14,7 +14,7 @@ import type {
   RtlAirbandConfig,
   ScanChannel,
   UdpStreamOutput,
-} from "@rtl-airband-panel/parser";
+} from "../types/config.js";
 import { withUiKey } from "./keys.js";
 
 export function defaultPulseOutput(): PulseOutput {

@@ -1,17 +1,16 @@
 {
   "name": "rtl-airband-panel",
-  "version": "0.4.102",
+  "version": "0.4.111",
   "private": true,
   "license": "GPL-2.0",
   "workspaces": [
-    "backend/*",
     "frontend"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build:deps": "npm run build --workspace=backend/parser && npm run build --workspace=backend/validate",
-    "build": "npm run build:deps && npm run build --workspace=backend/api && npm run build --workspace=frontend"
+    "build": "npm run build --workspace=frontend",
+    "test": "npm test --workspace=frontend"
   }
 }

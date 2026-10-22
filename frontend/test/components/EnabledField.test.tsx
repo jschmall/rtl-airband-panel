@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { MultichannelChannel, Mixer } from "@rtl-airband-panel/parser";
+import type { MultichannelChannel, Mixer } from "../../src/types/config.js";
 import { ChannelEditor } from "../../src/components/ChannelEditor.js";
 import { MixerEditor } from "../../src/components/MixerEditor.js";
 import { defaultChannel, defaultMixer } from "../../src/lib/defaults.js";

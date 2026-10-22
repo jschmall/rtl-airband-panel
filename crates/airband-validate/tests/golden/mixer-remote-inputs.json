@@ -1,0 +1,47 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-remote-output-stream-id-negative",
+      "path": "$.devices[0].channels[0].outputs[2]",
+      "message": "stream_id -1 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-output-stream-id-negative",
+      "path": "$.mixers[0].outputs[1]",
+      "message": "stream_id -2 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-input-listen-path-empty",
+      "path": "$.mixers[0].remote_inputs[0]",
+      "message": "listen_path must not be empty"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-input-stream-id-negative",
+      "path": "$.mixers[0].remote_inputs[0]",
+      "message": "stream_id -3 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-input-balance-out-of-range",
+      "path": "$.mixers[0].remote_inputs[0]",
+      "message": "balance 2 is out of allowed range <-1.0;1.0>"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-input-duplicate-stream-id",
+      "path": "$.mixers[0].remote_inputs[2]",
+      "message": "duplicate stream_id 1 for listen_path /run/a"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-remote-input-duplicate-stream-id",
+      "path": "$.mixers[1].remote_inputs[0]",
+      "message": "duplicate stream_id 1 for listen_path /run/a"
+    }
+  ],
+  "warnings": []
+}

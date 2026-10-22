@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-buffers-invalid",
+      "path": "$.devices[0]",
+      "message": "buffers 0 must be greater than 0"
+    },
+    {
+      "severity": "error",
+      "code": "device-num-buffers-invalid",
+      "path": "$.devices[2]",
+      "message": "num_buffers 0 must be greater than 0"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/var/lib/rtl-airband/s.txt",
+    "localtime": false,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 100500000,
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ],
+    "fft_size": 1024,
+    "pidfile": "/run/x.pid",
+    "log_scan_activity": true,
+    "shout_metadata_delay": 5,
+    "tau": 75,
+    "stats_http_address": "127.0.0.1",
+    "stats_http_port": 9100,
+    "rdio_scanner_queue_depth": 128,
+    "control_socket_path": "/run/rtl/ctl.sock"
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/var/lib/rtl-airband/s.txt\";\nlocaltime = false;\nfft_size = 1024;\npidfile = \"/run/x.pid\";\nlog_scan_activity = true;\nshout_metadata_delay = 5;\ntau = 75;\nstats_http_address = \"127.0.0.1\";\nstats_http_port = 9100;\nrdio_scanner_queue_depth = 128;\ncontrol_socket_path = \"/run/rtl/ctl.sock\";\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 100500000;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads: TRUE;\nmultiple_output_threads: FALSE;\nstats_filepath = \"/var/lib/\" \"rtl-airband/\" /* joined */ \"s.txt\";\nlocaltime = false;\nfft_size = 1024;\npidfile = \"/run/x.pid\";\nlog_scan_activity = true;\nshout_metadata_delay = 5;\ntau = 75;\nstats_http_address = \"127.0.0.1\";\nstats_http_port = 9100;\nrdio_scanner_queue_depth = 128;\ncontrol_socket_path = \"/run/rtl/ctl.sock\";\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 100.5;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

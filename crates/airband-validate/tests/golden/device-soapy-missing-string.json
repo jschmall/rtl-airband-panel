@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-string-required",
+      "path": "$.devices[0]",
+      "message": "soapysdr devices require a 'device_string'"
+    }
+  ],
+  "warnings": []
+}

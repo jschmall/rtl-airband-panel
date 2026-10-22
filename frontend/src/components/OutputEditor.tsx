@@ -9,7 +9,7 @@ import type {
   RawFileOutput,
   RdioScannerConfig,
   UdpStreamOutput,
-} from "@rtl-airband-panel/parser";
+} from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
@@ -84,7 +84,7 @@ export const OutputEditor = memo(function OutputEditor({
   const copyActionsRef = useRef<HTMLDivElement>(null);
   const copyTriggerRef = useRef<HTMLButtonElement>(null);
 
-  // Mirrors PendingRestartIndicator's popover conventions: Escape closes and returns
+  // Standard popover conventions: Escape closes and returns
   // focus to the trigger (otherwise a keyboard user closing this loses their place),
   // and clicking anywhere outside this output's own action row closes it too.
   useEffect(() => {

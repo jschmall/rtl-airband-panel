@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "fft-size-invalid",
+      "path": "$.fft_size",
+      "message": "fft_size 1000 is invalid (must be a power of two in range 256-8192)"
+    }
+  ],
+  "warnings": []
+}

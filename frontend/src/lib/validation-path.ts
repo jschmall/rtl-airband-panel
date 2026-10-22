@@ -1,4 +1,4 @@
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import type { RtlAirbandConfig } from "../types/config.js";
 
 interface IndexedCollection {
   [key: string]: unknown;

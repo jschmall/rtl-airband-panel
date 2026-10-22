@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "no-active-mixer-outputs",
+      "path": "$.mixers[0]",
+      "message": "every output on this mixer is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled output per mixer"
+    }
+  ],
+  "warnings": []
+}

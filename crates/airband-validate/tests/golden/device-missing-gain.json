@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-gain-required",
+      "path": "$.devices[0]",
+      "message": "device type 'rtlsdr' requires a 'gain' value (only soapysdr devices may omit it, to enable AGC)"
+    }
+  ],
+  "warnings": []
+}

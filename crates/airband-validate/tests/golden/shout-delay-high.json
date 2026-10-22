@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "shout-metadata-delay-out-of-range",
+      "path": "$.shout_metadata_delay",
+      "message": "shout_metadata_delay 33 is out of allowed range (0-32)"
+    }
+  ],
+  "warnings": []
+}

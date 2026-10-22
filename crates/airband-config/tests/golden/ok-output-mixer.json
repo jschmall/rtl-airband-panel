@@ -1,0 +1,81 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 100500000,
+            "outputs": [
+              {
+                "type": "mixer",
+                "name": "mix1",
+                "ampfactor": 1.5,
+                "balance": -0.2
+              },
+              {
+                "type": "mixer_remote",
+                "dest_path": "/run/x.sock",
+                "stream_id": 3,
+                "disable": false
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ],
+    "mixers": [
+      {
+        "name": "mix1",
+        "outputs": [
+          {
+            "type": "icecast",
+            "server": "s",
+            "port": 8000,
+            "mountpoint": "/m",
+            "username": "u",
+            "password": "p"
+          }
+        ],
+        "disable": false,
+        "enabled": false,
+        "highpass": 200,
+        "lowpass": 3000,
+        "reserve_inputs": 2,
+        "remote_inputs": [
+          {
+            "listen_path": "/run/mix1.sock",
+            "stream_id": 0,
+            "ampfactor": 1.2,
+            "balance": -0.3,
+            "label": "site2 ch1"
+          },
+          {
+            "listen_path": "/run/mix1.sock",
+            "stream_id": 1
+          }
+        ]
+      },
+      {
+        "name": "mix2",
+        "outputs": [
+          {
+            "type": "file",
+            "directory": "/tmp",
+            "filename_template": "m"
+          }
+        ]
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 100500000;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"mix1\";\n            ampfactor = 1.5;\n            balance = -0.2;\n          },\n          {\n            type = \"mixer_remote\";\n            dest_path = \"/run/x.sock\";\n            stream_id = 3;\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  mix1: {\n    disable = false;\n    enabled = false;\n    highpass = 200;\n    lowpass = 3000;\n    reserve_inputs = 2;\n    remote_inputs: (\n      {\n        listen_path = \"/run/mix1.sock\";\n        stream_id = 0;\n        ampfactor = 1.2;\n        balance = -0.3;\n        label = \"site2 ch1\";\n      },\n      {\n        listen_path = \"/run/mix1.sock\";\n        stream_id = 1;\n      }\n    );\n    outputs: (\n      {\n        type = \"icecast\";\n        server = \"s\";\n        port = 8000;\n        mountpoint = \"/m\";\n        username = \"u\";\n        password = \"p\";\n      }\n    );\n  };\n  mix2: {\n    outputs: (\n      {\n        type = \"file\";\n        directory = \"/tmp\";\n        filename_template = \"m\";\n      }\n    );\n  };\n};\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 100.5;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"mix1\";\n            ampfactor = 1.5;\n            balance = -0.2;\n          },\n          {\n            type = \"mixer_remote\";\n            dest_path = \"/run/x.sock\";\n            stream_id = 3;\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  mix1: {\n    disable = false;\n    enabled = false;\n    highpass = 200;\n    lowpass = 3000;\n    reserve_inputs = 2;\n    remote_inputs: (\n      {\n        listen_path = \"/run/mix1.sock\";\n        stream_id = 0;\n        ampfactor = 1.2;\n        balance = -0.3;\n        label = \"site2 ch1\";\n      },\n      {\n        listen_path = \"/run/mix1.sock\";\n        stream_id = 1;\n      }\n    );\n    outputs: (\n      {\n        type = \"icecast\";\n        server = \"s\";\n        port = 8000;\n        mountpoint = \"/m\";\n        username = \"u\";\n        password = \"p\";\n      }\n    );\n  };\n  mix2: {\n    outputs: (\n      {\n        type = \"file\";\n        directory = \"/tmp\";\n        filename_template = \"m\";\n      }\n    );\n  };\n};\n"
+}

@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "scan-freqs-empty",
+      "path": "$.devices[0].channels[0].freqs",
+      "message": "freqs should be a list with at least one element"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Invalid bit_depth value '12' (must be one of: 8, 16, 32) (at $.devices[0].channels[0].outputs[0])"
+}

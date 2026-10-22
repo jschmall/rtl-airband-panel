@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Channel must have exactly one of 'freq' (multichannel) or 'freqs' (scan mode) (at $.devices[0].channels[0])"
+}

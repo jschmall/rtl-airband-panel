@@ -5,6 +5,389 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.111] - 2026-10-22
+
+### Removed
+
+- **The TypeScript backend: `backend/parser`, `backend/validate` and
+  `backend/api`.** The Rust panel (`rtl-airband-panel`) replaces it,
+  verified by the API parity harness at v0.4.107-v0.4.110 and by testing on
+  the live host. The frontend no longer depends on it (v0.4.110). Also
+  removed: `scripts/api-parity.mjs` and `scripts/gen-parity-goldens.mjs`
+  (both needed the TS backend), the npm workspace entries and root
+  scripts for it, and the CI jobs that built, tested and compared it. Its
+  recorded output (40 parser and 75 validator goldens) stays as frozen
+  regression tests.
+
+### Added
+
+- **`RTL_PANEL_ALLOWED_HOSTS` / `--allowed-hosts`:** extra host names a
+  loopback-bound panel answers to. Without it the panel couldn't be used
+  behind a reverse proxy on localhost:
+  - Passing the browser's `Host` through tripped the DNS-rebinding guard.
+  - Not passing it tripped the Origin check on every save, restart and
+    WebSocket.
+
+  DEPLOYMENT.md shows the nginx configuration (pass `Host` through, allow
+  the name).
+- The Vite dev server proxies the `/api/ws` WebSocket too.
+
+### Changed
+
+- **Docs rewritten for the binary.**
+  - README: installing, first run, a single configuration table, live apply
+    (per-driver limits, the change preview), `mixer_remote` (on the fork's
+    `main` since v5.5.0), and new screenshots taken from the sanitized
+    fixtures with seeded stats history.
+  - DEPLOYMENT.md: service install with `panel.env`, network exposure and
+    auth, sudo mode, migrating from the Node.js panel, reverse proxy incl.
+    WebSockets.
+  - CONTRIBUTING.md and CLAUDE.md: the crate layout, generated files, and
+    the versioning rule (root + frontend `package.json` + workspace
+    `Cargo.toml`).
+- **Example unit:** `deploy/rtl-airband-panel.service` now runs the binary
+  (it was the Node.js unit).
+- CI is now a `frontend` job (tests, build) and a `rust` job (fmt, clippy,
+  tests, generated-type drift, wasm build).
+
+### Fixed
+
+- **A `dest_port` rewrite no longer predicts a restart.** The panel rewrites
+  an integer `dest_port` as a string (rtl_airband reads both identically),
+  and the change preview counted that as a change. On a mixer's
+  `udp_stream` output that meant "Needs a restart" for an edit that changed
+  nothing.
+
+## [0.4.110] - 2026-10-22
+
+### Added
+
+- **Live validation in the editor, run by the server's own validator
+  compiled to WebAssembly** (new `crates/airband-wasm`). Errors appear in
+  the validation banner and as a clickable "N errors to fix before saving"
+  note in the action bar while you edit, before any Save or Check. The note
+  jumps to the first error. Results from an actual save or check (incl.
+  conflicts) still take priority. The module is 416 KB (154 KB compressed),
+  loads only on the editor page, and lives in `frontend/src/generated/wasm`.
+  Rebuild it with `scripts/build-wasm.sh`. Where WebAssembly can't load, live
+  validation is simply off.
+- **Frontend types generated from Rust (ts-rs).** `cargo test` writes the
+  config, validation, unit-status and plan types plus the shared constants
+  (sample rates, FFT limits, the usable-window threshold) to
+  `frontend/src/generated`, and `frontend/src/types/config.ts` re-exports
+  them under the names the UI uses. The frontend no longer imports anything
+  from `backend/parser` or `backend/validate`, which unblocks removing them.
+  CI fails if the committed types drift from the Rust model, and checks the
+  WebAssembly crate still builds.
+- **gzip/brotli compression** of panel responses (the SSE log stream is
+  excluded).
+
+### Changed
+
+- The panel's Content-Security-Policy allows `'wasm-unsafe-eval'` so the
+  browser can run the validator.
+- Release builds use LTO, a single codegen unit and stripped symbols.
+- README: building the Rust panel no longer needs `npm run build:deps`.
+
+## [0.4.109] - 2026-10-22
+
+### Added
+
+- **README: "Rust panel: download, build, and run"**, covering:
+  - getting the source (branch or tag);
+  - build tools: Rust 1.85+, a C compiler, and Node 20+ to build the UI;
+  - the build order (frontend first, because Cargo embeds `frontend/dist`
+    at compile time);
+  - a read-only first run in mock mode against a copy of the instance
+    configs;
+  - installing as a systemd service in place of the Node.js panel, with
+    `panel.env`, the required sudoers update, migrating existing state, and
+    the service user live apply needs;
+  - the settings that are new or changed versus the TypeScript backend;
+  - what to include when reporting problems.
+
+  Every step was checked on a fresh clone: the clean build, then the mock-mode
+  first run serving the embedded UI.
+- **`deploy/rtl-airband-panel-rust.service`**, an example unit for the
+  binary, reading settings from `/etc/rtl-airband-panel/panel.env`.
+- **`.env.example`:** the Rust-only settings (auth, default service
+  user/group, control-socket timeout, frontend override).
+
+### Fixed
+
+- **`RTL_PANEL_ALLOW_UNAUTHENTICATED` accepts `1/0`, `yes/no`, `on/off`.**
+  Previously only `true`/`false` worked, and any other value aborted startup
+  with a parse error.
+
+## [0.4.108] - 2026-10-22
+
+### Changed
+
+- **Frontend restyle, after TrunkRecorder/trunk-recorder-pro's layout (no
+  code copied).**
+  - **Navigation:** a left rail with Overview and Stats, plus every instance
+    with a round status light (green running, amber starting/stopping, red
+    failed, grey idle) and a "pending" chip. It becomes a slide-over drawer
+    on phones.
+  - **Instance list:** search moves into the rail. The per-row
+    Restart/Rename/Delete links move to the instance page header.
+  - **App-wide banners:** an alert when the server can't be reached, and a
+    "Saved but not running yet" banner that lists those instances with a
+    one-click "Restart all" (`POST /api/instances/restart-pending`).
+  - **Overview page:** replaces the welcome table with fleet totals
+    (instances, running, failed, pending) and a card per instance showing
+    status, uptime, frequency count and range, and its problem counters,
+    highlighted when nonzero.
+  - **Instance header:** live status, uptime, unit name and
+    pending state.
+  - **Editor actions:** they stay pinned to the bottom of the page.
+- **Theme system.** Tailwind's slate/sky/emerald/amber/red palettes now
+  resolve to CSS variables (`src/index.css`, `tailwind.config.js`), so every
+  existing component follows one theme. Dark stays the default, and a light
+  theme follows the OS setting or can be forced from the rail footer
+  ("Auto/Dark/Light theme", remembered per browser). Status colors are
+  reserved for status.
+- **Live updates over `/api/ws`.** Unit status changes are merged in place
+  and any client's change triggers a refetch, so the 20 s poll drops to a
+  60 s safety net while connected. The rail footer shows Live / Polling /
+  Offline. Against a backend without the push channel (the TS API) it keeps
+  polling as before.
+
+### Added
+
+- **Change preview in the editor.** While there are unsaved edits, or a
+  saved config that isn't running yet, the action bar shows the server's
+  prediction: "Can be applied live", "Needs a restart", or "already has this
+  configuration". Expandable details list what goes live, what needs a
+  restart, and which channels or devices a live apply briefly interrupts.
+  The matching button (Apply live vs Save and restart) becomes the primary
+  one. Hidden against backends without `/plan`.
+- **`frequencies` on each instance in `GET /api/instances` (Rust panel):**
+  distinct active channel frequencies in Hz, used by the overview cards.
+- Frontend tests for the change preview and the theme preference.
+
+### Fixed
+
+- **A pending save on an instance the panel never started no longer
+  previews as "already running" (Rust panel).** The first time the panel
+  overwrites a config it has no baseline for, it records the replaced file
+  as what's running (if nothing was pending).
+- **The mock unit manager reports real timestamps.** It used to report
+  placeholder ones, so mock-mode uptimes read "294 days".
+
+Verified with headless-Chromium screenshots (dark, light, phone width)
+against the Rust panel serving 12 real deployment configs in mock mode,
+plus browser-driven flows:
+- a gain edit previews as live;
+- adding a global change flips the preview to restart;
+- "Restart all" clears the pending banner;
+- served by the TS backend, the same frontend falls back to polling with
+  no preview and no page errors.
+
+## [0.4.107] - 2026-10-22
+
+### Added
+
+- **`crates/panel`: the Rust panel server (`rtl-airband-panel` binary).**
+  It replaces `backend/api` with the same REST API: every route, JSON shape,
+  status code, ETag/If-Match behavior, `_matchIndex` secret pairing, and SSE
+  log stream. The existing React frontend works against it unchanged. It
+  reads and writes the same instances-directory state (`.pending-restarts.json`,
+  `.instance-options.json`, `.backups/`) and the same stats DB schema, so it
+  can take over an existing deployment in place. Settings use the same
+  `RTL_PANEL_*` env vars and flags.
+  - Built on axum. The release build is a single 12 MB binary with the
+    frontend and SQLite built in.
+  - `scripts/api-parity.mjs` starts both backends in mock mode on copies of
+    the same instances directory and sends them 54 identical requests:
+    reads, saves, conflicts, validation failures, secret restoration,
+    live apply, options, restart, rename, create, import, stats, metrics and
+    delete. Responses and the files left on disk match exactly. A new
+    `api-parity` CI job runs it.
+- **Live-apply planning in the API.**
+  - New `POST /api/instances/:name/plan` predicts what applying an edited
+    config would do, without writing it.
+  - Save (without restart) and apply-live responses now carry a `plan` with
+    the method, live changes, restart-only changes, interruptions and
+    `baselineKnown`.
+  - The panel records each instance's started/applied config under
+    `.running/`, so predictions compare against what the process actually
+    loaded, including `reserve_channels` capacity from its last start.
+- **`/api/ws` push channel:** a hello on connect, `health` snapshots whenever
+  a unit's status changes, and `instance-changed` after every mutation.
+  Clients that fall behind are disconnected so they resync. The frontend
+  doesn't use it yet.
+- **Authentication and request hardening.**
+  - Optional HTTP Basic auth (`RTL_PANEL_PASSWORD`, `RTL_PANEL_USERNAME`).
+    The panel refuses to listen on a non-loopback address without it unless
+    `--allow-unauthenticated` is passed. `/api/health` stays open for
+    monitors.
+  - State-changing requests and WebSocket upgrades with a foreign `Origin`
+    are refused.
+  - A loopback-bound panel only answers loopback `Host` names (DNS-rebinding
+    guard).
+  - Rate limits are kept from the TS API: 300/min per IP, 60/min per
+    mutating route.
+  - helmet-equivalent security headers, minus HSTS and
+    upgrade-insecure-requests, which break plain-HTTP LAN access.
+- **`RTL_PANEL_DEFAULT_SERVICE_USER` / `_GROUP`:** the default `User=`/
+  `Group=` for generated instance units when no per-instance override is
+  set. The default is empty, the same as before. Set it to the panel's own
+  user so live apply's control socket accepts the panel.
+
+### Fixed
+
+- **Pending-restart is no longer cleared by a live apply that missed
+  changes.** It is cleared only when `reload_diff` skipped nothing *and* the
+  prediction found nothing restart-only. The TS panel cleared it whenever
+  `reload_diff` reported nothing skipped, even for changes `reload_diff`
+  silently ignores (any global setting, a mixer's outputs, device serial,
+  ...), so the panel reported those changes as applied when they weren't.
+
+## [0.4.106] - 2026-10-22
+
+### Added
+
+- **`crates/airband-supervisor`: controlling rtl_airband instances from
+  outside the process.** This is the Rust replacement for `backend/api`'s
+  systemd, control-socket and stats layers.
+  - `UnitManager` trait, ported from `SystemdAdapter`, with two
+    implementations:
+    - `SudoSystemctl`: scoped by unit-name prefix, with argv pinned by a
+      test to match `deploy/rtl-airband-panel.sudoers`.
+    - `MockUnits`: records calls instead of touching the system.
+  - `status_many` covers every unit in one `systemctl show` call.
+  - Journal reading and following. rtl_airband's `-j` JSON log lines are
+    unwrapped into level + message.
+  - Control-socket client: `reload_diff`, plus `retune`, `set_gain`,
+    `set_sample_rate`, `set_bandwidth`, `set_correction`,
+    `channel_enable`/`channel_disable` and `mixer_enable`/`mixer_disable`.
+  - Stats reader, from `stats_filepath` or the fork's `stats_http`
+    endpoint. It skips unchanged files and has size and time caps.
+  - Rendering instance unit files, and parsing an existing unit's
+    `ExecStart` to find which binary and config an instance actually runs.
+  - `rtl_airband -v` version detection, a per-instance keyed mutex, and
+    instance-name rules.
+- **Live-apply vs restart prediction (`plan_change`).** Before a config is
+  written, it predicts whether `reload_diff` can apply the change live or the
+  instance's unit must restart, and which channels or devices a live apply
+  briefly interrupts. It mirrors the fork's `compute_and_apply_diff()`
+  (v6.3.0), including its channel-signature rules: values are rendered with
+  C++ `%g` (6 significant digits), and literal types matter. It also covers
+  what `reload_diff` drops without reporting:
+  - Anything outside its scope: global settings, a mixer's own outputs and
+    filters, and device serial/buffers/reserve_channels.
+  - Per-driver setters that return ENOTSUP: mirisdr has no live
+    gain/bandwidth/correction, and soapysdr has no live correction (and
+    refuses live sample_rate).
+  - Float `correction`/`bandwidth` values, which `reload_diff` misreads as MHz.
+  - Edits smaller than its float signature precision.
+
+  Added channels are checked against `reserve_channels` headroom from the
+  config the process started with. On all 12 real deployment configs, an
+  unchanged re-save is correctly predicted as "no change" and a gain edit as
+  live.
+- **`cargo run -p airband-supervisor --example plan -- running.conf next.conf`**
+  (or `--resave running.conf`), a dev tool that prints the prediction as JSON.
+
+### Fixed
+
+- **The example sudoers rule now allows the panel's status call.** The
+  status query requests `ActiveEnterTimestamp` (and now `--timestamp=utc`),
+  but the rule only allowed `ActiveState`/`SubState`. sudo matches arguments
+  literally, so every status check in sudo mode was refused.
+
+## [0.4.105] - 2026-10-22
+
+### Added
+
+- **`crates/airband-validate`, a Rust port of `backend/validate`.** All 30
+  checks are ported with the same issue codes, paths, message text
+  (numbers formatted the way JavaScript does), and issue order.
+  `compute_bin` and the RTLSDR-Airband/librtlsdr constants are exported
+  for later frontend use.
+- **TS-parity golden tests for the validator.** `scripts/gen-parity-goldens.mjs`
+  now also records `backend/validate`'s `{ errors, warnings }` for 75 inputs:
+  both fixtures, the parser corpus, and 59 new validator corpus files in
+  `crates/airband-validate/tests/corpus/`. Those files exercise every check,
+  including boundary values, and trigger all 59 of the TS validator's issue
+  codes. The Rust validator reproduces every golden exactly. CI's golden
+  drift check now covers these too.
+- **New Rust-only checks.** They run after the ported checks, so configs
+  without these settings get the same output as the TS validator.
+  - `stats_update_interval` must be > 0.
+  - Global `split_*_file_time` settings must satisfy RTLSDR-Airband's
+    constraint: `split_min_file_time` >= 1.0, `split_max_file_time` >
+    `split_min_file_time`, and `split_max_idle_time` > 0.
+  - A file/rawfile output that overrides any of those settings must satisfy
+    the same constraint, using the global or default value for the ones it
+    doesn't set. An invalid global is reported once, not once per output.
+  - Split settings on a mixer's outputs are errors.
+  - Split settings without `split_on_transmission` are warnings (ignored).
+  - Every unrecognized setting kept verbatim gets a warning
+    (`unknown-setting-preserved`). A channel's `squelch` gets
+    RTLSDR-Airband's own deprecation warning instead (`squelch-deprecated`).
+- **Checked against the same 12 real deployment configs as v0.4.104.** The
+  TS and Rust validators produce identical results for all 12: no errors,
+  no warnings.
+- **`cargo run -p airband-validate --example check -- <file.conf>`**, a dev
+  tool that prints a config's validation result as JSON in the golden format.
+
+## [0.4.104] - 2026-10-22
+
+### Added
+
+- **Checked the Rust parser against 12 real deployment configs (not
+  committed; they contain credentials).** The TS and Rust parsers produce an
+  identical domain model and byte-identical written files for all 12. A
+  key-by-key comparison of each original file with the panel's rewrite of
+  it shows all 3,475 settings kept with the same meaning: none missing, none
+  added, none changed. The only differences are comments, whitespace, and
+  float-MHz values written as integer Hz, which rtl_airband reads
+  identically. None of the 12 contain settings the panel doesn't model.
+- **New corpus case `ok-live-coverage.conf`** for the four setting
+  combinations the real configs use that the fixtures didn't cover:
+  `disable` on mixer and udp_stream outputs, and `disable`/`send_tx_tags` on
+  a mixer's own icecast output. Its golden is recorded from the TS parser
+  like the others.
+- **`cargo run -p airband-config --example dump -- <file.conf>`**, a dev
+  tool that prints the Rust parser's view of a config (domain model, written
+  text, and syntax trees) in the same JSON shape as the parity goldens, for
+  checking real configs against the TS parser.
+
+## [0.4.103] - 2026-10-22
+
+First commit on the `rust` branch (Rust rewrite; see CLAUDE.md).
+
+### Added
+
+- **Cargo workspace with `crates/airband-config`, a Rust port of
+  `backend/parser`.** It includes the libconfig tokenizer, recursive-descent
+  parser, AST and serializer, plus the domain model and the AST↔domain
+  mapper. Field handling, check order and error text match the TS
+  implementation, and number formatting reproduces JavaScript's `Number`
+  rules (`jsnum.rs`), so written files are byte-identical.
+- **TS-parity golden tests.** `scripts/gen-parity-goldens.mjs` records the
+  TS parser's domain JSON, serialized text, AST-level re-serialization, or
+  error message for each of 39 inputs: both fixtures plus 37 corpus snippets
+  in `crates/airband-config/tests/corpus/` covering every output type, scan
+  lists, device types, globals, number/string literal forms, and 24
+  error paths. `tests/parity.rs` requires the Rust port to reproduce every
+  golden exactly. CI regenerates the goldens from the TS parser and fails if
+  they drift.
+- **Unrecognized settings are kept instead of dropped.** Every group in the
+  Rust domain model carries `unknown_settings`, written back verbatim after
+  the group's known scalar fields. The TS parser deletes any key it doesn't
+  model when it saves, including RTLSDR-Airband's own newer keys; that is
+  intentionally not ported.
+- **RTLSDR-Airband v5.5/v6.3 config fields, modeled in the Rust domain
+  model only:** global `stats_update_interval`, plus global and per-output
+  (file/rawfile) `split_min_file_time`, `split_max_file_time`,
+  `split_max_idle_time` and `split_include_transmission_start`. Validation
+  rules for these come with the Rust validate port.
+- **A `rust` CI job** that runs `cargo fmt --check`, `clippy -D warnings`
+  and `cargo test`. CI now also runs on pushes to the `rust` branch.
+
 ## [0.4.102] - 2026-10-22
 
 ### Changed

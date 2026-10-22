@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected 'dest_port' to be a string or number (at $.devices[0].channels[0].outputs[0])"
+}

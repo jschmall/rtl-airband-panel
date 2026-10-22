@@ -5,18 +5,16 @@ interface MobileNavContextValue {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
-  /** The hamburger button (App.tsx) attaches this -- lets the drawer (TwoPaneLayout.tsx)
-   *  return focus to it on Escape, matching PendingRestartIndicator's popover convention. */
+  /** The hamburger button attaches this, so the drawer can return focus to it on Escape. */
   triggerRef: RefObject<HTMLButtonElement>;
 }
 
 const MobileNavContext = createContext<MobileNavContextValue | null>(null);
 
 /**
- * Whether the below-md: sidebar drawer is open, shared between the hamburger
- * button (App.tsx's header) and the drawer itself (TwoPaneLayout.tsx) -- they
- * aren't otherwise in a parent/child relationship, since the header lives
- * above the routed <Outlet> that renders TwoPaneLayout.
+ * Whether the below-md: navigation drawer is open, shared between the
+ * hamburger button and the drawer (both in AppShell.tsx) and anything else
+ * that needs to close it.
  */
 export function MobileNavProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);

@@ -1,0 +1,16 @@
+[package]
+name = "airband-validate"
+description = "Semantic validation for RTLSDR-Airband instance configs (frequency windows, FFT bin collisions, CTCSS tones, startup constraints)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+airband-config = { path = "../airband-config" }
+serde.workspace = true
+ts-rs.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

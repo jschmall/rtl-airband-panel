@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Device, Mixer } from "@rtl-airband-panel/parser";
+import type { Device, Mixer } from "../../src/types/config.js";
 import { buildMixerLookups, resolveDeviceChannelLabel, resolveMixerSampleLabel } from "../../src/lib/stats-mixer-labels.js";
 
 function makeDevice(overrides: Partial<Device> = {}): Device {

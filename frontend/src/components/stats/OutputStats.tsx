@@ -41,7 +41,7 @@ interface OutputGroup {
 }
 
 /**
- * Mirrors backend/api/src/stats/stats-service.ts's OUTPUT_FAILURE_METRICS --
+ * Mirrors crates/panel/src/stats.rs's OUTPUT_FAILURE_METRICS --
  * kept in sync by hand since stats types aren't shared between the two
  * workspaces (see stats-descriptions.ts / stats-format.ts for the same
  * pattern). Drives the collapsed card's "N output failures" flag, same

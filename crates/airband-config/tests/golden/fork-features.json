@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": true,
+    "stats_filepath": "/var/lib/rtl-airband/stats/fork-features.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 155010000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/fork-features/channel_01",
+                "filename_template": "channel_01",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "rdio_scanner": {
+                  "server": "rdio.example.com",
+                  "port": 443,
+                  "api_key": "REDACTED",
+                  "talkgroup_id": 100,
+                  "use_tls": true,
+                  "system_id": 1,
+                  "system_label": "Fork Features Test System",
+                  "talkgroup_label": "Channel 01",
+                  "source_id": 1,
+                  "delete_after_upload": false,
+                  "timeout_ms": 5000,
+                  "max_retries": 2
+                }
+              },
+              {
+                "type": "udp_stream",
+                "dest_address": "192.0.2.20",
+                "dest_port": "5005",
+                "bit_depth": 16,
+                "sample_rate": 8000,
+                "continuous": true
+              },
+              {
+                "type": "mixer_remote",
+                "dest_path": "/run/rtl-airband/fork_mix.sock",
+                "stream_id": 0
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000
+          },
+          {
+            "freq": 155025000,
+            "outputs": [
+              {
+                "type": "mixer",
+                "name": "fork_mix",
+                "ampfactor": 1,
+                "balance": 0
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "enabled": false
+          }
+        ],
+        "serial": "22",
+        "gain": 29,
+        "centerfreq": 155000000,
+        "sample_rate": 1400000,
+        "correction": 0,
+        "bandwidth": 8000000,
+        "reserve_channels": 4
+      }
+    ],
+    "stats_http_address": "127.0.0.1",
+    "stats_http_port": 9091,
+    "rdio_scanner_queue_depth": 128,
+    "control_socket_path": "/run/rtl-airband/fork-features.sock",
+    "mixers": [
+      {
+        "name": "fork_mix",
+        "outputs": [
+          {
+            "type": "udp_stream",
+            "dest_address": "192.0.2.21",
+            "dest_port": "5006",
+            "bit_depth": 8,
+            "sample_rate": 8000
+          }
+        ],
+        "enabled": false,
+        "highpass": 200,
+        "lowpass": 3000,
+        "reserve_inputs": 2,
+        "remote_inputs": [
+          {
+            "listen_path": "/run/rtl-airband/fork_mix.sock",
+            "stream_id": 0,
+            "ampfactor": 1,
+            "balance": 0,
+            "label": "site2 ch1"
+          }
+        ]
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/var/lib/rtl-airband/stats/fork-features.txt\";\nlocaltime = true;\nstats_http_address = \"127.0.0.1\";\nstats_http_port = 9091;\nrdio_scanner_queue_depth = 128;\ncontrol_socket_path = \"/run/rtl-airband/fork-features.sock\";\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"22\";\n    gain = 29;\n    centerfreq = 155000000;\n    sample_rate = 1400000;\n    correction = 0;\n    bandwidth = 8000000;\n    reserve_channels = 4;\n    channels: (\n      {\n        freq = 155010000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/fork-features/channel_01\";\n            filename_template = \"channel_01\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            rdio_scanner: {\n              server = \"rdio.example.com\";\n              port = 443;\n              api_key = \"REDACTED\";\n              talkgroup_id = 100;\n              use_tls = true;\n              system_id = 1;\n              system_label = \"Fork Features Test System\";\n              talkgroup_label = \"Channel 01\";\n              source_id = 1;\n              delete_after_upload = false;\n              timeout_ms = 5000;\n              max_retries = 2;\n            };\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"192.0.2.20\";\n            dest_port = \"5005\";\n            bit_depth = 16;\n            sample_rate = 8000;\n            continuous = true;\n          },\n          {\n            type = \"mixer_remote\";\n            dest_path = \"/run/rtl-airband/fork_mix.sock\";\n            stream_id = 0;\n          }\n        );\n      },\n      {\n        freq = 155025000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        enabled = false;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"fork_mix\";\n            ampfactor = 1.0;\n            balance = 0.0;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  fork_mix: {\n    enabled = false;\n    highpass = 200;\n    lowpass = 3000;\n    reserve_inputs = 2;\n    remote_inputs: (\n      {\n        listen_path = \"/run/rtl-airband/fork_mix.sock\";\n        stream_id = 0;\n        ampfactor = 1.0;\n        balance = 0.0;\n        label = \"site2 ch1\";\n      }\n    );\n    outputs: (\n      {\n        type = \"udp_stream\";\n        dest_address = \"192.0.2.21\";\n        dest_port = \"5006\";\n        bit_depth = 8;\n        sample_rate = 8000;\n      }\n    );\n  };\n};\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/var/lib/rtl-airband/stats/fork-features.txt\";\nlocaltime = true;\nstats_http_address = \"127.0.0.1\";\nstats_http_port = 9091;\nrdio_scanner_queue_depth = 128;\ncontrol_socket_path = \"/run/rtl-airband/fork-features.sock\";\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"22\";\n    gain = 29;\n    centerfreq = 155.000;\n    sample_rate = 1.4;\n    correction = 0;\n    bandwidth = 8000000;\n    reserve_channels = 4;\n    channels: (\n      {\n        freq = 155.010;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/fork-features/channel_01\";\n            filename_template = \"channel_01\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            rdio_scanner: {\n              server = \"rdio.example.com\";\n              port = 443;\n              use_tls = true;\n              api_key = \"REDACTED\";\n              system_id = 1;\n              system_label = \"Fork Features Test System\";\n              talkgroup_id = 100;\n              talkgroup_label = \"Channel 01\";\n              source_id = 1;\n              delete_after_upload = false;\n              timeout_ms = 5000;\n              max_retries = 2;\n            };\n          },\n          {\n            type = \"udp_stream\";\n            dest_address = \"192.0.2.20\";\n            dest_port = 5005;\n            bit_depth = 16;\n            sample_rate = 8000;\n            continuous = true;\n          },\n          {\n            type = \"mixer_remote\";\n            dest_path = \"/run/rtl-airband/fork_mix.sock\";\n            stream_id = 0;\n          }\n        );\n      },\n      {\n        freq = 155.025;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        enabled = false;\n        outputs: (\n          {\n            type = \"mixer\";\n            name = \"fork_mix\";\n            ampfactor = 1.0;\n            balance = 0.0;\n          }\n        );\n      }\n    );\n  }\n);\nmixers: {\n  fork_mix: {\n    enabled = false;\n    highpass = 200;\n    lowpass = 3000;\n    reserve_inputs = 2;\n    remote_inputs: (\n      {\n        listen_path = \"/run/rtl-airband/fork_mix.sock\";\n        stream_id = 0;\n        ampfactor = 1.0;\n        balance = 0.0;\n        label = \"site2 ch1\";\n      }\n    );\n    outputs: (\n      {\n        type = \"udp_stream\";\n        dest_address = \"192.0.2.21\";\n        dest_port = 5006;\n        bit_depth = 8;\n        sample_rate = 8000;\n      }\n    );\n  };\n};\n"
+}
