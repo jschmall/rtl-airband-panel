@@ -5,6 +5,39 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.103] - 2026-10-22
+
+First commit on the `rust` branch (Rust rewrite; see CLAUDE.md).
+
+### Added
+
+- **Cargo workspace with `crates/airband-config`, a Rust port of
+  `backend/parser`.** It includes the libconfig tokenizer, recursive-descent
+  parser, AST and serializer, plus the domain model and the AST↔domain
+  mapper. Field handling, check order and error text match the TS
+  implementation, and number formatting reproduces JavaScript's `Number`
+  rules (`jsnum.rs`), so written files are byte-identical.
+- **TS-parity golden tests.** `scripts/gen-parity-goldens.mjs` records the
+  TS parser's domain JSON, serialized text, AST-level re-serialization, or
+  error message for each of 39 inputs: both fixtures plus 37 corpus snippets
+  in `crates/airband-config/tests/corpus/` covering every output type, scan
+  lists, device types, globals, number/string literal forms, and 24
+  error paths. `tests/parity.rs` requires the Rust port to reproduce every
+  golden exactly. CI regenerates the goldens from the TS parser and fails if
+  they drift.
+- **Unrecognized settings are kept instead of dropped.** Every group in the
+  Rust domain model carries `unknown_settings`, written back verbatim after
+  the group's known scalar fields. The TS parser deletes any key it doesn't
+  model when it saves, including RTLSDR-Airband's own newer keys; that is
+  intentionally not ported.
+- **RTLSDR-Airband v5.5/v6.3 config fields, modeled in the Rust domain
+  model only:** global `stats_update_interval`, plus global and per-output
+  (file/rawfile) `split_min_file_time`, `split_max_file_time`,
+  `split_max_idle_time` and `split_include_transmission_start`. Validation
+  rules for these come with the Rust validate port.
+- **A `rust` CI job** that runs `cargo fmt --check`, `clippy -D warnings`
+  and `cargo test`. CI now also runs on pushes to the `rust` branch.
+
 ## [0.4.102] - 2026-10-22
 
 ### Changed

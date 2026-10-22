@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 100500000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/tmp/a",
+                "filename_template": "rec"
+              },
+              {
+                "type": "file",
+                "directory": "/tmp/b",
+                "filename_template": "rec",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": false,
+                "dated_subdirectories": true,
+                "disable": true,
+                "min_rx_seconds": 1.5,
+                "post_write_script": "/usr/local/bin/x.sh"
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 100500000;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/tmp/a\";\n            filename_template = \"rec\";\n          },\n          {\n            type = \"file\";\n            directory = \"/tmp/b\";\n            filename_template = \"rec\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = false;\n            dated_subdirectories = true;\n            disable = true;\n            min_rx_seconds = 1.5;\n            post_write_script = \"/usr/local/bin/x.sh\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 100.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/tmp/a\";\n            filename_template = \"rec\";\n          },\n          {\n            type = \"file\";\n            directory = \"/tmp/b\";\n            filename_template = \"rec\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.5;\n            include_freq = true;\n            append = false;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/x.sh\";\n            disable = true;\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

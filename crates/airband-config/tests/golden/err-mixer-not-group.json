@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected mixer 'mix1' to be a group (at $.mixers.mix1)"
+}

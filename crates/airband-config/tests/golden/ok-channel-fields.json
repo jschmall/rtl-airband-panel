@@ -1,0 +1,52 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 118050000,
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ],
+            "label": "Tower",
+            "afc": 2,
+            "modulation": "nfm",
+            "bandwidth": 12000,
+            "ampfactor": 2,
+            "ctcss": 103.5,
+            "notch": 136.5,
+            "notch_q": 12.5,
+            "highpass": 150,
+            "lowpass": 3000,
+            "tau": 75,
+            "squelch_threshold": -40,
+            "squelch_snr_threshold": 9.5,
+            "disable": false,
+            "enabled": false
+          },
+          {
+            "freq": 120900000,
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 118050000;\n        label = \"Tower\";\n        bandwidth = 12000;\n        ampfactor = 2.0;\n        afc = 2;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 136.5;\n        notch_q = 12.5;\n        highpass = 150;\n        lowpass = 3000;\n        tau = 75;\n        squelch_threshold = -40;\n        squelch_snr_threshold = 9.5;\n        disable = false;\n        enabled = false;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      },\n      {\n        freq = 120900000;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 118050000;\n        label = \"Tower\";\n        bandwidth = 0.012;\n        ampfactor = 2.0;\n        afc = 2;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 136.5;\n        notch_q = 12.5;\n        highpass = 150;\n        lowpass = 3000;\n        tau = 75;\n        squelch_threshold = -40;\n        squelch_snr_threshold = 9.5;\n        disable = false;\n        enabled = false;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      },\n      {\n        freq = 120.9;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

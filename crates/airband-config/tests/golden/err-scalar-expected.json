@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected 'freq' to be a scalar (at $.devices[0].channels[0])"
+}

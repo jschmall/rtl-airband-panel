@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freqs": [
+              118000000,
+              119250000
+            ],
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ],
+            "bandwidth": 8000,
+            "ampfactor": 1.5,
+            "ctcss": 100,
+            "notch": 50,
+            "notch_q": 5,
+            "squelch_threshold": -30,
+            "squelch_snr_threshold": 6
+          }
+        ],
+        "index": 0,
+        "gain": 25,
+        "mode": "scan"
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    index = 0;\n    gain = 25;\n    mode = \"scan\";\n    channels: (\n      {\n        freqs: (\n          118000000,\n          119250000\n        );\n        bandwidth = 8000;\n        ampfactor = 1.5;\n        ctcss = 100.0;\n        notch = 50.0;\n        notch_q = 5.0;\n        squelch_threshold = -30;\n        squelch_snr_threshold = 6.0;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    index = 0;\n    gain = 25;\n    mode = \"scan\";\n    channels: (\n      {\n        freqs = (\n          118.0,\n          119.25\n        );\n        bandwidth = 0.008;\n        ampfactor = 1.5;\n        ctcss = 100.0;\n        notch = 50.0;\n        notch_q = 5.0;\n        squelch_threshold = -30;\n        squelch_snr_threshold = 6.0;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Invalid tls value 'bogus' (must be one of: auto, auto_no_plain, transport, upgrade, disabled) (at $.devices[0].channels[0].outputs[0])"
+}

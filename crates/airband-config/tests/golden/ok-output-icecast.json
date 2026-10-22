@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 100500000,
+            "outputs": [
+              {
+                "type": "icecast",
+                "server": "ice.example.com",
+                "port": 8000,
+                "mountpoint": "/m",
+                "username": "source",
+                "password": "pw",
+                "name": "n",
+                "genre": "ATC",
+                "description": "d",
+                "send_scan_freq_tags": false,
+                "send_tx_tags": true,
+                "tls": "auto_no_plain",
+                "disable": false
+              }
+            ]
+          }
+        ],
+        "serial": "1",
+        "gain": 29,
+        "centerfreq": 100000000
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100000000;\n    channels: (\n      {\n        freq = 100500000;\n        outputs: (\n          {\n            type = \"icecast\";\n            server = \"ice.example.com\";\n            port = 8000;\n            mountpoint = \"/m\";\n            username = \"source\";\n            password = \"pw\";\n            name = \"n\";\n            genre = \"ATC\";\n            description = \"d\";\n            send_scan_freq_tags = false;\n            send_tx_tags = true;\n            tls = \"auto_no_plain\";\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"1\";\n    gain = 29;\n    centerfreq = 100.0;\n    channels: (\n      {\n        freq = 100.5;\n        outputs: (\n          {\n            type = \"icecast\";\n            server = \"ice.example.com\";\n            port = 8000;\n            mountpoint = \"/m\";\n            username = \"source\";\n            password = \"pw\";\n            name = \"n\";\n            genre = \"ATC\";\n            description = \"d\";\n            send_scan_freq_tags = false;\n            send_tx_tags = true;\n            tls = \"auto_no_plain\";\n            disable = false;\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

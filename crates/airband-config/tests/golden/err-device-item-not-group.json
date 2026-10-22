@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected list item to be a group (at $.devices[0])"
+}

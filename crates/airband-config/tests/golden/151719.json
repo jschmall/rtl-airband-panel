@@ -1,0 +1,571 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": true,
+    "stats_filepath": "/var/lib/rtl-airband/stats/151719.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 151160000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_01",
+                "stream_name": "channel_01",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_01",
+                "filename_template": "channel_01",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ampfactor": 5,
+            "notch": 136.5
+          },
+          {
+            "freq": 151175000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_02",
+                "filename_template": "channel_02",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 103.5,
+            "notch": 103.5
+          },
+          {
+            "freq": 151175000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_03",
+                "filename_template": "channel_03",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 151190000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_04",
+                "stream_name": "channel_04",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_04",
+                "filename_template": "channel_04",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 151190000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_05",
+                "filename_template": "channel_05",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 103.5,
+            "notch": 103.5
+          },
+          {
+            "freq": 151220000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_06",
+                "filename_template": "channel_06",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 151257500,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_07",
+                "stream_name": "channel_07",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_07",
+                "filename_template": "channel_07",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 151265000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_08",
+                "filename_template": "channel_08",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 103.5,
+            "notch": 103.5
+          },
+          {
+            "freq": 151302500,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_09",
+                "stream_name": "channel_09",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_09",
+                "filename_template": "channel_09",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 110.9,
+            "notch": 110.9
+          },
+          {
+            "freq": 151325000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_10",
+                "stream_name": "channel_10",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_10",
+                "filename_template": "channel_10",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ampfactor": 5,
+            "notch": 156.7
+          },
+          {
+            "freq": 151355000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_11",
+                "filename_template": "channel_11",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 103.5,
+            "notch": 103.5
+          },
+          {
+            "freq": 151370000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_12",
+                "stream_name": "channel_12",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_12",
+                "filename_template": "channel_12",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ampfactor": 5,
+            "notch": 146.2
+          },
+          {
+            "freq": 151385000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_13",
+                "stream_name": "channel_13",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_13",
+                "filename_template": "channel_13",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8,
+            "squelch_snr_threshold": 12
+          },
+          {
+            "freq": 151415000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_14",
+                "filename_template": "channel_14",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 118.8,
+            "notch": 118.8
+          },
+          {
+            "freq": 151415000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_15",
+                "filename_template": "channel_15",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 127.3,
+            "notch": 127.3
+          },
+          {
+            "freq": 151415000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_16",
+                "filename_template": "channel_16",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000
+          },
+          {
+            "freq": 151422500,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_17",
+                "filename_template": "channel_17",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 2,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "squelch_snr_threshold": 15
+          },
+          {
+            "freq": 151430000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_18",
+                "stream_name": "channel_18",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_18",
+                "filename_template": "channel_18",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000
+          },
+          {
+            "freq": 151445000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_19",
+                "stream_name": "channel_19",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_19",
+                "filename_template": "channel_19",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 151460000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_20",
+                "filename_template": "channel_20",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 103.5,
+            "notch": 103.5
+          },
+          {
+            "freq": 151460000,
+            "outputs": [
+              {
+                "type": "pulse",
+                "server": "192.0.2.10",
+                "sink": "channel_21",
+                "stream_name": "channel_21",
+                "continuous": false
+              },
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_21",
+                "filename_template": "channel_21",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000,
+            "ctcss": 192.8,
+            "notch": 192.8
+          },
+          {
+            "freq": 152345000,
+            "outputs": [
+              {
+                "type": "file",
+                "directory": "/mnt/audio/rtlsdr-airband/site/channel_22",
+                "filename_template": "channel_22",
+                "continuous": false,
+                "split_on_transmission": true,
+                "include_freq": true,
+                "append": true,
+                "dated_subdirectories": true,
+                "min_rx_seconds": 1,
+                "post_write_script": "/usr/local/bin/post_write_script.sh"
+              }
+            ],
+            "afc": 0,
+            "modulation": "nfm",
+            "bandwidth": 5000
+          }
+        ],
+        "serial": "11",
+        "gain": 29,
+        "centerfreq": 151780000,
+        "sample_rate": 1400000,
+        "correction": 0
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/var/lib/rtl-airband/stats/151719.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"11\";\n    gain = 29;\n    centerfreq = 151780000;\n    sample_rate = 1400000;\n    correction = 0;\n    channels: (\n      {\n        freq = 151160000;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 136.5;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_01\";\n            stream_name = \"channel_01\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_01\";\n            filename_template = \"channel_01\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151175000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_02\";\n            filename_template = \"channel_02\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151175000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_03\";\n            filename_template = \"channel_03\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151190000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_04\";\n            stream_name = \"channel_04\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_04\";\n            filename_template = \"channel_04\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151190000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_05\";\n            filename_template = \"channel_05\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151220000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_06\";\n            filename_template = \"channel_06\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151257500;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_07\";\n            stream_name = \"channel_07\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_07\";\n            filename_template = \"channel_07\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151265000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_08\";\n            filename_template = \"channel_08\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151302500;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 110.9;\n        notch = 110.9;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_09\";\n            stream_name = \"channel_09\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_09\";\n            filename_template = \"channel_09\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151325000;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 156.7;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_10\";\n            stream_name = \"channel_10\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_10\";\n            filename_template = \"channel_10\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151355000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_11\";\n            filename_template = \"channel_11\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151370000;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 146.2;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_12\";\n            stream_name = \"channel_12\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_12\";\n            filename_template = \"channel_12\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151385000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        squelch_snr_threshold = 12;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_13\";\n            stream_name = \"channel_13\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_13\";\n            filename_template = \"channel_13\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151415000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 118.8;\n        notch = 118.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_14\";\n            filename_template = \"channel_14\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151415000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 127.3;\n        notch = 127.3;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_15\";\n            filename_template = \"channel_15\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151415000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_16\";\n            filename_template = \"channel_16\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151422500;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        squelch_snr_threshold = 15;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_17\";\n            filename_template = \"channel_17\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 2.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151430000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_18\";\n            stream_name = \"channel_18\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_18\";\n            filename_template = \"channel_18\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151445000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_19\";\n            stream_name = \"channel_19\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_19\";\n            filename_template = \"channel_19\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151460000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 103.5;\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_20\";\n            filename_template = \"channel_20\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151460000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        ctcss = 192.8;\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_21\";\n            stream_name = \"channel_21\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_21\";\n            filename_template = \"channel_21\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 152345000;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_22\";\n            filename_template = \"channel_22\";\n            continuous = false;\n            split_on_transmission = true;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            min_rx_seconds = 1.0;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = true;\nstats_filepath = \"/var/lib/rtl-airband/stats/151719.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"11\";\n    gain = 29;\n    centerfreq = 151.780;\n    sample_rate = 1.4;\n    correction = 0;\n    channels: (\n      {\n        freq = 151.16;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 136.5;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_01\";\n            stream_name = \"channel_01\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_01\";\n            filename_template = \"channel_01\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.175;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 103.5;\n        modulation = \"nfm\";\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_02\";\n            filename_template = \"channel_02\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.175;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_03\";\n            filename_template = \"channel_03\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.19;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_04\";\n            stream_name = \"channel_04\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_04\";\n            filename_template = \"channel_04\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.19;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 103.5;\n        modulation = \"nfm\";\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_05\";\n            filename_template = \"channel_05\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.22;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_06\";\n            filename_template = \"channel_06\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.2575;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_07\";\n            stream_name = \"channel_07\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_07\";\n            filename_template = \"channel_07\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.265;\n        ctcss = 103.5;\n        bandwidth = 5000;\n        notch = 103.5;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_08\";\n            filename_template = \"channel_08\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.3025;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 110.9;\n        modulation = \"nfm\";\n        notch = 110.9;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_09\";\n            stream_name = \"channel_09\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_09\";\n            filename_template = \"channel_09\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.325;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 156.7;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_10\";\n            stream_name = \"channel_10\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_10\";\n            filename_template = \"channel_10\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.355;\n        ctcss = 103.5;\n        bandwidth = 5000;\n        notch = 103.5;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_11\";\n            filename_template = \"channel_11\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.37;\n        bandwidth = 5000;\n        ampfactor = 5.0;\n        afc = 0;\n        modulation = \"nfm\";\n        notch = 146.2;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_12\";\n            stream_name = \"channel_12\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_12\";\n            filename_template = \"channel_12\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.385;\n        squelch_snr_threshold = 12;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_13\";\n            stream_name = \"channel_13\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_13\";\n            filename_template = \"channel_13\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.415;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 118.8;\n        modulation = \"nfm\";\n        notch = 118.8;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_14\";\n            filename_template = \"channel_14\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.415;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 127.3;\n        modulation = \"nfm\";\n        notch = 127.3;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_15\";\n            filename_template = \"channel_15\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.415;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_16\";\n            filename_template = \"channel_16\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.4225;\n        squelch_snr_threshold = 15;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_17\";\n            filename_template = \"channel_17\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 2.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.430;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_18\";\n            stream_name = \"channel_18\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_18\";\n            filename_template = \"channel_18\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.445;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_19\";\n            stream_name = \"channel_19\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_19\";\n            filename_template = \"channel_19\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.46;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 103.5;\n        modulation = \"nfm\";\n        notch = 103.5;\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_20\";\n            filename_template = \"channel_20\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 151.46;\n        bandwidth = 5000;\n        afc = 0;\n        ctcss = 192.8;\n        modulation = \"nfm\";\n        notch = 192.8;\n        outputs: (\n          {\n            type = \"pulse\";\n            server = \"192.0.2.10\";\n            sink = \"channel_21\";\n            stream_name = \"channel_21\";\n            continuous = false;\n          },\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_21\";\n            filename_template = \"channel_21\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      },\n      {\n        freq = 152.345;\n        bandwidth = 5000;\n        afc = 0;\n        modulation = \"nfm\";\n        outputs: (\n          {\n            type = \"file\";\n            directory = \"/mnt/audio/rtlsdr-airband/site/channel_22\";\n            filename_template = \"channel_22\";\n            continuous = false;\n            split_on_transmission = true;\n            min_rx_seconds = 1.0;\n            include_freq = true;\n            append = true;\n            dated_subdirectories = true;\n            post_write_script = \"/usr/local/bin/post_write_script.sh\";\n          }\n        );\n      }\n    );\n  }\n);\n"
+}

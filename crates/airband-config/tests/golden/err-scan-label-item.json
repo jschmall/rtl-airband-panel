@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Expected 'labels' list item to be a string (at $.devices[0].channels[0][0])"
+}

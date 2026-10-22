@@ -1,0 +1,15 @@
+[package]
+name = "airband-config"
+description = "libconfig .conf <-> JSON domain model for RTLSDR-Airband instance configs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with.workspace = true
+thiserror.workspace = true

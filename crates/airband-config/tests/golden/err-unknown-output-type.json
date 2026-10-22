@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "Unrecognized output type 'carrier_pigeon' (at $.devices[0].channels[0].outputs[0])"
+}

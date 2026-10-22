@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "domain": {
+    "multiple_demod_threads": true,
+    "multiple_output_threads": false,
+    "stats_filepath": "/tmp/stats.txt",
+    "localtime": true,
+    "devices": [
+      {
+        "type": "rtlsdr",
+        "channels": [
+          {
+            "freq": 120100000,
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ]
+          }
+        ],
+        "serial": "00000001",
+        "gain": 40,
+        "centerfreq": 120000000,
+        "sample_rate": 2400000,
+        "correction": -3,
+        "bandwidth": 350000,
+        "mode": "multichannel",
+        "reserve_channels": 4,
+        "disable": false,
+        "tau": 50,
+        "buffers": 12
+      },
+      {
+        "type": "mirisdr",
+        "channels": [],
+        "index": 1,
+        "gain": 20,
+        "centerfreq": 130000000,
+        "num_buffers": 8
+      },
+      {
+        "type": "soapysdr",
+        "channels": [
+          {
+            "freq": 120000000,
+            "outputs": [
+              {
+                "type": "pulse"
+              }
+            ]
+          }
+        ],
+        "gain": "LNA=10,MIX=5",
+        "centerfreq": 120000000,
+        "correction": 1.5,
+        "device_string": "driver=airspy",
+        "channel": 0,
+        "antenna": "RX"
+      }
+    ]
+  },
+  "serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"00000001\";\n    gain = 40;\n    centerfreq = 120000000;\n    sample_rate = 2400000;\n    correction = -3;\n    bandwidth = 350000;\n    mode = \"multichannel\";\n    reserve_channels = 4;\n    disable = false;\n    tau = 50;\n    buffers = 12;\n    channels: (\n      {\n        freq = 120100000;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  },\n  {\n    type = \"mirisdr\";\n    index = 1;\n    gain = 20;\n    centerfreq = 130000000;\n    num_buffers = 8;\n    channels: ();\n  },\n  {\n    type = \"soapysdr\";\n    gain = \"LNA=10,MIX=5\";\n    centerfreq = 120000000;\n    correction = 1.5;\n    device_string = \"driver=airspy\";\n    channel = 0;\n    antenna = \"RX\";\n    channels: (\n      {\n        freq = 120000000;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n",
+  "ast_serialized": "multiple_demod_threads = true;\nmultiple_output_threads = false;\nstats_filepath = \"/tmp/stats.txt\";\nlocaltime = true;\ndevices: (\n  {\n    type = \"rtlsdr\";\n    serial = \"00000001\";\n    gain = 40;\n    centerfreq = 120000000;\n    sample_rate = 2.4;\n    correction = -3;\n    bandwidth = 350000;\n    mode = \"multichannel\";\n    reserve_channels = 4;\n    disable = false;\n    tau = 50;\n    buffers = 12;\n    channels: (\n      {\n        freq = 120.1;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  },\n  {\n    type = \"mirisdr\";\n    index = 1;\n    gain = 20;\n    centerfreq = 130.0;\n    num_buffers = 8;\n    channels: ();\n  },\n  {\n    type = \"soapysdr\";\n    device_string = \"driver=airspy\";\n    gain = \"LNA=10,MIX=5\";\n    channel = 0;\n    antenna = \"RX\";\n    correction = 1.5;\n    centerfreq = 0x7270E00;\n    channels: (\n      {\n        freq = 0x7270E00L;\n        outputs: (\n          {\n            type = \"pulse\";\n          }\n        );\n      }\n    );\n  }\n);\n"
+}
