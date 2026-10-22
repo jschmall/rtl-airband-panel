@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.102] - 2026-10-22
+
+### Changed
+
+- **CLAUDE.md now reflects the project's new direction: the panel ships
+  with, and develops against, a pinned build of the jschmall/RTLSDR-Airband
+  fork instead of supporting arbitrary vanilla builds.** Fork-only features
+  (control-socket live reload, reserve_channels, rdio_scanner,
+  mixer_remote, send_tx_tags, stats_http, `-j`) are now first-class.
+  Control-socket live apply is the preferred path for changes the fork can
+  apply in-process, and a single-unit restart remains the fallback. SIGHUP
+  is still never used. Also documents the planned Rust rewrite (Cargo
+  workspace layout, trunk-recorder-pro as a design reference), the
+  `rust` / `airband-bundle` branch strategy, the global version-tag
+  namespace check before every bump, and the existing decision that the
+  parser regenerates whole files and drops comments. Documentation only;
+  no code changes.
+
 ## [0.4.101] - 2026-08-29
 
 ### Added
