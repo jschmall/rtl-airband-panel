@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.115] - 2026-10-22
+
+### Changed
+
+- **Bundled RTLSDR-Airband bumped from fork v6.3.0 to v6.3.1.** v6.3.1 is
+  a test-only change (jschmall/RTLSDR-Airband#21): the bundled
+  `rtl_airband` behaves the same, and it has no new config settings,
+  build options or driver-lookup changes.
+
+### Fixed
+
+- **arm64 release builds no longer fail on emulated (QEMU) machines.**
+  The fork's `DiffApplyTest.channel_enabled_diff_calls_channel_enable_disable`
+  started with a "disable" request already pending (0 instead of -1). The
+  race it caused failed every time under QEMU. This corrects 0.4.114's
+  note that arm64 wasn't buildable yet: GitHub's native arm64 runner built
+  0.4.114 successfully, and only emulated builds were affected.
+- **`scripts/build-release.sh` no longer builds the old fork after a pin
+  bump.** It always ran `git submodule update --init`, which resets the
+  submodule to the committed pin. A newly checked-out tag that wasn't
+  staged yet was silently replaced, and the tarball shipped the previous
+  rtl_airband. The script now only initialises the submodule when it's
+  missing.
+
 ## [0.4.114] - 2026-10-22
 
 ### Added
