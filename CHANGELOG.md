@@ -5,6 +5,71 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.108] - 2026-10-22
+
+### Changed
+
+- **Frontend restyle, after TrunkRecorder/trunk-recorder-pro's layout (no
+  code copied).**
+  - **Navigation:** a left rail with Overview and Stats, plus every instance
+    with a round status light (green running, amber starting/stopping, red
+    failed, grey idle) and a "pending" chip. It becomes a slide-over drawer
+    on phones.
+  - **Instance list:** search moves into the rail. The per-row
+    Restart/Rename/Delete links move to the instance page header.
+  - **App-wide banners:** an alert when the server can't be reached, and a
+    "Saved but not running yet" banner that lists those instances with a
+    one-click "Restart all" (`POST /api/instances/restart-pending`).
+  - **Overview page:** replaces the welcome table with fleet totals
+    (instances, running, failed, pending) and a card per instance showing
+    status, uptime, frequency count and range, and its problem counters,
+    highlighted when nonzero.
+  - **Instance header:** live status, uptime, unit name and
+    pending state.
+  - **Editor actions:** they stay pinned to the bottom of the page.
+- **Theme system.** Tailwind's slate/sky/emerald/amber/red palettes now
+  resolve to CSS variables (`src/index.css`, `tailwind.config.js`), so every
+  existing component follows one theme. Dark stays the default, and a light
+  theme follows the OS setting or can be forced from the rail footer
+  ("Auto/Dark/Light theme", remembered per browser). Status colors are
+  reserved for status.
+- **Live updates over `/api/ws`.** Unit status changes are merged in place
+  and any client's change triggers a refetch, so the 20 s poll drops to a
+  60 s safety net while connected. The rail footer shows Live / Polling /
+  Offline. Against a backend without the push channel (the TS API) it keeps
+  polling as before.
+
+### Added
+
+- **Change preview in the editor.** While there are unsaved edits, or a
+  saved config that isn't running yet, the action bar shows the server's
+  prediction: "Can be applied live", "Needs a restart", or "already has this
+  configuration". Expandable details list what goes live, what needs a
+  restart, and which channels or devices a live apply briefly interrupts.
+  The matching button (Apply live vs Save and restart) becomes the primary
+  one. Hidden against backends without `/plan`.
+- **`frequencies` on each instance in `GET /api/instances` (Rust panel):**
+  distinct active channel frequencies in Hz, used by the overview cards.
+- Frontend tests for the change preview and the theme preference.
+
+### Fixed
+
+- **A pending save on an instance the panel never started no longer
+  previews as "already running" (Rust panel).** The first time the panel
+  overwrites a config it has no baseline for, it records the replaced file
+  as what's running (if nothing was pending).
+- **The mock unit manager reports real timestamps.** It used to report
+  placeholder ones, so mock-mode uptimes read "294 days".
+
+Verified with headless-Chromium screenshots (dark, light, phone width)
+against the Rust panel serving 12 real deployment configs in mock mode,
+plus browser-driven flows:
+- a gain edit previews as live;
+- adding a global change flips the preview to restart;
+- "Restart all" clears the pending banner;
+- served by the TS backend, the same frontend falls back to polling with
+  no preview and no page errors.
+
 ## [0.4.107] - 2026-10-22
 
 ### Added

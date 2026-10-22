@@ -16,6 +16,8 @@ export interface InstanceSummary {
   status: UnitStatus;
   /** Every free-text term worth matching a global search against -- channel labels, frequencies (MHz), modulations, device type/serial. */
   searchFields: string[];
+  /** Distinct active channel frequencies, Hz ascending (Rust panel only). */
+  frequencies?: number[];
 }
 
 export interface InstanceOptions {
@@ -37,6 +39,24 @@ export interface UnitStatus {
 export interface LogLine {
   timestamp: string;
   message: string;
+  /** Severity, when the line is one of rtl_airband's -j JSON log lines (Rust panel only). */
+  level?: string;
+}
+
+/** How a change would reach the running process -- see airband-supervisor's plan.rs. */
+export type ApplyMethod = "no_change" | "live" | "restart";
+
+/** Prediction of what applying a config change does (Rust panel only; absent from the TS backend). */
+export interface PlanReport {
+  method: ApplyMethod;
+  /** Changes reload_diff will apply live. */
+  live: string[];
+  /** Changes that need a restart of this instance's unit. */
+  restart: string[];
+  /** Audio interruptions a live apply causes (channels re-created, device reopened). */
+  interrupts: string[];
+  /** False when the panel never started this instance, so the current file was assumed to be what's running. */
+  baselineKnown: boolean;
 }
 
 export interface WriteResult {
@@ -44,6 +64,8 @@ export interface WriteResult {
   status: UnitStatus;
   /** The written config's new version — pass as `ifMatch` on the next updateConfig call. */
   version: string;
+  /** What applying this save to the running process does (Rust panel, saves without restart). */
+  plan?: PlanReport;
 }
 
 /** Outcome of a dynamic_reload `reload_diff` attempt -- see InstanceService.applyConfigLive on the backend. */
@@ -56,6 +78,7 @@ export interface ApplyLiveResult {
   status: UnitStatus;
   version: string;
   liveApply: LiveApplyOutcome;
+  plan?: PlanReport;
 }
 
 export interface ConfigWithVersion {
@@ -189,6 +212,27 @@ export const api = {
 
   restartInstance: (name: string): Promise<UnitStatus> =>
     request(`/instances/${encodeURIComponent(name)}/restart`, { method: "POST" }),
+
+  /** Restarts every instance with a saved-but-not-applied config; each result is independent. */
+  restartPending: (): Promise<Record<string, { status: UnitStatus } | { error: string }>> =>
+    request("/instances/restart-pending", { method: "POST" }),
+
+  /**
+   * Predicts what applying `config` to the running process would do, without
+   * writing anything. Resolves to null against a backend without this endpoint
+   * (the TypeScript API), so callers can simply hide the preview.
+   */
+  planChange: async (name: string, config: RtlAirbandConfig): Promise<PlanReport | null> => {
+    try {
+      return await request<PlanReport>(`/instances/${encodeURIComponent(name)}/plan`, {
+        method: "POST",
+        body: JSON.stringify(config),
+      });
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405)) return null;
+      throw err;
+    }
+  },
 
   updateInstanceOptions: (name: string, patch: Partial<InstanceOptions>): Promise<{ status: UnitStatus; options: InstanceOptions }> =>
     request(`/instances/${encodeURIComponent(name)}/options`, {

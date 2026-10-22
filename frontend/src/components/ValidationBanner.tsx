@@ -36,7 +36,7 @@ export function ValidationBanner({ errors, warnings, config, onJumpTo, onDismiss
               <button
                 type="button"
                 onClick={onDismissWarnings}
-                className="shrink-0 text-xs text-amber-300 underline decoration-dotted hover:text-white"
+                className="shrink-0 text-xs text-amber-300 underline decoration-dotted hover:text-slate-50"
               >
                 Dismiss
               </button>
@@ -69,7 +69,7 @@ function IssueRow({
     <li>
       {label && (
         <>
-          <button type="button" onClick={() => onJumpTo(issue.path)} className={`${labelClassName} underline decoration-dotted hover:text-white`}>
+          <button type="button" onClick={() => onJumpTo(issue.path)} className={`${labelClassName} underline decoration-dotted hover:text-slate-50`}>
             {label}
           </button>
           {": "}

@@ -9,7 +9,7 @@
 //
 // Intentional differences are normalized away (see `normalize`): mock unit
 // timestamps, absolute instance paths, poll timestamps, and fields only the
-// Rust panel returns (`plan`, `unknown_settings`).
+// Rust panel returns (`plan`, `unknown_settings`, `frequencies`).
 import { spawn } from "node:child_process";
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -57,7 +57,7 @@ function normalize(value, dir) {
   if (value && typeof value === "object") {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
-      if (k === "activeEnterTimestamp" || k === "plan" || k === "unknown_settings") continue;
+      if (k === "activeEnterTimestamp" || k === "plan" || k === "unknown_settings" || k === "frequencies") continue;
       if (/Ms$/.test(k) && typeof v === "number") {
         out[k] = "<ms>";
         continue;

@@ -144,6 +144,8 @@ async fn mock_units_track_state() {
     units.restart(unit).await.unwrap();
     let running = units.status(unit).await.unwrap();
     assert_eq!(running.active_state, ActiveState::Active);
+    let ts = running.active_enter_timestamp.clone().unwrap();
+    assert!(ts.len() == 20 && ts.ends_with('Z') && ts.starts_with("20"), "ISO timestamp: {ts}");
     units.stop(unit).await.unwrap();
     let stopped = units.status(unit).await.unwrap();
     assert_eq!(stopped.active_state, ActiveState::Inactive);

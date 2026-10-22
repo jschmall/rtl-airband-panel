@@ -286,3 +286,33 @@ async fn websocket_pushes_hello_health_and_changes() {
     assert_eq!(changed, json!({ "type": "instance-changed", "name": "alpha" }));
     let _ = ws.send(Message::Close(None)).await;
 }
+
+#[tokio::test]
+async fn first_save_records_the_replaced_file_as_running() {
+    // The panel never started this instance; saving without a restart must
+    // still preview the saved change as not running yet.
+    let h = harness(&[]);
+    let (_, _, config) = send(&h.router, get("/api/instances/alpha")).await;
+    let mut edit = config.clone();
+    edit["devices"][0]["gain"] = json!(31);
+    let (status, _, saved) = send(&h.router, json_req("PUT", "/api/instances/alpha?restart=false", &edit)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(saved["plan"]["method"], "live", "{saved}");
+    let (_, _, plan) = send(&h.router, json_req("POST", "/api/instances/alpha/plan", &edit)).await;
+    assert_eq!(plan["live"], json!(["device[0]: gain -> 31"]));
+    assert_eq!(plan["baselineKnown"], true);
+
+    // A second save while pending must not move that baseline.
+    let mut edit2 = edit.clone();
+    edit2["devices"][0]["gain"] = json!(33);
+    send(&h.router, json_req("PUT", "/api/instances/alpha?restart=false", &edit2)).await;
+    let (_, _, plan) = send(&h.router, json_req("POST", "/api/instances/alpha/plan", &edit2)).await;
+    assert_eq!(plan["live"], json!(["device[0]: gain -> 33"]));
+}
+
+#[tokio::test]
+async fn instance_list_reports_active_frequencies() {
+    let h = harness(&[]);
+    let (_, _, list) = send(&h.router, get("/api/instances")).await;
+    assert_eq!(list[0]["frequencies"], json!([151100000.0, 151200000.0]));
+}

@@ -13,6 +13,10 @@ import { useUnsavedChanges } from "../state/UnsavedChangesContext.js";
 import { assignUiKeysDeep, stampOutputMatchIndices } from "../lib/keys.js";
 import { getValueAtPath } from "../lib/validation-path.js";
 import { classifySkippedRequiresRestart } from "../lib/live-apply.js";
+import { formatUptime } from "../lib/time-format.js";
+import { ChangePreview, usePlanPreview } from "../components/ChangePreview.js";
+import { HealthStatus } from "../components/HealthLight.js";
+import { InstanceActions } from "../components/InstanceActions.js";
 
 interface LoadError {
   /** "not-found" gets its own messaging (nothing to retry -- the instance is gone);
@@ -126,6 +130,10 @@ export function InstanceEditPage() {
   useEffect(() => {
     setDirty(isDirty);
   }, [isDirty, setDirty]);
+
+  const summary = instances?.find((i) => i.name === name);
+  // Preview whatever isn't running yet: unsaved edits, or a saved-but-unapplied config.
+  const plan = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
 
   // Don't leave the flag set for the next page this component happens to render for.
   useEffect(() => () => setDirty(false), [setDirty]);
@@ -371,11 +379,26 @@ export function InstanceEditPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">Edit {name}</h1>
-        <GuardedLink to="/stats" state={{ instanceName: name }} className="text-sm text-sky-400 hover:text-sky-300">
-          View stats →
-        </GuardedLink>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold text-slate-50">{name}</h1>
+          {summary && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
+              <HealthStatus state={summary.status.activeState} subState={summary.status.subState} />
+              {summary.status.activeState === "active" && <span>up {formatUptime(summary.status.activeEnterTimestamp)}</span>}
+              <span className="font-mono text-xs text-slate-500">{summary.unit}</span>
+              {summary.pendingRestart && (
+                <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-medium uppercase tracking-wide text-amber-300">
+                  Saved config not running yet
+                </span>
+              )}
+              <GuardedLink to="/stats" state={{ instanceName: name }} className="text-sky-400 hover:text-sky-300">
+                Stats →
+              </GuardedLink>
+            </p>
+          )}
+        </div>
+        {name && <InstanceActions name={name} />}
       </div>
 
       <ValidationBanner
@@ -417,7 +440,8 @@ export function InstanceEditPage() {
         }
       />
 
-      <div className="flex justify-end gap-3">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        {plan && <ChangePreview plan={plan} />}
         <button
           type="button"
           disabled={pendingAction !== null}
@@ -439,7 +463,11 @@ export function InstanceEditPage() {
             type="button"
             disabled={pendingAction !== null}
             onClick={() => void handleApplyLive()}
-            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            className={
+              plan?.method === "restart"
+                ? "rounded border border-emerald-600/60 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-600/10 disabled:opacity-50"
+                : "rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            }
           >
             {pendingAction === "apply-live" ? "Applying…" : "Apply live"}
           </button>
@@ -448,7 +476,11 @@ export function InstanceEditPage() {
           type="button"
           disabled={pendingAction !== null}
           onClick={() => void handleSave(true)}
-          className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+          className={
+            plan?.method === "live"
+              ? "rounded border border-red-600/60 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-600/10 disabled:opacity-50"
+              : "rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+          }
         >
           {pendingAction === "restart" ? "Restarting…" : "Save and restart"}
         </button>

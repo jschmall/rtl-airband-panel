@@ -54,6 +54,9 @@ pub struct InstanceSummary {
     pub status: UnitStatus,
     /// Labels, MHz frequencies, modulations, device types/serials, for global search.
     pub search_fields: Vec<String>,
+    /// Every distinct channel frequency (Hz, ascending) on non-disabled
+    /// devices and channels. Rust panel only.
+    pub frequencies: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -144,6 +147,23 @@ fn unknown_status(unit: &str) -> UnitStatus {
         sub_state: "unknown".into(),
         active_enter_timestamp: None,
     }
+}
+
+fn frequencies(config: &RtlAirbandConfig) -> Vec<f64> {
+    let mut out: Vec<f64> = config
+        .devices
+        .iter()
+        .filter(|d| d.disable != Some(true))
+        .flat_map(|d| d.channels.iter())
+        .flat_map(|c| match c {
+            Channel::Multichannel(c) if c.disable != Some(true) => vec![c.freq],
+            Channel::Scan(c) if c.disable != Some(true) => c.freqs.clone(),
+            _ => vec![],
+        })
+        .collect();
+    out.sort_by(f64::total_cmp);
+    out.dedup();
+    out
 }
 
 fn freq_mhz(hz: f64) -> String {
@@ -255,9 +275,9 @@ impl InstanceService {
         let mut out = Vec::with_capacity(infos.len());
         for (info, unit) in infos.into_iter().zip(units) {
             let options = self.options_store.get(&info.name).await?;
-            let search = match self.configs.read(&info.name).await {
-                Ok(c) => search_fields(&c.config),
-                Err(_) => Vec::new(),
+            let (search, freqs) = match self.configs.read(&info.name).await {
+                Ok(c) => (search_fields(&c.config), frequencies(&c.config)),
+                Err(_) => (Vec::new(), Vec::new()),
             };
             out.push(InstanceSummary {
                 pending_restart: self.pending.has(&info.name).await?,
@@ -266,6 +286,7 @@ impl InstanceService {
                 service_group: options.service_group,
                 status: statuses.get(&unit).cloned().unwrap_or_else(|| unknown_status(&unit)),
                 search_fields: search,
+                frequencies: freqs,
                 name: info.name,
                 conf_path: info.conf_path,
                 unit,
@@ -372,6 +393,12 @@ impl InstanceService {
         let result = validate_config(&config);
         if !result.errors.is_empty() {
             return Err(ApiError::Validation(result.errors));
+        }
+        // No record of what the process loaded (it was started outside the
+        // panel): if nothing was pending, the file about to be replaced is the
+        // best evidence of what's running.
+        if self.baselines.get(name).await.is_none() && !self.pending.has(name).await? {
+            self.baselines.set_started(name, &existing.raw).await?;
         }
         let (version, text) = self.configs.write(name, &config).await?;
         // Pending from the moment the file lands, whatever happens next.
