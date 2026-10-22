@@ -1,5 +1,5 @@
 //! Historical stats storage (SQLite). Same schema and behavior as
-//! backend/api's stats/store.ts, so an existing stats.db keeps working:
+//! v0.4.110's backend/api's stats/store.ts, so an existing stats.db keeps working:
 //! `series` interns each (instance, metric, labels) once, `samples` holds
 //! (series_id, value, ts).
 

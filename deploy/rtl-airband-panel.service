@@ -1,14 +1,13 @@
-# Example unit for running the panel process itself under systemd.
+# Example unit for running the panel binary (rtl-airband-panel) under systemd.
 #
-# This is distinct from the rtl_<name>.service units the panel generates
-# and manages for individual RTLSDR-Airband instances (see
-# backend/api/src/unit-template.ts) — this one is for the panel's own
-# Node.js process.
+# Distinct from the per-instance <name>.service units the panel generates
+# for RTLSDR-Airband itself; this one runs the panel. Replacing an older
+# Node.js install of the panel? See DEPLOYMENT.md, "Migrating from the
+# Node.js panel".
 #
-# Copy to /etc/systemd/system/rtl-airband-panel.service and adjust the
-# placeholders below (WorkingDirectory, User, EnvironmentFile) for your
-# install location before enabling. See README.md's "Running the panel as
-# a systemd service" section for the full walkthrough.
+# Copy to /etc/systemd/system/rtl-airband-panel.service, adjust User= and
+# the paths, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel
 
 [Unit]
 Description=rtl-airband-panel web control panel
@@ -18,23 +17,16 @@ After=network.target
 [Service]
 Type=simple
 User=rtl-airband-panel
-WorkingDirectory=/opt/rtl-airband-panel
-# Tags every journal entry from this unit as "rtl-airband-panel" instead of
-# the generic "node" -- lets you filter with `journalctl -t rtl-airband-panel`
-# as an alternative to `-u rtl-airband-panel`.
 SyslogIdentifier=rtl-airband-panel
-# Optional: KEY=VALUE settings, same format as .env.example. The leading
-# "-" means a missing file is not an error, matching the app's own
-# missing-.env behavior.
-EnvironmentFile=-/opt/rtl-airband-panel/.env
-ExecStart=/usr/bin/node backend/api/dist/index.js
+# KEY=VALUE settings, same names as .env.example. Keep it mode 0600 if it
+# holds RTL_PANEL_PASSWORD. A leading "-" makes a missing file not an error.
+EnvironmentFile=-/etc/rtl-airband-panel/panel.env
+ExecStart=/usr/local/bin/rtl-airband-panel
 Restart=on-failure
 RestartSec=5
 
-# Optional hardening once you've confirmed the panel works: uncomment to
-# restrict filesystem access to only what the panel actually needs
-# (instances dir, unit dir, stats DB). Adjust paths to match your
-# RTL_PANEL_* configuration.
+# Optional hardening once the panel works: restrict writes to what it needs
+# (instances dir, unit dir in sudo mode, stats DB). Adjust to your settings.
 # ProtectSystem=strict
 # ReadWritePaths=/etc/rtl-airband-panel/instances /etc/systemd/system /home/rtl-airband-panel/.rtl-airband-panel
 

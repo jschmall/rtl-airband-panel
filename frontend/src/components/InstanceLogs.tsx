@@ -19,7 +19,7 @@ const STATE_LABEL: Record<ConnState, string> = {
   error: "Connection failed",
 };
 
-/** The fork's -j single-line JSON log record shape (backend/api/src/unit-template.ts, jsonLogging option). */
+/** The fork's -j single-line JSON log record shape (crates/airband-supervisor/src/unit_file.rs, json_logging option). */
 interface ForkJsonLogRecord {
   level?: string;
   message?: string;

@@ -1,5 +1,5 @@
 //! systemd unit control behind a narrow, swappable trait. Port of
-//! backend/api/src/systemd/{types,sudo-adapter,mock-adapter}.ts.
+//! v0.4.110's backend/api/src/systemd/{types,sudo-adapter,mock-adapter}.ts.
 //!
 //! The sudo implementation issues exactly the argv that
 //! deploy/rtl-airband-panel.sudoers allows (sudo matches arguments

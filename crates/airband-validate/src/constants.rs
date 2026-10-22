@@ -1,5 +1,5 @@
 //! RTLSDR-Airband / librtlsdr constants the checks mirror. Port of
-//! backend/validate's fft.ts, rtlsdr-defaults.ts and ctcss-tones.ts.
+//! v0.4.110's backend/validate's fft.ts, rtlsdr-defaults.ts and ctcss-tones.ts.
 
 /// RTLSDR-Airband's built-in default when no top-level `fft_size` is configured.
 pub const DEFAULT_FFT_SIZE: f64 = 512.0;

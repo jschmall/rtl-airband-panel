@@ -1,6 +1,6 @@
 //! Reads the Prometheus-text stats RTLSDR-Airband writes to `stats_filepath`
 //! (or serves on `stats_http_address:stats_http_port`). Port of
-//! backend/api/src/stats/{prometheus-parser,poller}.ts; the polling loop
+//! v0.4.110's backend/api/src/stats/{prometheus-parser,poller}.ts; the polling loop
 //! and storage live in the panel.
 
 use std::collections::{BTreeMap, HashMap};

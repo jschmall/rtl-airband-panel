@@ -1,5 +1,5 @@
 //! Instance naming: `<name>.conf` <-> `<name>.service`, exact basename match.
-//! Port of backend/api/src/instance-name.ts.
+//! Port of v0.4.110's backend/api/src/instance-name.ts.
 
 use thiserror::Error;
 

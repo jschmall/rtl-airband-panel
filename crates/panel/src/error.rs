@@ -1,4 +1,4 @@
-//! Service errors and their HTTP mapping (port of backend/api's
+//! Service errors and their HTTP mapping (port of v0.4.110's backend/api's
 //! error-handler.ts): 404 not found, 409 exists/conflict, 422 validation,
 //! 400 bad request, 502 failed systemd/sudo command, 500 otherwise.
 

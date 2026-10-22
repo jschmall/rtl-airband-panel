@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  build-and-test:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,25 +18,8 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      # Required before build/test -- backend/api and frontend both depend on
-      # the compiled output of backend/parser and backend/validate.
-      - run: npm run build:deps
-
-      - run: npm run build
-
-      - run: npm test --workspace=backend/parser
-      - run: npm test --workspace=backend/validate
-      - run: npm test --workspace=backend/api
       - run: npm test --workspace=frontend
-
-      # The Rust ports' parity goldens are recorded from backend/parser and
-      # backend/validate; fail if they no longer match what the TS code
-      # actually produces.
-      - name: Check Rust parity goldens are current
-        run: |
-          node scripts/gen-parity-goldens.mjs
-          git diff --exit-code crates/airband-config/tests/golden crates/airband-validate/tests/golden
+      - run: npm run build --workspace=frontend
 
   rust:
     runs-on: ubuntu-latest
@@ -46,6 +29,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
 
@@ -58,27 +42,4 @@ jobs:
         run: git diff --exit-code -- frontend/src/generated ':!frontend/src/generated/wasm'
       # The committed browser validator (frontend/src/generated/wasm) is built
       # locally with scripts/build-wasm.sh; here, just make sure it still builds.
-      - run: rustup target add wasm32-unknown-unknown
       - run: cargo build --release --target wasm32-unknown-unknown -p airband-wasm
-
-  # Black-box comparison of the TypeScript API and the Rust panel: same
-  # requests, same responses, same files left on disk.
-  api-parity:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - run: npm ci
-      - run: npm run build:deps
-      - run: npm run build --workspace=backend/api
-      - run: cargo build -p rtl-airband-panel
-      - run: node scripts/api-parity.mjs

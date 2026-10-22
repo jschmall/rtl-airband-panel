@@ -24,7 +24,7 @@ const UI_KEY = Symbol("uiKey");
 
 /**
  * A plain (non-symbol) field, unlike UI_KEY -- it has to survive
- * JSON.stringify to reach the backend, since backend/api/src/secrets.ts
+ * JSON.stringify to reach the backend, since crates/panel/src/secrets.rs
  * uses it to restore a still-redacted secret onto the right on-disk
  * output/mixer even when an earlier item in the same list was
  * duplicated/removed in this editing session. See stampOutputMatchIndices
@@ -74,7 +74,7 @@ export function assignUiKeysDeep<T>(value: T): T {
   return value;
 }
 
-/** Set on a copy's `_matchIndex` instead of leaving the original's value in place -- see markCopiedMatchIndicesDeep. Must match backend/api/src/secrets.ts's NO_MATCH. */
+/** Set on a copy's `_matchIndex` instead of leaving the original's value in place -- see markCopiedMatchIndicesDeep. Must match crates/panel/src/secrets.rs's NO_MATCH. */
 const NO_MATCH = -1;
 
 /**
@@ -119,7 +119,7 @@ export function cloneWithNewUiKeys<T>(item: T): T {
 /**
  * Stamps every output (on a channel or a mixer) with its array position at
  * load time, so that later duplicating/removing/copying an output elsewhere
- * in the same list doesn't cause backend/api/src/secrets.ts to restore a
+ * in the same list doesn't cause crates/panel/src/secrets.rs to restore a
  * still-redacted secret onto the wrong on-disk output. Called once, right
  * after a config is fetched -- alongside assignUiKeysDeep, since nothing
  * server-side knows about these indices either. The value is ordinary data

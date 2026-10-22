@@ -316,3 +316,31 @@ async fn instance_list_reports_active_frequencies() {
     let (_, _, list) = send(&h.router, get("/api/instances")).await;
     assert_eq!(list[0]["frequencies"], json!([151100000.0, 151200000.0]));
 }
+
+#[tokio::test]
+async fn reverse_proxy_host_can_be_allowed() {
+    // Behind a proxy that passes `Host: panel.example.com` through, with the
+    // panel itself still bound to loopback.
+    let request = |host: &'static str, origin: &'static str| {
+        Request::post("/api/instances/alpha/restart")
+            .header(header::HOST, host)
+            .header(header::ORIGIN, origin)
+            .body(Body::empty())
+            .unwrap()
+    };
+    let h = harness(&[]);
+    assert_eq!(
+        send(&h.router, request("panel.example.com", "https://panel.example.com")).await.0,
+        StatusCode::FORBIDDEN
+    );
+
+    let h = harness(&["--allowed-hosts", "Panel.Example.com,other.lan"]);
+    assert_eq!(send(&h.router, request("panel.example.com", "https://panel.example.com")).await.0, StatusCode::OK);
+    assert_eq!(
+        send(&h.router, request("panel.example.com:443", "https://panel.example.com:443")).await.0,
+        StatusCode::OK
+    );
+    // A cross-site page is still refused even with an allowed Host.
+    assert_eq!(send(&h.router, request("panel.example.com", "https://evil.example")).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(send(&h.router, request("unlisted.example", "https://unlisted.example")).await.0, StatusCode::FORBIDDEN);
+}

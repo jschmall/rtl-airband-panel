@@ -5,6 +5,59 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.111] - 2026-10-22
+
+### Removed
+
+- **The TypeScript backend: `backend/parser`, `backend/validate` and
+  `backend/api`.** The Rust panel (`rtl-airband-panel`) replaces it,
+  verified by the API parity harness at v0.4.107-v0.4.110 and by testing on
+  the live host. The frontend no longer depends on it (v0.4.110). Also
+  removed: `scripts/api-parity.mjs` and `scripts/gen-parity-goldens.mjs`
+  (both needed the TS backend), the npm workspace entries and root
+  scripts for it, and the CI jobs that built, tested and compared it. Its
+  recorded output (40 parser and 75 validator goldens) stays as frozen
+  regression tests.
+
+### Added
+
+- **`RTL_PANEL_ALLOWED_HOSTS` / `--allowed-hosts`:** extra host names a
+  loopback-bound panel answers to. Without it the panel couldn't be used
+  behind a reverse proxy on localhost:
+  - Passing the browser's `Host` through tripped the DNS-rebinding guard.
+  - Not passing it tripped the Origin check on every save, restart and
+    WebSocket.
+
+  DEPLOYMENT.md shows the nginx configuration (pass `Host` through, allow
+  the name).
+- The Vite dev server proxies the `/api/ws` WebSocket too.
+
+### Changed
+
+- **Docs rewritten for the binary.**
+  - README: installing, first run, a single configuration table, live apply
+    (per-driver limits, the change preview), `mixer_remote` (on the fork's
+    `main` since v5.5.0), and new screenshots taken from the sanitized
+    fixtures with seeded stats history.
+  - DEPLOYMENT.md: service install with `panel.env`, network exposure and
+    auth, sudo mode, migrating from the Node.js panel, reverse proxy incl.
+    WebSockets.
+  - CONTRIBUTING.md and CLAUDE.md: the crate layout, generated files, and
+    the versioning rule (root + frontend `package.json` + workspace
+    `Cargo.toml`).
+- **Example unit:** `deploy/rtl-airband-panel.service` now runs the binary
+  (it was the Node.js unit).
+- CI is now a `frontend` job (tests, build) and a `rust` job (fmt, clippy,
+  tests, generated-type drift, wasm build).
+
+### Fixed
+
+- **A `dest_port` rewrite no longer predicts a restart.** The panel rewrites
+  an integer `dest_port` as a string (rtl_airband reads both identically),
+  and the change preview counted that as a change. On a mixer's
+  `udp_stream` output that meant "Needs a restart" for an edit that changed
+  nothing.
+
 ## [0.4.110] - 2026-10-22
 
 ### Added

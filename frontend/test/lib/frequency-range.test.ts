@@ -44,7 +44,7 @@ describe("channelFrequencyRangeHz", () => {
 });
 
 describe("deviceUsableWindowHz", () => {
-  it("mirrors backend/validate's checkFrequencyWindow formula", () => {
+  it("mirrors crates/airband-validate's frequency_window check formula", () => {
     const device = makeDevice({ centerfreq: 151_780_000, sample_rate: 1_400_000 });
     const bwLimit = (1_400_000 / 2) * SOFT_BW_THRESHOLD;
     expect(deviceUsableWindowHz(device)).toEqual({ min: 151_780_000 - bwLimit, max: 151_780_000 + bwLimit });

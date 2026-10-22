@@ -1,5 +1,5 @@
 //! HTTP API. Same routes, JSON shapes, status codes and headers as
-//! backend/api (so the existing frontend works unchanged), plus:
+//! v0.4.110's backend/api (so the existing frontend works unchanged), plus:
 //! `POST /api/instances/:name/plan`, a `plan` field on save results, and the
 //! `/api/ws` push channel.
 
@@ -37,6 +37,8 @@ pub struct AppState {
     pub stats: Arc<StatsService>,
     pub auth: Option<Arc<(String, String)>>,
     pub bound_to_loopback: bool,
+    /// Lowercased host names allowed besides loopback names (reverse proxies).
+    pub allowed_hosts: Arc<Vec<String>>,
     pub limiter: Arc<middleware::RateLimiter>,
     pub events: broadcast::Sender<Value>,
     pub frontend_dir: Option<PathBuf>,

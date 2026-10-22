@@ -1,4 +1,4 @@
-//! Recursive-descent libconfig parser. Port of backend/parser/src/parser.ts.
+//! Recursive-descent libconfig parser. Port of v0.4.110's backend/parser/src/parser.ts.
 
 use crate::ast::{AssignOp, Bracket, ConfigFile, Scalar, ScalarType, ScalarValue, Setting, Value};
 use crate::error::ConfigError;

@@ -1,6 +1,6 @@
 //! Instance operations behind the "fail closed on any validation error"
 //! rule: validation always completes before any file is written or any unit
-//! is touched. Port of backend/api's instance-service.ts, with live apply
+//! is touched. Port of v0.4.110's backend/api's instance-service.ts, with live apply
 //! reworked around `airband_supervisor::plan_change`:
 //!
 //! - every save reports what applying it would do (`plan`);

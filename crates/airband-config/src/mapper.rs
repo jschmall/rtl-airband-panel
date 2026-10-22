@@ -1,4 +1,4 @@
-//! AST <-> domain model mapping. Port of backend/parser/src/mapper.ts and
+//! AST <-> domain model mapping. Port of v0.4.110's backend/parser/src/mapper.ts and
 //! ast-utils.ts: same field handling, same check order, same error text.
 //!
 //! The one intentional difference: settings the domain model does not know

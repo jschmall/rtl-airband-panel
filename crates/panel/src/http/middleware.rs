@@ -107,8 +107,14 @@ fn is_loopback_name(host: &str) -> bool {
 pub async fn origin_guard(State(state): State<AppState>, req: Request, next: Next) -> Response {
     let headers = req.headers();
     let host = headers.get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("");
-    if state.bound_to_loopback && !host.is_empty() && !is_loopback_name(host_only(host)) {
-        return error(StatusCode::FORBIDDEN, "Host not allowed");
+    if state.bound_to_loopback && !host.is_empty() {
+        let name = host_only(host);
+        if !is_loopback_name(name) && !state.allowed_hosts.iter().any(|h| h.eq_ignore_ascii_case(name)) {
+            return error(
+                StatusCode::FORBIDDEN,
+                "Host not allowed (add it to RTL_PANEL_ALLOWED_HOSTS if this is your reverse proxy)",
+            );
+        }
     }
     let changes_state = !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS);
     let is_upgrade = headers.get(header::UPGRADE).is_some();

@@ -1,7 +1,7 @@
 //! Client for a running instance's control socket (RTLSDR-Airband fork,
 //! src/control_socket.cpp): AF_UNIX stream, one flat JSON object per line,
 //! exactly one response line per request, same-UID peers only. Port of
-//! backend/api/src/control-socket/unix-client.ts, extended to the other
+//! v0.4.110's backend/api/src/control-socket/unix-client.ts, extended to the other
 //! commands.
 
 use std::path::Path;

@@ -1,10 +1,12 @@
-//! Parity with the original TypeScript parser (backend/parser).
+//! Parity with the original TypeScript parser (v0.4.110's backend/parser).
 //!
-//! tests/golden/*.json were recorded from the TS implementation by
-//! scripts/gen-parity-goldens.mjs over fixtures/*.conf and tests/corpus/*.conf.
-//! For every input the Rust port must produce the same domain JSON, the same
-//! serialized text (byte for byte), the same AST-level re-serialization, or
-//! the same error message.
+//! tests/golden/*.json were recorded from the TS implementation (by
+//! v0.4.110's scripts/gen-parity-goldens.mjs) over fixtures/*.conf and
+//! tests/corpus/*.conf, and are now frozen: the TS backend was removed in
+//! v0.4.111. For every input the Rust parser must still produce the same
+//! domain JSON, the same serialized text (byte for byte), the same AST-level
+//! re-serialization, or the same error message. Don't add corpus files
+//! here (they'd have no golden); add new cases as ordinary tests instead.
 
 use std::path::{Path, PathBuf};
 
@@ -43,7 +45,8 @@ fn check(input: &Path) -> Result<(), String> {
     let name = input.file_stem().unwrap().to_string_lossy().to_string();
     let golden_path = manifest_dir().join("tests/golden").join(format!("{name}.json"));
     let golden: Value = serde_json::from_str(
-        &std::fs::read_to_string(&golden_path).map_err(|e| format!("{name}: no golden ({e}); rerun the generator"))?,
+        &std::fs::read_to_string(&golden_path)
+            .map_err(|e| format!("{name}: no golden ({e}); goldens are frozen, add new cases as ordinary tests"))?,
     )
     .unwrap();
     let source = std::fs::read_to_string(input).unwrap();

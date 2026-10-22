@@ -1,5 +1,5 @@
 //! JSON domain model for an RTLSDR-Airband instance config. Port of
-//! backend/parser/src/domain.ts, which documents every field in detail;
+//! v0.4.110's backend/parser/src/domain.ts, which documents every field in detail;
 //! comments here focus on what differs or is new.
 //!
 //! Field names mirror the .conf keys (snake_case). `centerfreq`,

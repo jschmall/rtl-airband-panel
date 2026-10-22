@@ -1,5 +1,5 @@
 //! libconfig `.conf` <-> JSON domain model for RTLSDR-Airband instance
-//! configs. Rust port of backend/parser.
+//! configs. Rust port of v0.4.110's backend/parser.
 
 pub mod ast;
 pub mod domain;

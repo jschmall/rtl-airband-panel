@@ -1,4 +1,4 @@
-//! libconfig text writer. Port of backend/parser/src/serializer.ts: fixed
+//! libconfig text writer. Port of v0.4.110's backend/parser/src/serializer.ts: fixed
 //! two-space indentation, one setting per line, scalars written from their
 //! `raw` text.
 

@@ -1,5 +1,5 @@
 //! Semantic validation for RTLSDR-Airband instance configs. Rust port of
-//! backend/validate: same checks, codes, paths, messages, and issue order,
+//! v0.4.110's backend/validate: same checks, codes, paths, messages, and issue order,
 //! plus checks for RTLSDR-Airband v5.5/v6.3 settings and for settings the
 //! panel keeps without modeling (see `checks::fork_v6`).
 
@@ -18,7 +18,7 @@ use types::Issues;
 
 type Check = fn(&RtlAirbandConfig, &mut Issues);
 
-/// Every check, in the order backend/validate's validateConfig runs them,
+/// Every check, in the order v0.4.110's backend/validate's validateConfig runs them,
 /// followed by the checks with no TS counterpart.
 const CHECKS: &[Check] = &[
     devices::frequency_window,

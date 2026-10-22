@@ -1,6 +1,6 @@
 //! Number formatting/rounding that reproduces JavaScript's `Number`
 //! semantics exactly, so the Rust serializer emits byte-identical text to
-//! the original TypeScript implementation (backend/parser).
+//! the original TypeScript implementation (v0.4.110's backend/parser).
 
 /// Equivalent of JavaScript's `String(n)` / `Number.prototype.toString()`.
 pub fn to_js_string(x: f64) -> String {

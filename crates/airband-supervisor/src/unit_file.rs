@@ -1,4 +1,4 @@
-//! systemd unit files for instances. Port of backend/api/src/unit-template.ts.
+//! systemd unit files for instances. Port of v0.4.110's backend/api/src/unit-template.ts.
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UnitTemplate {

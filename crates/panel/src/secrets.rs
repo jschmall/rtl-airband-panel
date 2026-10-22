@@ -1,6 +1,6 @@
 //! Icecast passwords and rdio-scanner API keys are replaced by a sentinel in
 //! every config the API returns, and restored from the on-disk config when a
-//! client sends the sentinel back unchanged. Port of backend/api's secrets.ts.
+//! client sends the sentinel back unchanged. Port of v0.4.110's backend/api's secrets.ts.
 //!
 //! Restoration runs on the request JSON before it is decoded, because it
 //! needs `_matchIndex`, a frontend-only hint on each output (its array

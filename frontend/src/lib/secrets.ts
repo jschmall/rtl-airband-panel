@@ -1,5 +1,5 @@
 /**
- * Mirrors `REDACTED_SECRET` in backend/api/src/secrets.ts -- GET /instances/:name
+ * Mirrors `REDACTED_SECRET` in crates/panel/src/secrets.rs -- GET /instances/:name
  * substitutes this exact string for Icecast passwords and rdio-scanner API keys, so
  * the frontend needs to recognize it to know a field is showing a placeholder rather
  * than a real (if short) secret. Must stay byte-for-byte in sync with the backend

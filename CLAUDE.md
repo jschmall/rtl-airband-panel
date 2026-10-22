@@ -57,48 +57,52 @@ itself tracks upstream rtl-airband/RTLSDR-Airband via periodic merges.
   never linked into the panel. The panel controls it only from outside
   (systemd, control socket, stats file/HTTP, journal).
 
-## Rust rewrite (in progress on the `rust` branch)
-The panel is being rebuilt in Rust; the TypeScript backend on `master`
-remains the shipping version until the `rust` branch reaches parity and is
-merged. Planned layout (Cargo workspace at repo root):
+## Layout
+A Rust Cargo workspace (the panel) plus the React frontend. The TypeScript
+backend (`backend/parser`, `backend/validate`, `backend/api`) was replaced
+and removed in v0.4.111; its output for 115 inputs survives as frozen
+golden files under `crates/*/tests/golden/` (never regenerate them; add new
+cases as ordinary tests).
 - `crates/airband-config` — libconfig tokenizer/parser/AST, domain model,
-  serializer (port of backend/parser). Must match TS serializer output
-  byte-for-byte on fixtures before anything else is built on it.
-- `crates/airband-validate` — semantic checks (port of backend/validate),
-  also compiled to wasm so the frontend preview equals the backend verdict.
-- `crates/airband-supervisor` — systemd unit management behind a trait,
-  control-socket client, stats poller, journal follow, live-vs-restart
-  decision function.
-- `crates/panel` — axum binary: REST + single `/api/ws` hub, SQLite stats,
-  auth, embedded frontend (rust-embed).
-- `frontend/` stays React + TypeScript. Its config/validation types and
+  serializer. Settings the model doesn't know are kept verbatim
+  (`unknown_settings`), never dropped.
+- `crates/airband-validate` — semantic checks; also compiled to wasm.
+- `crates/airband-supervisor` — systemd units behind the `UnitManager`
+  trait (sudo + mock), control-socket client, stats reader, journal, unit
+  files, and `plan_change` (live-apply vs restart prediction, mirroring the
+  fork's `reload_diff`, including what it silently ignores).
+- `crates/panel` — the `rtl-airband-panel` binary: axum REST + `/api/ws`,
+  SQLite stats, Basic auth + Origin/Host guards, embedded frontend
+  (rust-embed; build the frontend before `cargo build --release`).
+- `crates/airband-wasm` — the validator for the browser.
+- `frontend/` — React + TypeScript. Its config/validation types and
   constants are generated from Rust into `frontend/src/generated` by
-  `cargo test` (ts-rs; re-exported for the UI by `frontend/src/types/config.ts`)
-  -- never hand-edit them, and commit the regenerated files with the Rust
-  change that caused them (CI fails on drift). `crates/airband-wasm` compiles
-  the validator for the browser; rebuild `frontend/src/generated/wasm` with
+  `cargo test` (ts-rs; re-exported for the UI by
+  `frontend/src/types/config.ts`) -- never hand-edit them, and commit the
+  regenerated files with the Rust change that caused them (CI fails on
+  drift). Rebuild `frontend/src/generated/wasm` with
   `scripts/build-wasm.sh` after any validation change.
+- The sudo `UnitManager` issues exactly the argv
+  `deploy/rtl-airband-panel.sudoers` allows (sudo matches literally); a
+  test pins them together. Change both or neither.
 Design reference: TrunkRecorder/trunk-recorder-pro (GPL-3) — borrow
 patterns, never copy code.
 
 ## Branches
 - `master` — shipping version.
-- `rust` — long-lived Rust rewrite; merged to master at parity.
 - `airband-bundle` — fork bundling, static build, release workflow,
-  install script; started after `rust` merges.
+  install script (next).
 Confirm which branch new work targets before the first commit.
 
 ## Priorities, in order
 1. Parser/serializer round-trip fidelity against real fixture files
-   (backend/parser; crates/airband-config on the rust branch) — this is
-   the highest-risk component; nothing else matters if this silently
-   corrupts a config.
-2. Semantic validation (backend/validate; crates/airband-validate) —
-   frequency-in-window, bin-separation/collision checks, valid CTCSS/tone
-   values.
-3. API layer (backend/api; crates/panel + crates/airband-supervisor) —
-   config CRUD + live apply / systemd restart + health check, fails closed
-   on any validation error.
+   (crates/airband-config) — this is the highest-risk component; nothing
+   else matters if this silently corrupts a config.
+2. Semantic validation (crates/airband-validate) — frequency-in-window,
+   bin-separation/collision checks, valid CTCSS/tone values.
+3. API layer (crates/panel + crates/airband-supervisor) — config CRUD +
+   live apply / systemd restart + health check, fails closed on any
+   validation error.
 4. Frontend — renders the JSON model, never talks to libconfig
    directly.
 
@@ -107,18 +111,19 @@ Confirm which branch new work targets before the first commit.
   server/mountpoint credentials) before committing.
 - Every parser change needs a fixture-based round-trip test before
   it's considered done.
-- Every commit bumps the version — package.json (root + all workspaces)
-  and, on the rust branch, every Cargo.toml move in lockstep by one patch
-  version on every commit, no exceptions for "small" changes. Never commit
-  without bumping.
+- Screenshot UI changes in a real (headless) browser before committing.
+- Every commit bumps the version — package.json (root + frontend) and the
+  workspace Cargo.toml (`[workspace.package] version`) move in lockstep by
+  one patch version on every commit, no exceptions for "small" changes.
+  Never commit without bumping.
 - Version tags are a single global namespace across all branches. Before
   every bump on any branch, check the highest existing tag
   (`git tag --sort=-v:refname | head -1`) and use the next free number, not
   just current-branch-version + 1. A merge into master gets its own fresh
   version.
 - Every version bump requires a matching CHANGELOG.md entry in the same
-  commit — never bump versions without adding an entry above the previous
-  one, following the existing format (## [X.Y.Z] - date,
+  commit — never bump versions (package.json + Cargo.toml) without adding an
+  entry above the previous one, following the existing format (## [X.Y.Z] - date,
   Added/Changed/Fixed subsections). A version bump with no changelog entry
   is an incomplete change, not a shortcut.
 - Every commit that bumps the version also gets a matching `vX.Y.Z` git

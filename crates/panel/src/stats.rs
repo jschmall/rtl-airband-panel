@@ -1,4 +1,4 @@
-//! Stats polling and queries. Port of backend/api's stats/{poller,
+//! Stats polling and queries. Port of v0.4.110's backend/api's stats/{poller,
 //! poll-status,stats-service,metrics-format}.ts.
 
 use std::collections::{BTreeMap, HashMap};

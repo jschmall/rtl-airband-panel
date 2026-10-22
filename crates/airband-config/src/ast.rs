@@ -1,4 +1,4 @@
-//! Generic libconfig syntax tree. Mirrors backend/parser/src/ast.ts.
+//! Generic libconfig syntax tree. Mirrors v0.4.110's backend/parser/src/ast.ts.
 //!
 //! Every scalar keeps its original literal text (`raw`) and every setting
 //! its original assignment operator, so text -> AST -> text is stable.

@@ -1,6 +1,6 @@
 //! Panel settings. Every option is a CLI flag and an `RTL_PANEL_*`
 //! environment variable (also loadable from a .env file), mirroring
-//! backend/api's config.ts/cli.ts. Precedence, highest first: flags, real
+//! v0.4.110's backend/api's config.ts/cli.ts. Precedence, highest first: flags, real
 //! environment variables, the .env file, defaults.
 
 use std::net::IpAddr;
@@ -54,6 +54,12 @@ pub struct Settings {
 
     #[arg(long, env = "RTL_PANEL_HOST", default_value = "127.0.0.1")]
     pub host: IpAddr,
+
+    /// Extra host names (comma-separated) a loopback-bound panel answers
+    /// to, e.g. a reverse proxy's public name passed through as `Host`.
+    /// Loopback names are always allowed.
+    #[arg(long, env = "RTL_PANEL_ALLOWED_HOSTS", value_delimiter = ',')]
+    pub allowed_hosts: Vec<String>,
 
     /// HTTP Basic auth password. Required when --host isn't a loopback
     /// address (unless --allow-unauthenticated).

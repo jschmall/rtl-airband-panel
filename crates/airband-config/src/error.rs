@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Errors from reading a config. Message text matches the TypeScript
-/// implementation (backend/parser) so API responses stay the same.
+/// implementation (v0.4.110's backend/parser) so API responses stay the same.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ConfigError {
     /// Tokenizer-level error (`LibconfigSyntaxError` in TS).

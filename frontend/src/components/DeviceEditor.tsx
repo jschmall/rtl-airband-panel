@@ -112,8 +112,8 @@ export const DeviceEditor = memo(function DeviceEditor({
   const isScan = device.mode === "scan";
 
   // At-a-glance occupied range + usable-window summary shown above the channel list --
-  // see frequency-range.ts. deviceUsableWindowHz mirrors backend/validate's
-  // checkFrequencyWindow exactly, so this can never disagree with that check's warning.
+  // see frequency-range.ts. deviceUsableWindowHz mirrors crates/airband-validate's
+  // frequency_window check exactly, so this can never disagree with that check's warning.
   const channelRange = channelFrequencyRangeHz(device);
   const usableWindow = deviceUsableWindowHz(device);
   const formatMHz = (hz: number) => (hz / 1e6).toFixed(4);

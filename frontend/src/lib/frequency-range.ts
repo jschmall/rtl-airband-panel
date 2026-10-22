@@ -25,7 +25,7 @@ export function channelFrequencyRangeHz(device: Device): FrequencyRangeHz | unde
 
 /**
  * The SDR's realistically usable capture window around centerfreq, mirroring
- * backend/validate's checkFrequencyWindow (same SOFT_BW_THRESHOLD and
+ * crates/airband-validate's frequency_window check (same SOFT_BW_THRESHOLD and
  * DEFAULT_SAMPLE_RATE_HZ fallback) so this can never disagree with what that
  * check will actually flag. Undefined for a scan-mode device (the dongle
  * retunes to each scanned frequency in turn, so there's no fixed capture

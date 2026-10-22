@@ -52,6 +52,9 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
         stats: Arc::new(StatsService { db: Arc::new(db), poll_status: Arc::new(PollStatusTracker::default()) }),
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
+        allowed_hosts: Arc::new(
+            settings.allowed_hosts.iter().map(|h| h.trim().to_ascii_lowercase()).filter(|h| !h.is_empty()).collect(),
+        ),
         limiter: Arc::default(),
         events,
         frontend_dir: settings.frontend_dist.clone(),

@@ -281,3 +281,20 @@ fn mixers() {
     );
     assert_eq!(p.restart, ["mixer[0]: remote_inputs changed"]);
 }
+
+#[test]
+fn dest_port_int_and_string_are_the_same_setting() {
+    // The panel always writes dest_port as a string; rtl_airband reads both.
+    let mixer = |port: &str| {
+        format!(
+            r#"mixers: {{ m: {{ outputs: ( {{ type = "udp_stream"; dest_address = "127.0.0.1"; dest_port = {port}; }} ); }}; }};"#
+        )
+    };
+    let routed = vec![chan(151100000, "").replace(r#"{ type = "pulse"; }"#, r#"{ type = "mixer"; name = "m"; }"#)];
+    let a = conf(HEAD, &[device("", &routed)], &mixer("5006"));
+    assert_eq!(plan(&a, &conf(HEAD, &[device("", &routed)], &mixer("\"5006\""))).method(), ApplyMethod::NoChange);
+    assert_eq!(
+        plan(&a, &conf(HEAD, &[device("", &routed)], &mixer("\"5007\""))).restart,
+        ["mixer 'm': outputs changed"]
+    );
+}

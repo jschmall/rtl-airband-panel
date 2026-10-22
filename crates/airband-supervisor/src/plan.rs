@@ -407,11 +407,26 @@ fn changed_keys<'a>(a: &'a [Setting], n: &'a [Setting], ignore: &[&str]) -> Vec<
         if ignore.contains(&s.name.as_str()) || keys.contains(&s.name.as_str()) {
             continue;
         }
-        if !opt_value_eq(find(a, &s.name).map(|x| &x.value), find(n, &s.name).map(|x| &x.value)) {
+        let (old, new) = (find(a, &s.name).map(|x| &x.value), find(n, &s.name).map(|x| &x.value));
+        if !opt_value_eq(old, new) && !equivalent_spelling(&s.name, old, new) {
             keys.push(&s.name);
         }
     }
     keys
+}
+
+/// Values rtl_airband reads identically despite different literal types:
+/// `dest_port` may be an int or a string (config.cpp formats an int with
+/// `%d`), and the panel always writes it as a string.
+fn equivalent_spelling(name: &str, a: Option<&Value>, b: Option<&Value>) -> bool {
+    let as_text = |v: Option<&Value>| match v {
+        Some(Value::Scalar(Scalar { value: ScalarValue::String(s), .. })) => Some(s.clone()),
+        Some(Value::Scalar(Scalar {
+            ty: ScalarType::Int | ScalarType::Int64, value: ScalarValue::Number(n), ..
+        })) => Some((*n as i64).to_string()),
+        _ => None,
+    };
+    name == "dest_port" && as_text(a).is_some() && as_text(a) == as_text(b)
 }
 
 fn opt_value_eq(a: Option<&Value>, b: Option<&Value>) -> bool {

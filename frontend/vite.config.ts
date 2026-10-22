@@ -8,7 +8,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": apiTarget,
+      // ws: also forwards the /api/ws live-update WebSocket.
+      "/api": { target: apiTarget, ws: true },
     },
   },
   test: {

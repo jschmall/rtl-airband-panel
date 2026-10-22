@@ -1,9 +1,11 @@
-//! Parity with the original TypeScript validator (backend/validate).
+//! Parity with the original TypeScript validator (v0.4.110's backend/validate).
 //!
-//! tests/golden/*.json were recorded from the TS implementation by
-//! scripts/gen-parity-goldens.mjs over fixtures/*.conf, airband-config's
-//! corpus, and tests/corpus/*.conf. The Rust port must report exactly the
-//! same errors and warnings (code, path, message, order) for each.
+//! tests/golden/*.json were recorded from the TS implementation (by
+//! v0.4.110's scripts/gen-parity-goldens.mjs) over fixtures/*.conf,
+//! airband-config's corpus, and tests/corpus/*.conf, and are now frozen: the
+//! TS backend was removed in v0.4.111. The Rust validator must still report
+//! exactly the same errors and warnings (code, path, message, order) for
+//! each. Add new cases as ordinary tests (see tests/fork_v6.rs).
 
 use std::path::{Path, PathBuf};
 
@@ -36,7 +38,8 @@ fn check(input: &Path) -> Result<bool, String> {
     };
     let golden_path = manifest_dir().join("tests/golden").join(format!("{name}.json"));
     let golden: ValidationResult = serde_json::from_str(
-        &std::fs::read_to_string(&golden_path).map_err(|e| format!("{name}: no golden ({e}); rerun the generator"))?,
+        &std::fs::read_to_string(&golden_path)
+            .map_err(|e| format!("{name}: no golden ({e}); goldens are frozen, add new cases as ordinary tests"))?,
     )
     .unwrap();
     let got = validate_config(&domain);

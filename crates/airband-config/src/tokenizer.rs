@@ -1,4 +1,4 @@
-//! libconfig tokenizer. Port of backend/parser/src/tokenizer.ts.
+//! libconfig tokenizer. Port of v0.4.110's backend/parser/src/tokenizer.ts.
 
 use std::sync::LazyLock;
 
