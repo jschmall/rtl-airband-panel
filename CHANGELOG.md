@@ -5,6 +5,43 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.113] - 2026-10-22
+
+### Changed
+
+- **README rewritten for people running the panel, not developing it.** It
+  now covers:
+  - what the panel does, in plain terms, and which RTLSDR-Airband build you
+    need;
+  - installing and trying it safely on copies of your configs;
+  - day-to-day use: saving vs Apply live vs restart, the change preview,
+    pending restarts, passwords, logs, stats, themes;
+  - turning on live apply, and combining channels across SDRs;
+  - a settings table in user terms;
+  - backups and moving to a new machine, with export/import as `curl`
+    commands, since there's no UI for them;
+  - a troubleshooting section.
+- **New DEVELOPMENT.md** for the technical material:
+  - layout, building and testing, and the generated files that go stale
+    silently;
+  - how config files, systemd/sudo, the live-apply prediction and its
+    baselines, stats storage, the API and WebSocket, and the security
+    guards work;
+  - state files, constraints and priorities, and the key tests.
+- **CONTRIBUTING.md** slimmed to the pull-request checklist and versioning
+  rule, pointing at DEVELOPMENT.md.
+- **DEPLOYMENT.md:** the sudo-mode section now explains the unit-name prefix
+  itself, since the README no longer covers it. Links to removed README
+  sections were fixed.
+
+### Fixed
+
+- **The README no longer lists config import/export as a UI feature;** it
+  is only available through the API.
+- **The README no longer claims a fork-only setting always stops standard
+  RTLSDR-Airband from starting.** Most are ignored; only a few, like
+  `mixer_remote` outputs and JSON logging, stop it.
+
 ## [0.4.112] - 2026-10-22
 
 ### Changed

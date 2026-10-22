@@ -3,7 +3,7 @@
 This covers running rtl-airband-panel as a long-lived service, rather than
 just starting it in a terminal to try it out. See [README.md](./README.md)
 for building the binary and a first run, and its
-[Configuration](./README.md#configuration) section for every setting
+[Settings](./README.md#settings) section for every setting
 mentioned here.
 
 ## Running the panel as a systemd service
@@ -106,17 +106,26 @@ systemd.
 
 ## Allowing real systemd control (sudo mode)
 
-With `RTL_PANEL_SYSTEMD_MODE=sudo` (see
-[Systemd control](./README.md#systemd-control)) the panel runs real
-`systemctl`/`journalctl` commands through `sudo`, so its user needs
-passwordless `sudo` for exactly those commands, never a blanket grant. The
-example rule at
+With `RTL_PANEL_SYSTEMD_MODE=sudo` the panel really starts, stops and
+restarts your instances' services, by running `systemctl`/`journalctl`
+through `sudo`. Only turn it on once you're ready to affect running
+instances; consider trying it on a non-critical one first.
+
+The panel's user needs passwordless `sudo` for exactly those commands,
+never a blanket grant. The example rule at
 [`deploy/rtl-airband-panel.sudoers`](./deploy/rtl-airband-panel.sudoers)
-allows only the exact `systemctl`/`journalctl`/`tee`/`rm` invocations the
-panel issues. sudo matches arguments literally, and a test in the panel
-pins its commands to this file. Adjust the username, the `rtl_` unit prefix
-(or drop it, see [Systemd control](./README.md#systemd-control)) and the
-unit directory, then:
+allows only the exact commands the panel runs. sudo matches commands word
+for word, so use the rule from the version of the panel you're running.
+
+**Limiting it to your instances.** If your instance names share a prefix
+(for example `rtl_151`, `rtl_office`), set `RTL_PANEL_SUDO_UNIT_PREFIX=rtl_`
+and keep the same prefix in the sudoers rule's globs. The panel then
+refuses to touch any other service, and sudo refuses as well. If your names
+don't share a prefix, leave it empty and change the rule's `rtl_*.service`
+globs to `*.service`. The rule still limits the panel to those exact
+commands.
+
+Adjust the username, the prefix and the unit directory in the rule, then:
 
 ```bash
 sudo cp deploy/rtl-airband-panel.sudoers /etc/sudoers.d/rtl-airband-panel
