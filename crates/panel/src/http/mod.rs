@@ -81,6 +81,8 @@ pub fn router(state: AppState) -> Router {
         .route_layer(mw::from_fn_with_state(state.clone(), middleware::rate_limit))
         .layer(mw::from_fn_with_state(state.clone(), middleware::origin_guard))
         .layer(mw::from_fn_with_state(state.clone(), middleware::basic_auth))
+        // Compresses text/JS/wasm responses (not the SSE log stream or WebSocket).
+        .layer(tower_http::compression::CompressionLayer::new())
         .layer(mw::from_fn(middleware::security_headers))
         .layer(mw::from_fn(middleware::request_id))
         .with_state(state)

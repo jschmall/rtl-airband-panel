@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import type { ValidationIssue } from "@rtl-airband-panel/validate";
+import type { RtlAirbandConfig } from "../types/config.js";
+import type { ValidationIssue } from "../types/config.js";
 import { api, ApiError } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";

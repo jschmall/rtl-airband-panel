@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Output } from "@rtl-airband-panel/parser";
+import type { Output } from "../../src/types/config.js";
 import { OutputEditor } from "../../src/components/OutputEditor.js";
 import { defaultPulseOutput } from "../../src/lib/defaults.js";
 import type { ChannelTarget } from "../../src/lib/channel-targets.js";

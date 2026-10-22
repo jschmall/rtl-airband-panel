@@ -1,4 +1,4 @@
-import type { Channel, Device, MultichannelChannel, ScanChannel } from "@rtl-airband-panel/parser";
+import type { Channel, Device, MultichannelChannel, ScanChannel } from "../types/config.js";
 
 export function isMultichannelChannel(channel: Channel): channel is MultichannelChannel {
   return "freq" in channel;

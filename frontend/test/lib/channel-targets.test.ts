@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Device } from "@rtl-airband-panel/parser";
+import type { Device } from "../../src/types/config.js";
 import { buildChannelTargets } from "../../src/lib/channel-targets.js";
 
 function makeMultichannelDevice(overrides: Partial<Device> = {}): Device {

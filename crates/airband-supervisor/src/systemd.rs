@@ -15,10 +15,12 @@ use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
+use ts_rs::TS;
 
 use crate::command::{CommandError, run_command};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum ActiveState {
     Active,
@@ -42,7 +44,8 @@ impl ActiveState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct UnitStatus {
     pub unit: String,
@@ -54,7 +57,8 @@ pub struct UnitStatus {
     pub active_enter_timestamp: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 pub struct LogLine {
     /// journalctl's timestamp for the entry (`-o short-iso`).
     pub timestamp: String,

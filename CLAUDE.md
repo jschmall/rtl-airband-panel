@@ -71,8 +71,13 @@ merged. Planned layout (Cargo workspace at repo root):
   decision function.
 - `crates/panel` — axum binary: REST + single `/api/ws` hub, SQLite stats,
   auth, embedded frontend (rust-embed).
-- `frontend/` stays React + TypeScript (types generated from Rust via
-  ts-rs), restyled.
+- `frontend/` stays React + TypeScript. Its config/validation types and
+  constants are generated from Rust into `frontend/src/generated` by
+  `cargo test` (ts-rs; re-exported for the UI by `frontend/src/types/config.ts`)
+  -- never hand-edit them, and commit the regenerated files with the Rust
+  change that caused them (CI fails on drift). `crates/airband-wasm` compiles
+  the validator for the browser; rebuild `frontend/src/generated/wasm` with
+  `scripts/build-wasm.sh` after any validation change.
 Design reference: TrunkRecorder/trunk-recorder-pro (GPL-3) — borrow
 patterns, never copy code.
 

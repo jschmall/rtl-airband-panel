@@ -1,5 +1,5 @@
-import type { Device } from "@rtl-airband-panel/parser";
-import { DEFAULT_SAMPLE_RATE_HZ, SOFT_BW_THRESHOLD } from "@rtl-airband-panel/validate";
+import type { Device } from "../types/config.js";
+import { DEFAULT_SAMPLE_RATE_HZ, SOFT_BW_THRESHOLD } from "../generated/constants.js";
 import { isMultichannelChannel, isScanChannel } from "./channel-targets.js";
 
 export interface FrequencyRangeHz {

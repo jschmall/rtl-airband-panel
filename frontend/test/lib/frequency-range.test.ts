@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Device } from "@rtl-airband-panel/parser";
-import { DEFAULT_SAMPLE_RATE_HZ, SOFT_BW_THRESHOLD } from "@rtl-airband-panel/validate";
+import type { Device } from "../../src/types/config.js";
+import { DEFAULT_SAMPLE_RATE_HZ, SOFT_BW_THRESHOLD } from "../../src/generated/constants.js";
 import { channelFrequencyRangeHz, deviceUsableWindowHz } from "../../src/lib/frequency-range.js";
 
 function makeDevice(overrides: Partial<Device> = {}): Device {

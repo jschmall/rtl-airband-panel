@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Device } from "@rtl-airband-panel/parser";
+import type { Device } from "../../src/types/config.js";
 import { DeviceEditor } from "../../src/components/DeviceEditor.js";
 import { defaultDevice } from "../../src/lib/defaults.js";
 

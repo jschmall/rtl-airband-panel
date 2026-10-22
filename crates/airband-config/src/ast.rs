@@ -5,10 +5,12 @@
 //! Comments and whitespace are not kept (see CLAUDE.md).
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::jsnum;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum ScalarType {
     Int,
@@ -18,7 +20,8 @@ pub enum ScalarType {
     String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(untagged)]
 pub enum ScalarValue {
     Bool(bool),
@@ -26,7 +29,8 @@ pub enum ScalarValue {
     String(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Scalar {
     #[serde(rename = "type")]
     pub ty: ScalarType,
@@ -35,7 +39,8 @@ pub struct Scalar {
     pub raw: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum Bracket {
     /// A libconfig list (heterogeneous).
     #[serde(rename = "(")]
@@ -61,7 +66,8 @@ impl Bracket {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Value {
     Scalar(Scalar),
@@ -69,7 +75,8 @@ pub enum Value {
     List { bracket: Bracket, items: Vec<Value> },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub enum AssignOp {
     #[serde(rename = "=")]
     Equals,
@@ -77,7 +84,8 @@ pub enum AssignOp {
     Colon,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Setting {
     pub name: String,
     pub value: Value,
@@ -86,7 +94,8 @@ pub struct Setting {
 }
 
 /// The root of a config file is an implicit, brace-less group of settings.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct ConfigFile {
     pub members: Vec<Setting>,
 }

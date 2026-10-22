@@ -16,11 +16,13 @@
 
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use ts_rs::TS;
 
 use crate::ast::Setting;
 
 /// A field that may be a single number or one value per scanned frequency.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(untagged)]
 pub enum NumberOrList {
     One(f64),
@@ -28,7 +30,8 @@ pub enum NumberOrList {
 }
 
 /// A field that may be a number or a string, e.g. SoapySDR `gain`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(untagged)]
 pub enum NumberOrString {
     Number(f64),
@@ -36,7 +39,8 @@ pub enum NumberOrString {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct RtlAirbandConfig {
     pub multiple_demod_threads: bool,
@@ -65,10 +69,12 @@ pub struct RtlAirbandConfig {
     pub devices: Vec<Device>,
     pub mixers: Option<Vec<Mixer>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum DeviceMode {
     Multichannel,
@@ -85,7 +91,8 @@ impl DeviceMode {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct Device {
     #[serde(rename = "type")]
@@ -109,10 +116,12 @@ pub struct Device {
     pub antenna: Option<String>,
     pub channels: Vec<Channel>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(untagged)]
 pub enum Channel {
     Multichannel(MultichannelChannel),
@@ -129,7 +138,8 @@ impl Channel {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct MultichannelChannel {
     pub freq: f64,
@@ -150,11 +160,13 @@ pub struct MultichannelChannel {
     pub enabled: Option<bool>,
     pub outputs: Vec<Output>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct ScanChannel {
     pub freqs: Vec<f64>,
@@ -176,11 +188,13 @@ pub struct ScanChannel {
     pub enabled: Option<bool>,
     pub outputs: Vec<Output>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct Mixer {
     pub name: String,
@@ -193,11 +207,13 @@ pub struct Mixer {
     /// A mixer's own outputs cannot themselves be of type "mixer".
     pub outputs: Vec<Output>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct MixerRemoteInput {
     pub listen_path: String,
@@ -206,12 +222,14 @@ pub struct MixerRemoteInput {
     pub balance: Option<f64>,
     pub label: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 // Variants are config data edited in place; boxing them would only add noise.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(tag = "type")]
 pub enum Output {
     #[serde(rename = "pulse")]
@@ -257,7 +275,8 @@ impl Output {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct PulseOutput {
     pub server: Option<String>,
@@ -267,11 +286,13 @@ pub struct PulseOutput {
     pub continuous: Option<bool>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct FileOutput {
     pub directory: String,
@@ -293,11 +314,13 @@ pub struct FileOutput {
     pub rdio_scanner: Option<RdioScannerConfig>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct RdioScannerConfig {
     pub server: String,
@@ -318,11 +341,13 @@ pub struct RdioScannerConfig {
     /// .conf, while the values are kept in the JSON model.
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct RawFileOutput {
     pub directory: String,
@@ -338,10 +363,12 @@ pub struct RawFileOutput {
     pub split_include_transmission_start: Option<bool>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum TlsMode {
     Auto,
@@ -367,7 +394,8 @@ impl TlsMode {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct IcecastOutput {
     pub server: String,
@@ -385,11 +413,13 @@ pub struct IcecastOutput {
     pub tls: Option<TlsMode>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct UdpStreamOutput {
     pub dest_address: String,
@@ -401,11 +431,13 @@ pub struct UdpStreamOutput {
     pub continuous: Option<bool>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct MixerOutput {
     pub name: String,
@@ -413,16 +445,19 @@ pub struct MixerOutput {
     pub balance: Option<f64>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export, optional_fields)]
 #[serde(deny_unknown_fields)]
 pub struct MixerRemoteOutput {
     pub dest_path: String,
     pub stream_id: f64,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Setting>>", optional)]
     pub unknown_settings: Vec<Setting>,
 }

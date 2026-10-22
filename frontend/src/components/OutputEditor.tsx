@@ -9,7 +9,7 @@ import type {
   RawFileOutput,
   RdioScannerConfig,
   UdpStreamOutput,
-} from "@rtl-airband-panel/parser";
+} from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";

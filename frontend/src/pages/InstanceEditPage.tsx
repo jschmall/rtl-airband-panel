@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import type { ValidationIssue } from "@rtl-airband-panel/validate";
+import type { RtlAirbandConfig } from "../types/config.js";
+import type { ValidationIssue } from "../types/config.js";
 import { api, ApiError, type LiveApplyOutcome } from "../api/client.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
@@ -15,6 +15,7 @@ import { getValueAtPath } from "../lib/validation-path.js";
 import { classifySkippedRequiresRestart } from "../lib/live-apply.js";
 import { formatUptime } from "../lib/time-format.js";
 import { ChangePreview, usePlanPreview } from "../components/ChangePreview.js";
+import { useLiveValidation } from "../lib/live-validation.js";
 import { HealthStatus } from "../components/HealthLight.js";
 import { InstanceActions } from "../components/InstanceActions.js";
 
@@ -134,6 +135,10 @@ export function InstanceEditPage() {
   const summary = instances?.find((i) => i.name === name);
   // Preview whatever isn't running yet: unsaved edits, or a saved-but-unapplied config.
   const plan = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
+  // The server's validator running in the browser: errors show up while
+  // editing. Results from an actual save/check (incl. conflicts) take priority.
+  const live = useLiveValidation(config, isDirty);
+  const liveErrors = errors.length === 0 ? (live?.errors ?? []) : [];
 
   // Don't leave the flag set for the next page this component happens to render for.
   useEffect(() => () => setDirty(false), [setDirty]);
@@ -402,7 +407,7 @@ export function InstanceEditPage() {
       </div>
 
       <ValidationBanner
-        errors={errors}
+        errors={errors.length > 0 ? errors : liveErrors}
         warnings={warningsDismissed ? [] : warnings}
         config={config}
         onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })}
@@ -441,6 +446,16 @@ export function InstanceEditPage() {
       />
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        {liveErrors.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setJumpTarget({ path: liveErrors[0]!.path, nonce: Date.now() })}
+            title={liveErrors[0]!.message}
+            className="flex-shrink-0 text-sm text-red-300 underline decoration-dotted hover:text-red-200"
+          >
+            {liveErrors.length} error{liveErrors.length === 1 ? "" : "s"} to fix before saving
+          </button>
+        )}
         {plan && <ChangePreview plan={plan} />}
         <button
           type="button"

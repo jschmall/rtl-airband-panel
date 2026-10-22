@@ -5,6 +5,37 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.110] - 2026-10-22
+
+### Added
+
+- **Live validation in the editor, run by the server's own validator
+  compiled to WebAssembly** (new `crates/airband-wasm`). Errors appear in
+  the validation banner and as a clickable "N errors to fix before saving"
+  note in the action bar while you edit, before any Save or Check. The note
+  jumps to the first error. Results from an actual save or check (incl.
+  conflicts) still take priority. The module is 416 KB (154 KB compressed),
+  loads only on the editor page, and lives in `frontend/src/generated/wasm`.
+  Rebuild it with `scripts/build-wasm.sh`. Where WebAssembly can't load, live
+  validation is simply off.
+- **Frontend types generated from Rust (ts-rs).** `cargo test` writes the
+  config, validation, unit-status and plan types plus the shared constants
+  (sample rates, FFT limits, the usable-window threshold) to
+  `frontend/src/generated`, and `frontend/src/types/config.ts` re-exports
+  them under the names the UI uses. The frontend no longer imports anything
+  from `backend/parser` or `backend/validate`, which unblocks removing them.
+  CI fails if the committed types drift from the Rust model, and checks the
+  WebAssembly crate still builds.
+- **gzip/brotli compression** of panel responses (the SSE log stream is
+  excluded).
+
+### Changed
+
+- The panel's Content-Security-Policy allows `'wasm-unsafe-eval'` so the
+  browser can run the validator.
+- Release builds use LTO, a single codegen unit and stripped symbols.
+- README: building the Rust panel no longer needs `npm run build:deps`.
+
 ## [0.4.109] - 2026-10-22
 
 ### Added

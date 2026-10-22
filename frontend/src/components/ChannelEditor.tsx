@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef } from "react";
-import type { MultichannelChannel, Output } from "@rtl-airband-panel/parser";
+import type { MultichannelChannel, Output } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";

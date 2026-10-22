@@ -1,5 +1,5 @@
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import type { ValidationIssue, ValidationResult } from "@rtl-airband-panel/validate";
+import type { RtlAirbandConfig } from "../types/config.js";
+import type { ValidationIssue, ValidationResult } from "../types/config.js";
 
 export interface InstanceSummary {
   name: string;

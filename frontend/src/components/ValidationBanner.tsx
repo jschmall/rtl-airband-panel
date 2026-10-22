@@ -1,5 +1,5 @@
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
-import type { ValidationIssue } from "@rtl-airband-panel/validate";
+import type { RtlAirbandConfig } from "../types/config.js";
+import type { ValidationIssue } from "../types/config.js";
 import { describeValidationPath } from "../lib/validation-path.js";
 
 interface ValidationBannerProps {

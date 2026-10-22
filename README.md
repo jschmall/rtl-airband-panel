@@ -345,7 +345,6 @@ minutes on a Pi 4) and wants at least 2 GB of RAM.
 
 ```bash
 npm ci
-npm run build:deps                  # TypeScript packages the UI still takes types from
 npm run build --workspace=frontend  # the web UI, embedded at compile time
 cargo build --release -p rtl-airband-panel
 ```

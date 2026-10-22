@@ -26,11 +26,13 @@
 //! gain change, a mixer can run out of reserve_inputs slots).
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use airband_config::ast::{ConfigFile, Scalar, ScalarType, ScalarValue, Setting, Value};
 
 /// What the panel should do with a change.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplyMethod {
     /// The running process already has this configuration.
@@ -41,7 +43,8 @@ pub enum ApplyMethod {
     Restart,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct ChangePlan {
     /// Changes reload_diff will apply.
     pub live: Vec<String>,

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { Device, MultichannelChannel, Output, ScanChannel } from "@rtl-airband-panel/parser";
-import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "@rtl-airband-panel/validate";
+import type { Device, MultichannelChannel, Output, ScanChannel } from "../types/config.js";
+import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "../generated/constants.js";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";

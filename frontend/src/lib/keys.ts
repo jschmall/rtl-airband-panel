@@ -1,4 +1,4 @@
-import type { RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import type { RtlAirbandConfig } from "../types/config.js";
 
 /**
  * React needs a stable `key` per list item to keep each item's own component

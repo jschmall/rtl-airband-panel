@@ -1,0 +1,18 @@
+[package]
+name = "airband-wasm"
+description = "airband-validate compiled to WebAssembly, so the browser validates exactly like the server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+airband-config = { path = "../airband-config" }
+airband-validate = { path = "../airband-validate" }
+serde_json.workspace = true
+wasm-bindgen = "=0.2.129"

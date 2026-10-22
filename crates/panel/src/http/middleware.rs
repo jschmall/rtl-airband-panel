@@ -30,7 +30,7 @@ pub async fn request_id(req: Request, next: Next) -> Response {
 const SECURITY_HEADERS: [(&str, &str); 11] = [
     (
         "content-security-policy",
-        "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';connect-src 'self'",
+        "default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self' 'wasm-unsafe-eval';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';connect-src 'self'",
     ),
     ("cross-origin-opener-policy", "same-origin"),
     ("cross-origin-resource-policy", "same-origin"),

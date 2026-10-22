@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, type ReactNode } from "react";
-import type { Device, Mixer, Output, RtlAirbandConfig } from "@rtl-airband-panel/parser";
+import type { Device, Mixer, Output, RtlAirbandConfig } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
