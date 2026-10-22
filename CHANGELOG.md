@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.112] - 2026-10-22
+
+### Changed
+
+- **Merged the `rust` branch into `master` (v0.4.103 to v0.4.111).** `master`
+  now ships the Rust panel, a single `rtl-airband-panel` binary with the web
+  UI built in, in place of the Node.js/TypeScript backend:
+  - the parser and validator ports, both verified against the TS
+    implementation;
+  - systemd, control-socket, stats and log supervision with live-apply
+    planning;
+  - the axum server with auth and `/api/ws`;
+  - the restyled frontend with change preview and live validation.
+
+  See the v0.4.103 to v0.4.111 entries for details. Existing installs: see
+  DEPLOYMENT.md, "Migrating from the Node.js panel". In sudo mode the
+  sudoers rule must be reinstalled.
+
 ## [0.4.111] - 2026-10-22
 
 ### Removed
