@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "no-active-channels",
+      "path": "$.devices[0]",
+      "message": "every channel on this device is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled channel per device"
+    }
+  ],
+  "warnings": []
+}

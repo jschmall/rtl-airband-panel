@@ -1,0 +1,35 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "file-output-continuous-and-split-on-transmission",
+      "path": "$.devices[0].channels[0].outputs[0]",
+      "message": "can't have both continuous and split_on_transmission set on the same file output"
+    },
+    {
+      "severity": "error",
+      "code": "file-output-continuous-and-split-on-transmission",
+      "path": "$.mixers[0].outputs[0]",
+      "message": "can't have both continuous and split_on_transmission set on the same file output"
+    },
+    {
+      "severity": "error",
+      "code": "udp-stream-sample-rate-non-positive",
+      "path": "$.devices[0].channels[0].outputs[1].sample_rate",
+      "message": "udp_stream sample_rate must be greater than 0"
+    },
+    {
+      "severity": "error",
+      "code": "udp-stream-sample-rate-non-positive",
+      "path": "$.mixers[0].outputs[1].sample_rate",
+      "message": "udp_stream sample_rate must be greater than 0"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-output-split-on-transmission-not-allowed",
+      "path": "$.mixers[0].outputs[0]",
+      "message": "split_on_transmission is not allowed for mixers"
+    }
+  ],
+  "warnings": []
+}

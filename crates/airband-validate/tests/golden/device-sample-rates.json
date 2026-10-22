@@ -1,0 +1,66 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-sample-rate-too-low",
+      "path": "$.devices[0]",
+      "message": "sample_rate 16000 must be greater than 16000"
+    },
+    {
+      "severity": "error",
+      "code": "device-sample-rate-unsupported",
+      "path": "$.devices[2]",
+      "message": "sample_rate 300001 is outside librtlsdr's supported ranges (225001-300000 or 900001-3200000 Hz)"
+    },
+    {
+      "severity": "error",
+      "code": "device-sample-rate-unsupported",
+      "path": "$.devices[3]",
+      "message": "sample_rate 900000 is outside librtlsdr's supported ranges (225001-300000 or 900001-3200000 Hz)"
+    }
+  ],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[0].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99992800-100007200 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[1].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99992799.55-100007200.45 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[2].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99864999.55-100135000.45 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[3].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99595000-100405000 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[4].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99594999.55-100405000.45 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[5].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99865000-100135000 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[6].channels[0]",
+      "message": "channel frequency 100500000 Hz is outside of the SDR's usable operating bandwidth (99775000-100225000 Hz around centerfreq 100000000 Hz)"
+    }
+  ]
+}

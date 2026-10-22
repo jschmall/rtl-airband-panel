@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-unused",
+      "path": "$.mixers[1]",
+      "message": "mixer 'n' has no channel outputs routed into it; RTLSDR-Airband has nothing to write to this mixer and will exit at startup"
+    },
+    {
+      "severity": "error",
+      "code": "mixer-reserve-inputs-negative",
+      "path": "$.mixers[0]",
+      "message": "reserve_inputs -2 must not be negative"
+    }
+  ],
+  "warnings": []
+}

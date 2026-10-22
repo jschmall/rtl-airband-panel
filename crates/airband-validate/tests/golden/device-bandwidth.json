@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-bandwidth-negative",
+      "path": "$.devices[0]",
+      "message": "bandwidth -1 must not be negative (0 = automatic)"
+    }
+  ],
+  "warnings": []
+}

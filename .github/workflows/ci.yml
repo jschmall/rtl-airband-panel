@@ -30,12 +30,13 @@ jobs:
       - run: npm test --workspace=backend/api
       - run: npm test --workspace=frontend
 
-      # The Rust port's parity goldens are recorded from backend/parser; fail
-      # if they no longer match what the TS parser actually produces.
+      # The Rust ports' parity goldens are recorded from backend/parser and
+      # backend/validate; fail if they no longer match what the TS code
+      # actually produces.
       - name: Check Rust parity goldens are current
         run: |
           node scripts/gen-parity-goldens.mjs
-          git diff --exit-code crates/airband-config/tests/golden
+          git diff --exit-code crates/airband-config/tests/golden crates/airband-validate/tests/golden
 
   rust:
     runs-on: ubuntu-latest

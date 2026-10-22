@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-type-unsupported",
+      "path": "$.devices[0]",
+      "message": "unsupported device type 'hackrf' (must be one of: rtlsdr, mirisdr, soapysdr)"
+    }
+  ],
+  "warnings": []
+}

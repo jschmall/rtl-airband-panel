@@ -1,0 +1,24 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "squelch-threshold-and-snr-threshold-both-set",
+      "path": "$.devices[0].channels[0]",
+      "message": "squelch_threshold and squelch_snr_threshold can't both be set on the same channel"
+    }
+  ],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[0].channels[0]",
+      "message": "channel frequency 118050000 Hz is outside of the SDR's usable operating bandwidth (98848000-101152000 Hz around centerfreq 100000000 Hz)"
+    },
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[0].channels[1]",
+      "message": "channel frequency 120900000 Hz is outside of the SDR's usable operating bandwidth (98848000-101152000 Hz around centerfreq 100000000 Hz)"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "ampfactor-negative",
+      "path": "$.devices[0].channels[0].ampfactor[1]",
+      "message": "ampfactor -1 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-threshold-positive",
+      "path": "$.devices[0].channels[0].squelch_threshold[1]",
+      "message": "squelch_threshold 5 must be less than or equal to 0"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-snr-threshold-invalid",
+      "path": "$.devices[0].channels[0].squelch_snr_threshold[1]",
+      "message": "squelch_snr_threshold -0.5 must be greater than or equal to 0 (or exactly -1 to use the default)"
+    },
+    {
+      "severity": "error",
+      "code": "squelch-threshold-and-snr-threshold-both-set",
+      "path": "$.devices[0].channels[0]",
+      "message": "squelch_threshold and squelch_snr_threshold can't both be set on the same channel"
+    },
+    {
+      "severity": "error",
+      "code": "notch-q-non-positive",
+      "path": "$.devices[0].channels[0].notch_q[0]",
+      "message": "notch_q -1 must be greater than 0.0"
+    }
+  ],
+  "warnings": []
+}

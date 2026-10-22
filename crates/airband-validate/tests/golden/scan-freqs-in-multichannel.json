@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "scan-mode-channel-shape-mismatch",
+      "path": "$.devices[0]",
+      "message": "device has a channel using 'freqs' (scan mode) but the device's mode is not \"scan\""
+    }
+  ],
+  "warnings": []
+}

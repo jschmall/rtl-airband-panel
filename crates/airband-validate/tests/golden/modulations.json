@@ -1,0 +1,23 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "modulation-unrecognized",
+      "path": "$.devices[0].channels[0].modulation",
+      "message": "unknown modulation 'fm' (must start with \"nfm\" or \"am\")"
+    },
+    {
+      "severity": "error",
+      "code": "modulation-unrecognized",
+      "path": "$.devices[1].channels[0].modulation",
+      "message": "unknown modulation 'usb' (must start with \"nfm\" or \"am\")"
+    },
+    {
+      "severity": "error",
+      "code": "modulation-unrecognized",
+      "path": "$.devices[1].channels[0].modulations[1]",
+      "message": "unknown modulation 'lsb' (must start with \"nfm\" or \"am\")"
+    }
+  ],
+  "warnings": []
+}

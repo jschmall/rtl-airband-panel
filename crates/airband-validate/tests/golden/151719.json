@@ -1,0 +1,137 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[0].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[1].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[2].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[3].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[4].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[5].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[6].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[7].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[8].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[9].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[10].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[11].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[12].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[13].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[14].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[15].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[16].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[17].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[18].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[19].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[20].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    },
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[21].outputs[0].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    }
+  ]
+}

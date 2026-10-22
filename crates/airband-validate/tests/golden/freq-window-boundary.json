@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "frequency-out-of-window",
+      "path": "$.devices[0].channels[0]",
+      "message": "channel frequency 101152000 Hz is outside of the SDR's usable operating bandwidth (98848000-101152000 Hz around centerfreq 100000000 Hz)"
+    }
+  ]
+}

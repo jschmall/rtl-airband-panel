@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-centerfreq-required",
+      "path": "$.devices[0]",
+      "message": "device is in multichannel mode and requires a 'centerfreq'"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "fft-bin-collision",
+      "path": "$.devices[0].channels[2]",
+      "message": "channel frequency 100500200 Hz collides with channels[1]'s 100501000 Hz — both quantize to FFT bin 100 (bin width 5000 Hz), so only one will be demodulated correctly"
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,17 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "enabled-false-with-disable",
+      "path": "$.devices[0].channels[0]",
+      "message": "enabled: false has no effect here since disable: true already omits this channel from the config entirely"
+    },
+    {
+      "severity": "warning",
+      "code": "enabled-false-with-disable",
+      "path": "$.mixers[0]",
+      "message": "enabled: false has no effect here since disable: true already omits this mixer from the config entirely"
+    }
+  ]
+}

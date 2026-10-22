@@ -1,0 +1,29 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "ctcss-non-positive",
+      "path": "$.devices[0].channels[0].ctcss",
+      "message": "ctcss value 0 Hz is not positive; RTLSDR-Airband ignores it and CTCSS squelch is disabled"
+    },
+    {
+      "severity": "warning",
+      "code": "ctcss-near-standard-tone",
+      "path": "$.devices[0].channels[1].ctcss",
+      "message": "ctcss value 103.4 Hz is close to but not exactly the standard tone 103.5 Hz — likely a typo"
+    },
+    {
+      "severity": "warning",
+      "code": "ctcss-non-positive",
+      "path": "$.devices[0].channels[4].ctcss",
+      "message": "ctcss value -5 Hz is not positive; RTLSDR-Airband ignores it and CTCSS squelch is disabled"
+    },
+    {
+      "severity": "warning",
+      "code": "ctcss-near-standard-tone",
+      "path": "$.devices[0].channels[5].ctcss",
+      "message": "ctcss value 65.5 Hz is close to but not exactly the standard tone 67 Hz — likely a typo"
+    }
+  ]
+}

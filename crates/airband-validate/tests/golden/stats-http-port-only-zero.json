@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "stats-http-address-and-port-must-be-set-together",
+      "path": "$",
+      "message": "stats_http_address and stats_http_port must be set together"
+    },
+    {
+      "severity": "error",
+      "code": "stats-http-port-out-of-range",
+      "path": "$.stats_http_port",
+      "message": "stats_http_port must be between 1 and 65535"
+    }
+  ],
+  "warnings": []
+}

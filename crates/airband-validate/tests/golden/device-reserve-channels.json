@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "device-reserve-channels-negative",
+      "path": "$.devices[0]",
+      "message": "reserve_channels -1 must not be negative"
+    },
+    {
+      "severity": "error",
+      "code": "device-reserve-channels-scan-unsupported",
+      "path": "$.devices[2]",
+      "message": "reserve_channels is not supported in scan mode"
+    }
+  ],
+  "warnings": []
+}

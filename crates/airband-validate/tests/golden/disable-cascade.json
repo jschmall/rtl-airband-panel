@@ -1,0 +1,23 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "no-active-outputs",
+      "path": "$.devices[0].channels[0]",
+      "message": "every output on this channel is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled output per channel"
+    },
+    {
+      "severity": "error",
+      "code": "no-active-channels",
+      "path": "$.devices[1]",
+      "message": "every channel on this device is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled channel per device"
+    },
+    {
+      "severity": "error",
+      "code": "no-active-mixer-outputs",
+      "path": "$.mixers[0]",
+      "message": "every output on this mixer is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled output per mixer"
+    }
+  ],
+  "warnings": []
+}

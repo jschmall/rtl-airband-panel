@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "no-active-devices",
+      "path": "$",
+      "message": "every device is disabled (or none is configured); RTLSDR-Airband requires at least one non-disabled device"
+    }
+  ],
+  "warnings": []
+}

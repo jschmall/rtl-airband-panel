@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "code": "post-write-script-runs-arbitrary-command",
+      "path": "$.devices[0].channels[0].outputs[1].post_write_script",
+      "message": "post_write_script runs an arbitrary command after every write; make sure this instance's config can't be edited by anyone you wouldn't trust to run commands as the rtl_airband process user"
+    }
+  ]
+}

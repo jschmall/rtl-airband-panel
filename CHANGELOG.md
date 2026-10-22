@@ -5,6 +5,42 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.105] - 2026-10-22
+
+### Added
+
+- **`crates/airband-validate`, a Rust port of `backend/validate`.** All 30
+  checks are ported with the same issue codes, paths, message text
+  (numbers formatted the way JavaScript does), and issue order.
+  `compute_bin` and the RTLSDR-Airband/librtlsdr constants are exported
+  for later frontend use.
+- **TS-parity golden tests for the validator.** `scripts/gen-parity-goldens.mjs`
+  now also records `backend/validate`'s `{ errors, warnings }` for 75 inputs:
+  both fixtures, the parser corpus, and 59 new validator corpus files in
+  `crates/airband-validate/tests/corpus/`. Those files exercise every check,
+  including boundary values, and trigger all 59 of the TS validator's issue
+  codes. The Rust validator reproduces every golden exactly. CI's golden
+  drift check now covers these too.
+- **New Rust-only checks.** They run after the ported checks, so configs
+  without these settings get the same output as the TS validator.
+  - `stats_update_interval` must be > 0.
+  - Global `split_*_file_time` settings must satisfy RTLSDR-Airband's
+    constraint: `split_min_file_time` >= 1.0, `split_max_file_time` >
+    `split_min_file_time`, and `split_max_idle_time` > 0.
+  - A file/rawfile output that overrides any of those settings must satisfy
+    the same constraint, using the global or default value for the ones it
+    doesn't set. An invalid global is reported once, not once per output.
+  - Split settings on a mixer's outputs are errors.
+  - Split settings without `split_on_transmission` are warnings (ignored).
+  - Every unrecognized setting kept verbatim gets a warning
+    (`unknown-setting-preserved`). A channel's `squelch` gets
+    RTLSDR-Airband's own deprecation warning instead (`squelch-deprecated`).
+- **Checked against the same 12 real deployment configs as v0.4.104.** The
+  TS and Rust validators produce identical results for all 12: no errors,
+  no warnings.
+- **`cargo run -p airband-validate --example check -- <file.conf>`**, a dev
+  tool that prints a config's validation result as JSON in the golden format.
+
 ## [0.4.104] - 2026-10-22
 
 ### Added

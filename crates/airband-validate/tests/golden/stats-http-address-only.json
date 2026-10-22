@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "stats-http-address-and-port-must-be-set-together",
+      "path": "$",
+      "message": "stats_http_address and stats_http_port must be set together"
+    }
+  ],
+  "warnings": []
+}

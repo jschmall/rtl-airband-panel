@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "severity": "error",
+      "code": "mixer-reference-not-found",
+      "path": "$.devices[0].channels[0].outputs[0]",
+      "message": "output routes into mixer 'nope', which has no matching entry in the top-level mixers list"
+    }
+  ],
+  "warnings": []
+}
