@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use airband_supervisor::control_socket::{Command, CommandResult, ControlSocketClient, ReloadDiffResult};
+use airband_supervisor::control_socket::{Command, CommandResult, ControlSocketClient, ReloadDiffResult, StatusResult};
 use airband_supervisor::stats::{StatsReader, StatsSource};
 use airband_supervisor::systemd::{ActiveState, LogLine, MockUnits, UnitManager};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -76,6 +76,49 @@ async fn unreachable_sockets() {
     let partial = dir.path().join("partial.sock");
     let _s = fake_socket(&partial, "{\"ok\":true");
     assert!(matches!(ControlSocketClient::default().reload_diff(&partial).await, ReloadDiffResult::Unreachable { .. }));
+}
+
+#[tokio::test]
+async fn status_parses_the_daemons_reply() {
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("ctl.sock");
+    let server = fake_socket(&sock, include_str!("fixtures/status-v6.4.0.json"));
+    let StatusResult::Ok(report) = ControlSocketClient::default().status(&sock).await else { panic!("not Ok") };
+    assert_eq!(server.await.unwrap(), [r#"{"cmd":"status"}"#]);
+
+    assert_eq!(report.version, "v6.4.0");
+    assert_eq!(report.devices.len(), 2);
+    let rtl = &report.devices[0];
+    assert_eq!((rtl.driver.as_deref(), rtl.centerfreq, rtl.sample_rate), (Some("rtlsdr"), 120_000_000, 2_560_000));
+    assert_eq!((rtl.gain, rtl.correction, rtl.bandwidth, rtl.peak_dbfs), (Some(33.8), Some(2.0), Some(0), Some(-6.02)));
+    assert_eq!((rtl.clipped_samples, rtl.buffer_overflows), (7, 3));
+    let tower = &rtl.channels[0].freqs[0];
+    assert_eq!(tower.label.as_deref(), Some("Tower \"A\""));
+    assert_eq!((tower.freq_offset_hz, tower.freq_offset_updates), (Some(42.0), 5));
+    assert!(!rtl.channels[1].enabled);
+    assert_eq!(rtl.channels[1].freqs[0].noise_dbfs, None);
+
+    let file = &report.devices[1];
+    assert_eq!((file.mode.as_str(), file.gain, file.peak_dbfs), ("scan", None, None));
+    assert_eq!(file.channels[0].freq_idx, 1);
+    assert_eq!(file.channels[0].freqs[1].freq_offset_hz, Some(-15.5));
+}
+
+#[tokio::test]
+async fn status_on_an_older_daemon_is_unsupported() {
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("old.sock");
+    let _s = fake_socket(&sock, "{\"ok\":false,\"error\":\"unknown cmd 'status'\"}\n");
+    assert_eq!(ControlSocketClient::default().status(&sock).await, StatusResult::Unsupported);
+
+    let sock = dir.path().join("odd.sock");
+    let _s = fake_socket(&sock, "{\"ok\":true,\"devices\":\"nope\"}\n");
+    assert!(matches!(ControlSocketClient::default().status(&sock).await, StatusResult::ProtocolError { .. }));
+
+    assert!(matches!(
+        ControlSocketClient::default().status(&dir.path().join("missing.sock")).await,
+        StatusResult::Unreachable { .. }
+    ));
 }
 
 #[tokio::test]

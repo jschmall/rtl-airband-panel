@@ -1,6 +1,7 @@
 //! rtl-airband-panel: web control panel for RTLSDR-Airband instances.
 
 pub mod error;
+pub mod hardware;
 pub mod http;
 pub mod secrets;
 pub mod service;
@@ -16,6 +17,7 @@ use std::time::Duration;
 use airband_supervisor::{ControlSocketClient, MockUnits, SudoSystemctl, UnitManager};
 use tokio::sync::{broadcast, watch};
 
+use crate::hardware::HardwareService;
 use crate::http::AppState;
 use crate::service::{InstanceService, ServiceOptions};
 use crate::settings::{Settings, SystemdMode};
@@ -45,10 +47,15 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
             default_service_group: non_empty(&settings.default_service_group),
         },
     );
+    let service = Arc::new(service);
+    let hardware = Arc::new(HardwareService::new(
+        service.clone(),
+        Duration::from_millis(settings.control_socket_timeout_ms.min(2_000)),
+    ));
     let db = StatsDb::open(&settings.stats_db_path()).map_err(|e| format!("opening stats DB: {e}"))?;
     let (events, _) = broadcast::channel(256);
     let state = AppState {
-        service: Arc::new(service),
+        service,
         stats: Arc::new(StatsService { db: Arc::new(db), poll_status: Arc::new(PollStatusTracker::default()) }),
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
@@ -58,6 +65,8 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
         limiter: Arc::default(),
         events,
         frontend_dir: settings.frontend_dist.clone(),
+        hardware,
+        hardware_subscribers: Arc::default(),
     };
     Ok(App { router: http::router(state.clone()), state })
 }
@@ -104,6 +113,10 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
         shutdown_rx,
     ));
     let watcher = tokio::spawn(http::ws::health_watcher(app.state.clone(), Duration::from_secs(5)));
+    let hardware_watcher = tokio::spawn(http::ws::hardware_watcher(
+        app.state.clone(),
+        Duration::from_millis(settings.hardware_poll_interval_ms.max(250)),
+    ));
 
     let addr = SocketAddr::new(settings.host, settings.port);
     let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| format!("binding {addr}: {e}"))?;
@@ -122,5 +135,6 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let _ = shutdown_tx.send(true);
     let _ = poller.await;
     watcher.abort();
+    hardware_watcher.abort();
     Ok(())
 }

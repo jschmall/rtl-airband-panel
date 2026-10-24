@@ -15,7 +15,10 @@ pub mod stats;
 pub mod systemd;
 pub mod unit_file;
 
-pub use control_socket::{Command, CommandResult, ControlSocketClient, ReloadDiffResult};
+pub use control_socket::{
+    ChannelStatus, Command, CommandResult, ControlSocketClient, DeviceStatus, FreqStatus, ReloadDiffResult,
+    StatusReport, StatusResult,
+};
 pub use keyed_mutex::KeyedMutex;
 pub use plan::{ApplyMethod, Baseline, ChangePlan, plan_change};
 pub use stats::{StatSample, StatsReader, StatsSource, parse_prometheus_text};

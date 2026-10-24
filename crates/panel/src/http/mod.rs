@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 
 use axum::body::Bytes;
@@ -26,6 +27,7 @@ use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
 use crate::error::ApiError;
+use crate::hardware::HardwareService;
 use crate::service::{InstanceService, clamp_log_lines, decode_config};
 use crate::stats::StatsService;
 use crate::stats_db::HistoryQuery;
@@ -42,6 +44,10 @@ pub struct AppState {
     pub limiter: Arc<middleware::RateLimiter>,
     pub events: broadcast::Sender<Value>,
     pub frontend_dir: Option<PathBuf>,
+    pub hardware: Arc<HardwareService>,
+    /// WebSocket clients subscribed to the "hardware" topic; the hardware
+    /// watcher only polls control sockets while this is non-zero.
+    pub hardware_subscribers: Arc<AtomicUsize>,
 }
 
 impl AppState {
@@ -73,6 +79,7 @@ pub fn router(state: AppState) -> Router {
         .route("/instances/{name}/stats/latest", get(stats_latest))
         .route("/instances/{name}/stats/poll-status", get(stats_poll_status))
         .route("/instances/{name}/stats/history", get(stats_history))
+        .route("/hardware", get(hardware))
         .route("/ws", get(ws::upgrade))
         .fallback(api_not_found);
 
@@ -360,6 +367,10 @@ async fn require_instance(s: &AppState, name: &str) -> ApiResult<()> {
         return Err(ApiError::NotFound(name.to_string()));
     }
     Ok(())
+}
+
+async fn hardware(State(s): State<AppState>) -> ApiResult<impl IntoResponse> {
+    Ok(Json(s.hardware.snapshot().await?))
 }
 
 async fn stats_summary(State(s): State<AppState>) -> ApiResult<impl IntoResponse> {

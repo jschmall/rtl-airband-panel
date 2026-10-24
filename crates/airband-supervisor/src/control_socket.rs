@@ -41,10 +41,83 @@ pub enum CommandResult {
     ProtocolError { message: String },
 }
 
+/// Reply to the read-only `status` command (fork v6.4.0+), field names as the
+/// daemon sends them. Counters are cumulative since the process started.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct StatusReport {
+    pub version: String,
+    pub devices: Vec<DeviceStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeviceStatus {
+    /// Index among the config's non-disabled devices.
+    pub index: u32,
+    pub driver: Option<String>,
+    pub state: String,
+    pub mode: String,
+    pub centerfreq: i64,
+    pub sample_rate: i64,
+    /// dB. None when the driver can't express it as one number (AGC, or
+    /// SoapySDR per-element gains) or doesn't report it.
+    pub gain: Option<f64>,
+    /// ppm (Hz for mirisdr, whose library has no ppm correction).
+    pub correction: Option<f64>,
+    /// Tuner bandwidth in Hz, 0 = driver default.
+    pub bandwidth: Option<i64>,
+    /// Largest sample over the last ~1 s relative to ADC full scale; None
+    /// until the first window completes.
+    pub peak_dbfs: Option<f64>,
+    pub clipped_samples: u64,
+    pub buffer_overflows: u64,
+    pub buffer_underruns: u64,
+    pub retune_failures: u64,
+    pub output_overruns: u64,
+    pub channels: Vec<ChannelStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ChannelStatus {
+    /// Index among the device's non-disabled channels.
+    pub index: u32,
+    pub enabled: bool,
+    /// Which of `freqs` is tuned (scan channels; always 0 otherwise).
+    pub freq_idx: u32,
+    pub squelch_open: bool,
+    pub freqs: Vec<FreqStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct FreqStatus {
+    pub freq: i64,
+    pub label: Option<String>,
+    pub modulation: String,
+    pub noise_dbfs: Option<f64>,
+    pub signal_dbfs: Option<f64>,
+    /// Smoothed carrier offset from `freq`, measured while squelch was open.
+    pub freq_offset_hz: Option<f64>,
+    pub freq_offset_updates: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StatusResult {
+    Ok(StatusReport),
+    /// The daemon answered but doesn't know `status`: a binary older than
+    /// fork v6.4.0.
+    Unsupported,
+    Unreachable {
+        reason: String,
+    },
+    ProtocolError {
+        message: String,
+    },
+}
+
 /// A control-socket command. Fields mirror the daemon's flat JSON fields.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     ReloadDiff,
+    Status,
     Retune { device: u32, freq: i64 },
     SetSampleRate { device: u32, sample_rate: i64 },
     SetGain { device: u32, gain: f64 },
@@ -60,6 +133,7 @@ impl Command {
     pub fn to_line(&self) -> String {
         let v = match self {
             Command::ReloadDiff => json!({ "cmd": "reload_diff" }),
+            Command::Status => json!({ "cmd": "status" }),
             Command::Retune { device, freq } => json!({ "cmd": "retune", "device": device, "freq": freq }),
             Command::SetSampleRate { device, sample_rate } => {
                 json!({ "cmd": "set_sample_rate", "device": device, "sample_rate": sample_rate })
@@ -126,6 +200,25 @@ impl ControlSocketClient {
                     },
                 }
             }
+        }
+    }
+
+    pub async fn status(&self, socket_path: &Path) -> StatusResult {
+        match self.exchange(socket_path, &Command::Status).await {
+            Exchange::Unreachable(reason) => StatusResult::Unreachable { reason },
+            Exchange::Protocol(message) => StatusResult::ProtocolError { message },
+            Exchange::Line(obj) => match (obj.get("ok"), obj.get("error")) {
+                (Some(Value::Bool(false)), Some(Value::String(e))) if e.starts_with("unknown cmd") => {
+                    StatusResult::Unsupported
+                }
+                (Some(Value::Bool(false)), Some(Value::String(e))) => {
+                    StatusResult::ProtocolError { message: e.clone() }
+                }
+                _ => match serde_json::from_value::<StatusReport>(Value::Object(obj)) {
+                    Ok(report) => StatusResult::Ok(report),
+                    Err(e) => StatusResult::ProtocolError { message: format!("unrecognized status reply: {e}") },
+                },
+            },
         }
     }
 

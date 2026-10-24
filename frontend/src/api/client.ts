@@ -1,5 +1,11 @@
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue, ValidationResult } from "../types/config.js";
+import type { HardwareSnapshot } from "../generated/HardwareSnapshot";
+
+export type { HardwareSnapshot } from "../generated/HardwareSnapshot";
+export type { InstanceHardware } from "../generated/InstanceHardware";
+export type { SdrHealth } from "../generated/SdrHealth";
+export type { ChannelHealth } from "../generated/ChannelHealth";
 
 export interface InstanceSummary {
   name: string;
@@ -245,6 +251,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ newName }),
     }),
+
+  /** Every instance's SDRs with live readings where the control socket answers `status` (Rust panel only). */
+  getHardware: (): Promise<HardwareSnapshot> => request("/hardware"),
 
   getLatestStats: (name: string): Promise<StatSample[]> => request(`/instances/${encodeURIComponent(name)}/stats/latest`),
 

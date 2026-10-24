@@ -12,6 +12,7 @@ import { MobileNavProvider } from "./state/MobileNavContext.js";
 // are only needed on this one route -- split into its own chunk instead of
 // shipping them to everyone loading the instance list/editor.
 const StatsPage = lazy(() => import("./pages/StatsPage.js").then((m) => ({ default: m.StatsPage })));
+const HardwarePage = lazy(() => import("./pages/HardwarePage.js").then((m) => ({ default: m.HardwarePage })));
 
 export function App() {
   return (
@@ -28,6 +29,14 @@ export function App() {
                 element={
                   <Suspense fallback={<p className="text-slate-400">Loading…</p>}>
                     <StatsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="hardware"
+                element={
+                  <Suspense fallback={<p className="text-slate-400">Loading…</p>}>
+                    <HardwarePage />
                   </Suspense>
                 }
               />

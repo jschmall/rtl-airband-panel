@@ -105,6 +105,11 @@ pub struct Settings {
     #[arg(long, env = "RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS", default_value_t = 8_000)]
     pub control_socket_timeout_ms: u64,
 
+    /// How often the Hardware page's live readings are refreshed from each
+    /// instance's control socket, while anyone has the page open.
+    #[arg(long, env = "RTL_PANEL_HARDWARE_POLL_INTERVAL_MS", default_value_t = 1_000)]
+    pub hardware_poll_interval_ms: u64,
+
     /// Serve the frontend from this directory instead of the copy embedded
     /// in the binary.
     #[arg(long, env = "RTL_PANEL_FRONTEND_DIST")]

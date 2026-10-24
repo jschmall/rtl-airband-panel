@@ -5,6 +5,55 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.118] - 2026-10-24
+
+### Changed
+
+- **Bundled RTLSDR-Airband bumped from fork v6.3.1 to v6.4.0**
+  (jschmall/RTLSDR-Airband#22). The bundled `rtl_airband` now reports
+  device health:
+  - **Control socket:** a read-only `status` command. This is what turns on
+    live readings on the Hardware page added in 0.4.117.
+  - **Stats file:** three new series, `device_peak_dbfs`,
+    `device_clipped_sample_count` and `channel_freq_offset_hz`.
+  - **Unchanged:** no new config settings, and no new CMake options or
+    dependencies. The only build change is one new source file,
+    `device_stats.cpp`. `packaging/airband-static-drivers.patch` still
+    applies unchanged.
+
+## [0.4.117] - 2026-10-24
+
+### Added
+
+- **Hardware page: live health per SDR.** A new "Hardware" section in the
+  sidebar has one card per SDR across all instances, updating every second:
+  - **ADC headroom**: peak level against full scale, with a meter marked
+    OK, low or clipping.
+  - **Noise floor**: the median across the SDR's channels.
+  - **Frequency error**: the median ppm across channels that have had a
+    transmission, with a suggested `correction`.
+  - **Dropped (buffer overflow) and clipped samples**: totals and
+    per-second rates.
+  - **Settings**: center frequency, span, tuner filter, gain and correction.
+  - **Channels**: an expandable table of signal, noise, SNR, squelch and
+    carrier offset.
+  - **Trends**: 5-minute sparklines for headroom, noise floor and frequency
+    error.
+
+  Live readings come from the RTLSDR-Airband fork's new read-only `status`
+  control-socket command (fork v6.4.0, jschmall/RTLSDR-Airband#22). The
+  bundled pin moves to v6.4.0 in a separate commit once that's tagged.
+  Instances without `control_socket_path`, or running an older binary,
+  show their configured values with the reason they aren't live.
+- **`GET /api/hardware`** and an opt-in `hardware` topic on `/api/ws`
+  (`{"type":"subscribe","topic":"hardware"}`). The panel only polls
+  control sockets while a client is subscribed.
+- **`RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`** (default 1000) sets how often
+  the live readings refresh.
+- **`ControlSocketClient::status`** in `airband-supervisor`, with typed
+  `StatusReport`/`DeviceStatus`/`ChannelStatus`/`FreqStatus`. An "unknown
+  cmd" reply maps to `StatusResult::Unsupported`.
+
 ## [0.4.116] - 2026-10-22
 
 ### Changed
