@@ -53,7 +53,7 @@ export const HARDWARE_TOOLTIPS = {
   centerSpan: "Where the SDR is tuned and how much spectrum it captures (its sample rate). Every channel on this SDR must fall inside the span.",
   gain: "The gain the tuner actually applied (rtl-sdr rounds to its nearest supported step), or the configured value when live readings aren't available.",
   freqError:
-    "How far received carriers sit from their configured frequencies, in parts per million: the median across this SDR's channels that have had a transmission. All channels on one SDR share its oscillator, so a consistent error here is that oscillator's drift -- the suggested correction would cancel it. Needs a few transmissions to settle; a single off-frequency transmitter can't move the median.",
+    "How far received carriers sit from their configured frequencies, in parts per million: the median across this SDR's channels that have had a transmission. All channels on one SDR share its oscillator, so a consistent error here is that oscillator's drift. The suggested correction is the value to set, not an amount to add: it stays the same as you approach it (a partial change shrinks the error by the same amount) and turns into \"Correction OK\" once less than 0.75 ppm remains. Restart the instance after changing it, then give it a few transmissions to settle; a single off-frequency transmitter can't move the median.",
   dropped:
     "Times the SDR's sample buffer overflowed because rtl_airband couldn't keep up, losing samples. Any steady climb means the host is short on CPU or USB bandwidth.",
   clipped:

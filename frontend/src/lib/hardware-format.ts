@@ -97,6 +97,26 @@ export function gainText(sdr: SdrHealth): string {
   return "—";
 }
 
+/** A next step shown under a reading: something to change, or a confirmation that nothing needs to. */
+export interface Advice {
+  tone: "ok" | "action";
+  text: string;
+}
+
+/**
+ * The frequency-error advice. The suggestion is the absolute value to set
+ * (the backend's suggestedCorrection), not an amount to add, so it's shown
+ * next to the current value; it clears once the remaining error is small.
+ */
+export function correctionAdvice(sdr: SdrHealth): Advice | null {
+  if (sdr.correctionUnit !== "ppm" || sdr.freqErrorPpm === null) return null;
+  const current = sdr.correction ?? 0;
+  if (sdr.suggestedCorrection === null || sdr.suggestedCorrection === current) {
+    return { tone: "ok", text: "Correction OK" };
+  }
+  return { tone: "action", text: `Set correction to ${sdr.suggestedCorrection} ppm (now ${current})` };
+}
+
 /** Why an instance's readings aren't live, in words. */
 export function notLiveReason(reason: string | null, detail: string | null): string {
   switch (reason) {

@@ -1,6 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import type { SdrHealth } from "../../api/client.js";
 import {
+  correctionAdvice,
   formatCount,
   formatDb,
   formatMHz,
@@ -9,6 +10,7 @@ import {
   formatSpan,
   gainText,
   sdrTitle,
+  type Advice,
   type HistoryPoint,
 } from "../../lib/hardware-format.js";
 import { HARDWARE_TOOLTIPS } from "../../lib/stats-descriptions.js";
@@ -17,7 +19,39 @@ import { ChannelTable } from "./ChannelTable.js";
 import { HeadroomMeter } from "./HeadroomMeter.js";
 import { Sparkline } from "./Sparkline.js";
 
-function Tile({ label, tooltip, value, sub, children }: { label: string; tooltip: string; value: string; sub?: ReactNode; children?: ReactNode }) {
+function AdviceLine({ advice }: { advice: Advice }) {
+  const ok = advice.tone === "ok";
+  return (
+    <p className={`mt-1 flex items-start gap-1 text-xs font-medium ${ok ? "text-emerald-300" : "text-amber-300"}`}>
+      {ok ? (
+        <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-0.5 h-3 w-3 shrink-0 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5,6.5 5,9 9.5,3.5" />
+        </svg>
+      ) : (
+        <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-0.5 h-3 w-3 shrink-0 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 6h7M6.5 3l3 3-3 3" />
+        </svg>
+      )}
+      <span>{advice.text}</span>
+    </p>
+  );
+}
+
+function Tile({
+  label,
+  tooltip,
+  value,
+  sub,
+  advice,
+  children,
+}: {
+  label: string;
+  tooltip: string;
+  value: string;
+  sub?: ReactNode;
+  advice?: Advice | null;
+  children?: ReactNode;
+}) {
   return (
     <div className="min-w-0 rounded-md border border-slate-800 bg-slate-950/40 p-3">
       <p className="text-xs text-slate-400">
@@ -27,6 +61,7 @@ function Tile({ label, tooltip, value, sub, children }: { label: string; tooltip
       </p>
       <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-slate-100">{value}</p>
       {sub && <div className="truncate text-xs text-slate-400">{sub}</div>}
+      {advice && <AdviceLine advice={advice} />}
       {children && <div className="mt-2">{children}</div>}
     </div>
   );
@@ -100,15 +135,12 @@ function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
           value={formatSigned(sdr.freqErrorPpm, "ppm", 2)}
           sub={
             sdr.freqErrorSamples > 0
-              ? `${sdr.freqErrorSamples} channel${sdr.freqErrorSamples === 1 ? "" : "s"}${
-                  sdr.suggestedCorrection !== null && sdr.suggestedCorrection !== (sdr.correction ?? 0)
-                    ? ` · try correction = ${sdr.suggestedCorrection}`
-                    : ""
-                }`
+              ? `${sdr.freqErrorSamples} channel${sdr.freqErrorSamples === 1 ? "" : "s"}`
               : live
                 ? "waiting for a transmission"
                 : undefined
           }
+          advice={correctionAdvice(sdr)}
         >
           <Sparkline points={series((p) => p.freqErrorPpm)} label="Frequency error trend" format={(v) => `${v.toFixed(2)} ppm`} />
         </Tile>

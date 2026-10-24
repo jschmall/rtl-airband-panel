@@ -3,6 +3,7 @@ import type { InstanceHardware, SdrHealth } from "../api/client.js";
 import {
   appendHistory,
   compareSerials,
+  correctionAdvice,
   formatSigned,
   formatSpan,
   headroomLevel,
@@ -116,5 +117,24 @@ describe("serial ordering", () => {
     const sorted = sortBySerial([inst("empty", []), inst("tower", ["blog-v4"]), inst("ops", ["30", "4"]), inst("app", ["12"])]);
     expect(sorted.map((i) => i.name)).toEqual(["ops", "app", "tower", "empty"]);
     expect(sorted[0]!.devices.map((d) => d.serial)).toEqual(["4", "30"]);
+  });
+});
+
+describe("correctionAdvice", () => {
+  it("names the absolute value to set alongside the current one", () => {
+    expect(correctionAdvice(sdr({ correction: 2, freqErrorPpm: -3.4, suggestedCorrection: 5 }))).toEqual({
+      tone: "action",
+      text: "Set correction to 5 ppm (now 2)",
+    });
+  });
+
+  it("confirms once the backend stops suggesting a change", () => {
+    expect(correctionAdvice(sdr({ correction: 5, freqErrorPpm: 0.3, suggestedCorrection: null }))?.tone).toBe("ok");
+    expect(correctionAdvice(sdr({ correction: null, freqErrorPpm: 0.9, suggestedCorrection: 0 }))?.tone).toBe("ok");
+  });
+
+  it("stays quiet without a measurement or for Hz-correction drivers", () => {
+    expect(correctionAdvice(sdr({ freqErrorPpm: null }))).toBeNull();
+    expect(correctionAdvice(sdr({ correctionUnit: "Hz", suggestedCorrection: null }))).toBeNull();
   });
 });

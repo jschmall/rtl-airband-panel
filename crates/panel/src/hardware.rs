@@ -84,7 +84,9 @@ pub struct SdrHealth {
     pub freq_error_ppm: Option<f64>,
     /// How many channel frequencies the median was taken over.
     pub freq_error_samples: u32,
-    /// `correction` that would cancel freq_error_ppm (ppm drivers only).
+    /// The absolute `correction` value that would cancel freq_error_ppm
+    /// (ppm drivers only). It stays the same as the correction approaches
+    /// it; None once the remaining error is under CORRECTION_OK_PPM.
     pub suggested_correction: Option<f64>,
     pub buffer_overflows: Option<f64>,
     pub overflows_per_sec: Option<f64>,
@@ -120,6 +122,10 @@ pub struct CounterSample {
     pub buffer_overflows: u64,
     pub clipped_samples: u64,
 }
+
+/// Remaining frequency error small enough to call the correction right:
+/// past the ±0.5 ppm rounding edge, so the suggestion doesn't flicker.
+pub const CORRECTION_OK_PPM: f64 = 0.75;
 
 fn median(mut values: Vec<f64>) -> Option<f64> {
     if values.is_empty() {
@@ -288,8 +294,10 @@ fn apply_status(sdr: &mut SdrHealth, status: &DeviceStatus, now: Instant, prev: 
     sdr.freq_error_ppm = median(ppms);
     // A carrier received high means the tuner's oscillator runs slow: a
     // correction that raises the tuned frequency by the same ppm cancels it.
+    // The suggestion is absolute: applying part of it shrinks the error by
+    // the same amount, so it stays put until the error is gone.
     sdr.suggested_correction = match (sdr.correction_unit.as_str(), sdr.freq_error_ppm) {
-        ("ppm", Some(err)) => Some((sdr.correction.unwrap_or(0.0) - err).round()),
+        ("ppm", Some(err)) if err.abs() >= CORRECTION_OK_PPM => Some((sdr.correction.unwrap_or(0.0) - err).round() + 0.0),
         _ => None,
     };
 }
@@ -502,9 +510,28 @@ devices: (
         assert_eq!(sdr.freq_error_samples, 3);
         assert!((sdr.freq_error_ppm.unwrap() - 1.2).abs() < 1e-3, "{:?}", sdr.freq_error_ppm);
         // correction 1 ppm, carrier still reads +1.2 ppm high -> 1 - 1.2 = -0.2 -> 0
-        assert_eq!(sdr.suggested_correction, Some(-0.0));
+        assert_eq!(sdr.suggested_correction, Some(0.0));
+        assert!(sdr.suggested_correction.unwrap().is_sign_positive());
         assert_eq!(sdr.channels[0].label.as_deref(), Some("Ground"), "label falls back to the config's");
         assert_eq!(sdr.channels[1].snr_db, Some(3.0));
+    }
+
+    #[test]
+    fn suggested_correction_holds_steady_then_clears_once_close() {
+        // A crystal 5 ppm fast: with correction c the carriers read (c - 5) ppm.
+        let suggestion = |correction: f64| {
+            let offset_hz = (correction - 5.0) * 120.1;
+            let mut dev = device(0, vec![channel(0, vec![freq(120_100_000, Some(-40.0), Some(offset_hz))])]);
+            dev.correction = Some(correction);
+            let report = StatusReport { version: "v6.4.0".into(), devices: vec![dev] };
+            derive_devices(&config(TWO_DEVICES), Some(&report), Instant::now(), &mut HashMap::new())[0]
+                .suggested_correction
+        };
+        assert_eq!(suggestion(0.0), Some(5.0));
+        assert_eq!(suggestion(3.0), Some(5.0), "applying part of it doesn't move the target");
+        assert_eq!(suggestion(4.0), Some(5.0));
+        assert_eq!(suggestion(4.5), None, "0.5 ppm left is within CORRECTION_OK_PPM");
+        assert_eq!(suggestion(5.0), None);
     }
 
     #[test]

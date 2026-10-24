@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.121] - 2026-10-24
+
+### Changed
+
+- **Hardware page: clearer frequency-correction advice.** The old
+  "try correction = X" hint looked stuck: it didn't change after a
+  restart with a new correction. It wasn't stuck. X is the absolute
+  correction to set, not an amount to add. Setting part of it shrinks the
+  error by the same amount, so X stays the same until you reach it.
+  - The hint now reads "Set correction to X ppm (now Y)".
+  - Once less than 0.75 ppm of error remains, it changes to
+    "Correction OK". This threshold also stops the hint flickering at the
+    ±0.5 ppm rounding edge.
+  - The frequency-error tooltip explains this.
+  - The API's `suggestedCorrection` is now `null` once the remaining error
+    is under 0.75 ppm.
+
 ## [0.4.120] - 2026-10-24
 
 ### Changed
