@@ -47,7 +47,7 @@ export function deviceMetricTooltip(metric: string): string | undefined {
 /** Tooltips for the Hardware page's per-SDR readings. */
 export const HARDWARE_TOOLTIPS = {
   headroom:
-    "How far the strongest sample the SDR's ADC produced in the last second sits below full scale. Near 0 dB the ADC clips, which smears strong signals into spurs across the whole band: lower the gain. Lots of headroom with a high noise floor is fine; lots of headroom with weak signals means there's gain to spare.",
+    "How far the strongest sample the SDR's ADC produced in the last second sits below full scale. Near 0 dB the ADC clips, which smears strong signals into spurs across the whole band: lower the gain. Lots of headroom with a high noise floor is fine; lots of headroom with weak signals means there's gain to spare. The gain advice uses the smallest headroom seen in the last 5 minutes on this page and aims to put the strongest peak about 6 dB below full scale: it says to lower the gain when peaks come within 3 dB (or samples clip), and only suggests raising it after 2 minutes in which no peak came within 12 dB. A strong transmitter that stayed quiet in that time can still clip, so raise gain in small steps.",
   noiseFloor:
     "Median noise level across this SDR's enabled channels, in dB relative to ADC full scale. Watch it against headroom: raising gain lifts both, and past a point it only lifts the noise.",
   centerSpan: "Where the SDR is tuned and how much spectrum it captures (its sample rate). Every channel on this SDR must fall inside the span.",

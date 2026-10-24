@@ -8,6 +8,7 @@ import {
   formatRate,
   formatSigned,
   formatSpan,
+  gainAdvice,
   gainText,
   sdrTitle,
   type Advice,
@@ -122,7 +123,13 @@ function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
       </dl>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Tile label="Headroom" tooltip={HARDWARE_TOOLTIPS.headroom} value={formatDb(sdr.headroomDb)} sub={sdr.peakDbfs !== null ? `peak ${formatDb(sdr.peakDbfs, "dBFS")}` : undefined}>
+        <Tile
+          label="Headroom"
+          tooltip={HARDWARE_TOOLTIPS.headroom}
+          value={formatDb(sdr.headroomDb)}
+          sub={sdr.peakDbfs !== null ? `peak ${formatDb(sdr.peakDbfs, "dBFS")}` : undefined}
+          advice={live ? gainAdvice(sdr, history) : null}
+        >
           <HeadroomMeter peakDbfs={sdr.peakDbfs} headroomDb={sdr.headroomDb} />
           <Sparkline points={series((p) => p.headroomDb)} label="Headroom trend" format={(v) => `${v.toFixed(1)} dB`} />
         </Tile>

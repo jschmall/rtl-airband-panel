@@ -6,6 +6,7 @@ import {
   correctionAdvice,
   formatSigned,
   formatSpan,
+  gainAdvice,
   headroomLevel,
   notLiveReason,
   sdrTitle,
@@ -136,5 +137,57 @@ describe("correctionAdvice", () => {
   it("stays quiet without a measurement or for Hz-correction drivers", () => {
     expect(correctionAdvice(sdr({ freqErrorPpm: null }))).toBeNull();
     expect(correctionAdvice(sdr({ correctionUnit: "Hz", suggestedCorrection: null }))).toBeNull();
+  });
+});
+
+describe("gainAdvice", () => {
+  const hist = (headrooms: (number | null)[], gainDb: number | null = null, stepMs = 30_000) =>
+    headrooms.map((headroomDb, i) => ({ ts: i * stepMs, headroomDb, noiseFloorDbfs: null, freqErrorPpm: null, gainDb }));
+
+  it("lowers to the tuner step that puts the worst recent peak about 6 dB down", () => {
+    // worst headroom 0.4 dB at 49.6 dB gain -> target 49.6 - 5.6 = 44.0 -> step 43.9
+    expect(gainAdvice(sdr({ gainDb: 49.6, headroomDb: 8 }), hist([9, 0.4, 8], 49.6))).toEqual({
+      tone: "action",
+      text: "Lower gain to 43.9 dB (now 49.6 dB)",
+    });
+  });
+
+  it("lowers at least one step whenever samples are clipping", () => {
+    expect(gainAdvice(sdr({ gainDb: 33.8, headroomDb: 7, clippedPerSec: 3 }), hist([7], 33.8))?.text).toBe(
+      "Lower gain to 32.8 dB (now 33.8 dB)"
+    );
+    expect(gainAdvice(sdr({ gainDb: 0, headroomDb: 0.1 }), hist([0.1], 0))?.text).toMatch(/minimum gain/);
+  });
+
+  it("rounds down to whole dB off the R820T table", () => {
+    expect(gainAdvice(sdr({ driver: "soapysdr", gainDb: 30, headroomDb: 1.5 }), hist([1.5], 30))?.text).toBe(
+      "Lower gain to 25 dB (now 30 dB)"
+    );
+  });
+
+  it("suggests raising only after two quiet minutes", () => {
+    const quiet = sdr({ gainDb: 12.5, headroomDb: 31 });
+    expect(gainAdvice(quiet, hist([31, 31, 31], 12.5))).toEqual({ tone: "ok", text: "Gain OK so far" });
+    // 12.5 + (25 - 6) = 31.5 -> 29.7
+    expect(gainAdvice(quiet, hist([31, 25, 31, 31, 31], 12.5))).toEqual({
+      tone: "action",
+      text: "Room to raise gain to 29.7 dB (now 12.5 dB)",
+    });
+  });
+
+  it("ignores readings from before a live gain change", () => {
+    const before = hist([0.2, 0.3], 49.6);
+    const after = hist([9, 8], 43.9).map((p) => ({ ...p, ts: p.ts + 60_000 }));
+    expect(gainAdvice(sdr({ gainDb: 43.9, headroomDb: 8 }), [...before, ...after])).toEqual({ tone: "ok", text: "Gain OK" });
+  });
+
+  it("leaves a gain in the ideal band alone", () => {
+    expect(gainAdvice(sdr({ gainDb: 33.8, headroomDb: 9.5 }), hist([9.5, 6, 11, 9, 9], 33.8))).toEqual({ tone: "ok", text: "Gain OK" });
+  });
+
+  it("asks for manual gain only when automatic gain clips", () => {
+    expect(gainAdvice(sdr({ gainDb: null, headroomDb: 0.5 }), hist([0.5], null))?.text).toMatch(/manual gain/);
+    expect(gainAdvice(sdr({ gainDb: null, headroomDb: 9 }), hist([9], null))).toBeNull();
+    expect(gainAdvice(sdr({ headroomDb: null }), [])).toBeNull();
   });
 });

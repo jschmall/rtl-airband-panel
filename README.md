@@ -36,7 +36,8 @@ restart only the one you changed.
   with one click to restart them all.
 - **Check each radio's health live.** A Hardware page per SDR: headroom
   before the ADC clips, noise floor, how far off-frequency the dongle is
-  (with a suggested `correction`), gain, and dropped samples. Needs the
+  (with a suggested `correction`), gain (with a suggested setting), and
+  dropped samples. Needs the
   RTLSDR-Airband fork, see [Hardware](#using-the-panel).
 - **Watch logs and history.** A live log viewer per instance, plus charts
   of signal versus squelch level per channel, and a Prometheus `/metrics`
@@ -234,16 +235,26 @@ level over the last hour, 6 hours or day, plus device and output counters.
 For this, an instance needs `stats_filepath` set in its config. History is
 kept for 7 days by default.
 
-**Hardware.** The Hardware page shows every SDR, live, updating every
-second:
+**Hardware.** The Hardware page shows every SDR, sorted by serial number,
+live, updating every second:
 - **Headroom**: how far the strongest signal sits below the point where
   the dongle's ADC clips. Under 3 dB is marked low and under 1 dB is
-  clipping, which smears strong signals across the band. Turn the gain down.
+  clipping, which smears strong signals across the band.
+  - **Suggested gain:** the page puts the strongest peak from the last
+    5 minutes about 6 dB below clipping.
+  - **Lowering:** when peaks come within 3 dB of clipping, or samples
+    clip, it says to lower the gain, and names a gain step the tuner
+    supports.
+  - **Raising:** it says gain can go up only after 2 minutes in which no
+    peak came within 12 dB of clipping.
 - **Noise floor**: the median across the SDR's channels.
 - **Frequency error**: how far received carriers sit from their configured
   frequencies, in ppm. All channels on one dongle share its oscillator, so
   this is the dongle's drift, and the page suggests the `correction` that
-  would cancel it. It needs a few transmissions before it shows anything.
+  would cancel it. The suggestion is the value to set, not an amount to
+  add. Set it and restart the instance; once the error is under 0.75 ppm
+  the page says "Correction OK". It needs a few transmissions before it
+  shows anything.
 - **Dropped and clipped samples**: running totals and per-second rates.
 - **Settings**: center frequency, span, gain and correction.
 - **Channels**: a per-channel table of signal, noise and frequency offset.

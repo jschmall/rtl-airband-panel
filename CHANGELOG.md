@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.122] - 2026-10-24
+
+### Added
+
+- **Hardware page: suggested gain.** The Headroom tile now gives gain advice,
+  based on the smallest headroom in the SDR's last 5 minutes of readings.
+  - **Target:** the strongest peak about 6 dB below clipping.
+  - **Lowering:** when peaks come within 3 dB of clipping, or samples are
+    clipping, it shows "Lower gain to X dB (now Y dB)". When a sample
+    clips, it always suggests at least one step down.
+  - **Raising:** it suggests "Room to raise gain" only after 2 minutes in
+    which no peak came within 12 dB of clipping.
+  - **Otherwise:** it shows "Gain OK".
+  - **Gain steps:** rtl-sdr suggestions snap down to the R820T/R828D
+    tuner's gain steps. Other gains round down to a whole dB.
+  - **Gain changes:** readings from before a live gain change are ignored.
+  - **Automatic gain:** under AGC, the page only speaks up if it clips.
+  - **README:** the Hardware section documents the gain advice, the
+    correction advice and the serial-number order.
+
 ## [0.4.121] - 2026-10-24
 
 ### Changed
