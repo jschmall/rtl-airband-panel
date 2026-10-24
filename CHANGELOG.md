@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.118] - 2026-10-24
+
+### Changed
+
+- **Bundled RTLSDR-Airband bumped from fork v6.3.1 to v6.4.0**
+  (jschmall/RTLSDR-Airband#22). The bundled `rtl_airband` now reports
+  device health:
+  - **Control socket:** a read-only `status` command. This is what turns on
+    live readings on the Hardware page added in 0.4.117.
+  - **Stats file:** three new series, `device_peak_dbfs`,
+    `device_clipped_sample_count` and `channel_freq_offset_hz`.
+  - **Unchanged:** no new config settings, and no new CMake options or
+    dependencies. The only build change is one new source file,
+    `device_stats.cpp`. `packaging/airband-static-drivers.patch` still
+    applies unchanged.
+
 ## [0.4.117] - 2026-10-24
 
 ### Added
