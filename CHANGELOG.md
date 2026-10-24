@@ -5,6 +5,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.119] - 2026-10-24
+
+### Changed
+
+- **Merged the `hardware-stats` branch into `master` (v0.4.117 and
+  v0.4.118).** `master` now has:
+  - the Hardware page, with live per-SDR health: headroom, noise floor,
+    frequency error, dropped and clipped samples;
+  - `GET /api/hardware`, and the `hardware` topic on `/api/ws`;
+  - the bundled RTLSDR-Airband fork at v6.4.0, which adds the `status`
+    control-socket command the page reads.
+
 ## [0.4.118] - 2026-10-24
 
 ### Changed
