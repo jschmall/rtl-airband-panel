@@ -299,13 +299,55 @@ backend used:
 - **Pruning** deletes samples older than the retention window and
   orphaned series, on its own interval, followed by an incremental vacuum.
 
+### Hardware page
+
+`crates/panel/src/hardware.rs` builds one `HardwareSnapshot` across all
+instances.
+
+Each instance's config gives the device list: non-disabled devices and
+channels, indexed the way rtl_airband indexes them. Where the instance has
+`control_socket_path`, the panel queries the fork's read-only `status`
+command (v6.4.0+, `ControlSocketClient::status`, timeout capped at 2 s)
+and overlays the live readings.
+
+Derived figures:
+- **Headroom** is `-peak_dbfs`.
+- **Noise floor** is the median of the enabled, tuned frequencies' noise.
+- **Frequency error** is the median ppm (`freq_offset_hz / freq`) over
+  frequencies that have had a transmission.
+- **Suggested correction** is `correction - error`, rounded. It's only
+  given for ppm drivers; mirisdr's correction is in Hz.
+- **Counter rates** come from the previous snapshot, kept per instance and
+  device. A counter that goes backwards (restart) gives no rate.
+
+Instances that aren't live keep their config view, and carry a `reason`:
+`no-control-socket`, `not-running`, `unsupported` (older binary),
+`unreachable`, `protocol-error` or `config-error`.
+
+The frontend page (`pages/HardwarePage.tsx`) opens its own `/api/ws`
+connection and subscribes. It falls back to polling `GET /api/hardware`
+every 2 s, and keeps a 5-minute client-side history for the sparklines.
+
+How the fork measures:
+- **ADC peak.** The largest |I|/|Q| over the last ~1 s of input, relative
+  to full scale.
+- **Carrier offset.** The power-weighted phase increment of each channel's
+  FFT bin output while squelch is open, minus the rotation of a carrier
+  exactly on frequency.
+
+The offset estimate reads AM signals slightly low: the window weights the
+sidebands unevenly. At 2+ Msps that's about 3%. At very low sample rates
+(narrow FFT bins, e.g. 240 kHz) it can be 25%. Details are in the fork's
+CLAUDE.md, item 43.
+
 ### HTTP API and live updates
 
 The REST API is what the TypeScript backend served (same routes, shapes
 and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - `POST /api/instances/:name/plan`;
 - a `plan` field on save and apply-live results;
-- `frequencies` on each instance in the list.
+- `frequencies` on each instance in the list;
+- `GET /api/hardware` (a `HardwareSnapshot`, see below).
 
 Errors are `{ error }` with 400/404/409/422 (with `errors`)/502 (failed
 systemd command, with `exitCode` and `stderr`).
@@ -313,7 +355,11 @@ systemd command, with `exitCode` and `stderr`).
 `/api/ws` sends `hello`, then:
 - `health` snapshots whenever a unit's status changes (checked every 5 s
   while anyone is connected);
-- `instance-changed` after any mutation.
+- `instance-changed` after any mutation;
+- `hardware` (a `HardwareSnapshot`) every `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`,
+  only to clients that sent `{"type":"subscribe","topic":"hardware"}`. The
+  watcher sends no control-socket traffic while nobody is subscribed. A new
+  subscriber gets a frame right away.
 
 A client that falls behind is disconnected, so it reconnects to fresh
 state. The frontend merges `health` in place, refetches on

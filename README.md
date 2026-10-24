@@ -34,6 +34,10 @@ restart only the one you changed.
 - **Restart only what you changed.** Saving one instance never touches the
   others. Instances with saved changes that aren't running yet are flagged,
   with one click to restart them all.
+- **Check each radio's health live.** A Hardware page per SDR: headroom
+  before the ADC clips, noise floor, how far off-frequency the dongle is
+  (with a suggested `correction`), gain, and dropped samples. Needs the
+  RTLSDR-Airband fork, see [Hardware](#using-the-panel).
 - **Watch logs and history.** A live log viewer per instance, plus charts
   of signal versus squelch level per channel, and a Prometheus `/metrics`
   endpoint.
@@ -53,6 +57,8 @@ fork that tracks upstream and adds:
 - rdio-scanner call uploads
 - combining channels from different SDRs into one mix (`mixer_remote`)
 - structured JSON logs, and a stats HTTP endpoint
+- live hardware health readings (headroom, frequency error) for the
+  Hardware page
 
 New instances you create in the panel use that build. Instances you
 already have keep running whatever `rtl_airband` their service points at,
@@ -228,6 +234,24 @@ level over the last hour, 6 hours or day, plus device and output counters.
 For this, an instance needs `stats_filepath` set in its config. History is
 kept for 7 days by default.
 
+**Hardware.** The Hardware page shows every SDR, live, updating every
+second:
+- **Headroom**: how far the strongest signal sits below the point where
+  the dongle's ADC clips. Under 3 dB is marked low and under 1 dB is
+  clipping, which smears strong signals across the band. Turn the gain down.
+- **Noise floor**: the median across the SDR's channels.
+- **Frequency error**: how far received carriers sit from their configured
+  frequencies, in ppm. All channels on one dongle share its oscillator, so
+  this is the dongle's drift, and the page suggests the `correction` that
+  would cancel it. It needs a few transmissions before it shows anything.
+- **Dropped and clipped samples**: running totals and per-second rates.
+- **Settings**: center frequency, span, gain and correction.
+- **Channels**: a per-channel table of signal, noise and frequency offset.
+
+Live readings need an instance running the bundled fork (v6.4.0 or later)
+with `control_socket_path` set. Other instances show their configured
+values and say why they aren't live.
+
 **Themes.** The bottom of the left-hand list switches between automatic
 (follows your system), dark and light.
 
@@ -320,6 +344,7 @@ for the full list.
 | `RTL_PANEL_STATS_POLL_INTERVAL_MS` | `--stats-poll-interval-ms` | `15000` | How often stats are collected, in milliseconds |
 | `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` | `--stats-prune-interval-ms` | `3600000` | How often old stats are cleaned up, in milliseconds |
 | `RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS` | `--control-socket-timeout-ms` | `8000` | How long Apply live waits for an answer, in milliseconds |
+| `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS` | `--hardware-poll-interval-ms` | `1000` | How often the Hardware page's live readings refresh while someone has it open, in milliseconds |
 | `RTL_PANEL_LOG_LEVEL` | `--log-level` | `info` | How much the panel logs: `error`, `warn`, `info`, `debug` |
 | `RTL_PANEL_LOG_FILE` | `--log-file` | none | Write the panel's log to this file instead of the system journal |
 
@@ -371,6 +396,12 @@ comments, is in `.backups/<name>/`.
 
 **The Stats page is empty.** The instance needs `stats_filepath` set, and
 needs to be running for a few minutes to collect history.
+
+**The Hardware page says "Not live".** The reason is shown next to the
+instance name. Usually the instance either has no `control_socket_path`
+or runs an `rtl_airband` older than fork v6.4.0. The control socket also
+only accepts connections from the same user, so the instance's service
+must run as the panel's user.
 
 **Something else.** Check the panel's log with
 `journalctl -u rtl-airband-panel`, and include `rtl-airband-panel --version`

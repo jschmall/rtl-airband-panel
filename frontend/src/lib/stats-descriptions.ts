@@ -43,3 +43,19 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
 export function deviceMetricTooltip(metric: string): string | undefined {
   return DEVICE_METRIC_TOOLTIPS[metric];
 }
+
+/** Tooltips for the Hardware page's per-SDR readings. */
+export const HARDWARE_TOOLTIPS = {
+  headroom:
+    "How far the strongest sample the SDR's ADC produced in the last second sits below full scale. Near 0 dB the ADC clips, which smears strong signals into spurs across the whole band: lower the gain. Lots of headroom with a high noise floor is fine; lots of headroom with weak signals means there's gain to spare.",
+  noiseFloor:
+    "Median noise level across this SDR's enabled channels, in dB relative to ADC full scale. Watch it against headroom: raising gain lifts both, and past a point it only lifts the noise.",
+  centerSpan: "Where the SDR is tuned and how much spectrum it captures (its sample rate). Every channel on this SDR must fall inside the span.",
+  gain: "The gain the tuner actually applied (rtl-sdr rounds to its nearest supported step), or the configured value when live readings aren't available.",
+  freqError:
+    "How far received carriers sit from their configured frequencies, in parts per million: the median across this SDR's channels that have had a transmission. All channels on one SDR share its oscillator, so a consistent error here is that oscillator's drift -- the suggested correction would cancel it. Needs a few transmissions to settle; a single off-frequency transmitter can't move the median.",
+  dropped:
+    "Times the SDR's sample buffer overflowed because rtl_airband couldn't keep up, losing samples. Any steady climb means the host is short on CPU or USB bandwidth.",
+  clipped:
+    "Samples where the ADC hit its full-scale limit. Occasional clipping on a strong nearby transmitter can be fine; a steady rate means the gain is too high.",
+} as const;

@@ -28,6 +28,17 @@ function StatsIcon() {
   );
 }
 
+function HardwareIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-current opacity-80" strokeWidth="1.5" strokeLinecap="round">
+      <rect x="1.5" y="6" width="13" height="8" rx="1.5" />
+      <path d="M11 6 13.5 1.5" />
+      <circle cx="5" cy="10" r="1.6" />
+      <path d="M9 9h3M9 11h3" />
+    </svg>
+  );
+}
+
 const CONNECTION: Record<Connection, { label: string; light: string; title: string }> = {
   live: { label: "Live", light: "bg-emerald-500", title: "Receiving live updates from the panel server" },
   polling: { label: "Polling", light: "bg-amber-500", title: "No live update channel; refreshing every 20 seconds" },
@@ -88,6 +99,10 @@ export function Rail() {
         <GuardedNavLink to="/stats" className={navItemClass}>
           <StatsIcon />
           Stats
+        </GuardedNavLink>
+        <GuardedNavLink to="/hardware" className={navItemClass}>
+          <HardwareIcon />
+          Hardware
         </GuardedNavLink>
       </div>
 

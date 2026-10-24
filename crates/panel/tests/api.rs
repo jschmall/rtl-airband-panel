@@ -344,3 +344,86 @@ async fn reverse_proxy_host_can_be_allowed() {
     assert_eq!(send(&h.router, request("panel.example.com", "https://evil.example")).await.0, StatusCode::FORBIDDEN);
     assert_eq!(send(&h.router, request("unlisted.example", "https://unlisted.example")).await.0, StatusCode::FORBIDDEN);
 }
+
+const STATUS_REPLY: &str = concat!(
+    r#"{"ok":true,"version":"v6.4.0","devices":[{"index":0,"driver":"rtlsdr","state":"running","mode":"multichannel","#,
+    r#""centerfreq":151000000,"sample_rate":2560000,"gain":28.0,"correction":0,"bandwidth":0,"peak_dbfs":-7.25,"#,
+    r#""clipped_samples":0,"buffer_overflows":1,"buffer_underruns":50,"retune_failures":0,"output_overruns":0,"channels":["#,
+    r#"{"index":0,"enabled":true,"freq_idx":0,"squelch_open":true,"freqs":[{"freq":151100000,"label":null,"modulation":"nfm","#,
+    r#""noise_dbfs":-42.0,"signal_dbfs":-20.0,"freq_offset_hz":302.2,"freq_offset_updates":9}]},"#,
+    r#"{"index":1,"enabled":true,"freq_idx":0,"squelch_open":false,"freqs":[{"freq":151200000,"label":null,"modulation":"nfm","#,
+    r#""noise_dbfs":-40.0,"signal_dbfs":-39.5,"freq_offset_hz":null,"freq_offset_updates":0}]}]}]}"#,
+    "\n"
+);
+
+#[tokio::test]
+async fn hardware_endpoint_joins_config_with_live_status() {
+    let h = harness(&[]);
+    let _sock = fake_socket(&h.socket, STATUS_REPLY);
+    let (status, _, snap) = send(&h.router, get("/api/hardware")).await;
+    assert_eq!(status, StatusCode::OK, "{snap}");
+    let alpha = &snap["instances"][0];
+    assert_eq!(alpha["name"], "alpha");
+    assert_eq!(alpha["live"], true, "{alpha}");
+    assert_eq!(alpha["version"], "v6.4.0");
+    let sdr = &alpha["devices"][0];
+    assert_eq!(sdr["serial"], "1");
+    assert_eq!(sdr["gainDb"], 28.0, "the applied gain, not the configured 29");
+    assert_eq!(sdr["headroomDb"], 7.25);
+    assert_eq!(sdr["noiseFloorDbfs"], -41.0);
+    assert_eq!(sdr["freqErrorSamples"], 1);
+    assert!((sdr["freqErrorPpm"].as_f64().unwrap() - 2.0).abs() < 1e-3, "{sdr}");
+    assert_eq!(sdr["suggestedCorrection"], -2.0);
+    assert_eq!(sdr["channels"].as_array().unwrap().len(), 2);
+    assert_eq!(sdr["channels"][0]["squelchOpen"], true);
+    assert_eq!(sdr["channels"][0]["snrDb"], 22.0);
+}
+
+#[tokio::test]
+async fn hardware_endpoint_falls_back_to_config_when_not_live() {
+    let h = harness(&[]); // nothing listening on the socket
+    let (status, _, snap) = send(&h.router, get("/api/hardware")).await;
+    assert_eq!(status, StatusCode::OK, "{snap}");
+    let alpha = &snap["instances"][0];
+    assert_eq!(alpha["live"], false);
+    assert_eq!(alpha["reason"], "not-running", "the mock unit isn't active");
+    let sdr = &alpha["devices"][0];
+    assert_eq!(sdr["gainDb"], 29.0);
+    assert_eq!(sdr["centerFreqHz"], 151_000_000.0);
+    assert_eq!(sdr["peakDbfs"], Value::Null);
+    assert_eq!(sdr["channels"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn websocket_hardware_topic_is_opt_in() {
+    use futures::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let h = harness(&[]);
+    let _sock = fake_socket(&h.socket, STATUS_REPLY);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let router = h.router.clone();
+    tokio::spawn(async move {
+        axum::serve(listener, router.into_make_service_with_connect_info::<std::net::SocketAddr>()).await
+    });
+
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://localhost:{}/api/ws", addr.port())).await.unwrap();
+    let mut types = Vec::new();
+    while types.len() < 2 {
+        if let Some(Ok(Message::Text(t))) = ws.next().await {
+            types.push(serde_json::from_str::<Value>(&t).unwrap()["type"].as_str().unwrap().to_string());
+        }
+    }
+    assert_eq!(types, ["hello", "health"]);
+
+    ws.send(Message::Text(r#"{"type":"subscribe","topic":"hardware"}"#.into())).await.unwrap();
+    let frame = loop {
+        if let Some(Ok(Message::Text(t))) = ws.next().await {
+            break serde_json::from_str::<Value>(&t).unwrap();
+        }
+    };
+    assert_eq!(frame["type"], "hardware", "a new subscriber gets a frame right away");
+    assert_eq!(frame["data"]["instances"][0]["live"], true);
+    let _ = ws.send(Message::Close(None)).await;
+}
