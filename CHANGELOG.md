@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.120] - 2026-10-24
+
+### Changed
+
+- **Hardware page: SDRs are sorted by serial number.** All-digit serials
+  come first, in numeric order (leading zeros ignored, so `00000002` sorts
+  before `10`). Other serials follow alphabetically, and SDRs without a
+  serial come last. Instances are ordered by their first SDR's serial;
+  instances with no devices come after the rest.
+
 ## [0.4.119] - 2026-10-24
 
 ### Changed

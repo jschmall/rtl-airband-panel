@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { InstanceHardware } from "../api/client.js";
 import { SdrCard } from "../components/hardware/SdrCard.js";
-import { appendHistory, notLiveReason, sdrKey, type HistoryPoint } from "../lib/hardware-format.js";
+import { appendHistory, notLiveReason, sdrKey, sortBySerial, type HistoryPoint } from "../lib/hardware-format.js";
 import { useHardwareFeed, type FeedConnection } from "../lib/use-hardware-feed.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 
@@ -52,7 +52,7 @@ export function HardwarePage() {
 
   const query = searchQuery.trim().toLowerCase();
   const instances = useMemo(
-    () => (snapshot?.instances ?? []).filter((i) => !query || i.name.toLowerCase().includes(query)),
+    () => sortBySerial((snapshot?.instances ?? []).filter((i) => !query || i.name.toLowerCase().includes(query))),
     [snapshot, query]
   );
   const feed = FEED_LABEL[connection];

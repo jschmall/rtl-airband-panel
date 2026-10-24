@@ -1,4 +1,4 @@
-import type { SdrHealth } from "../api/client.js";
+import type { InstanceHardware, SdrHealth } from "../api/client.js";
 
 export type HealthLevel = "good" | "warning" | "critical";
 
@@ -49,6 +49,46 @@ export function formatRate(perSec: number | null): string {
 export function sdrTitle(sdr: SdrHealth): string {
   const id = sdr.serial ? `SN ${sdr.serial}` : sdr.deviceString ? sdr.deviceString : `device ${sdr.index}`;
   return `${sdr.driver} · ${id}`;
+}
+
+/**
+ * Orders serial numbers: all-digit serials first, by numeric value (leading
+ * zeros ignored, so "00000002" < "10"), then the rest alphabetically
+ * (case-insensitive, digit runs compared as numbers), then no serial.
+ */
+export function compareSerials(a: string | null, b: string | null): number {
+  if (a === b) return 0;
+  if (a === null || a === "") return 1;
+  if (b === null || b === "") return -1;
+  const numA = /^\d+$/.test(a);
+  const numB = /^\d+$/.test(b);
+  if (numA !== numB) return numA ? -1 : 1;
+  if (numA) {
+    const ta = a.replace(/^0+(?=\d)/, "");
+    const tb = b.replace(/^0+(?=\d)/, "");
+    if (ta.length !== tb.length) return ta.length - tb.length;
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return a < b ? -1 : 1;
+  }
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }) || (a < b ? -1 : 1);
+}
+
+function compareSdrs(a: SdrHealth, b: SdrHealth): number {
+  return compareSerials(a.serial, b.serial) || a.index - b.index;
+}
+
+/**
+ * Instances ordered by the serial of their first SDR, each instance's SDRs
+ * sorted by serial too. Instances without devices go last, by name.
+ */
+export function sortBySerial(instances: readonly InstanceHardware[]): InstanceHardware[] {
+  const sorted = instances.map((i) => ({ ...i, devices: [...i.devices].sort(compareSdrs) }));
+  return sorted.sort((a, b) => {
+    const da = a.devices[0];
+    const db = b.devices[0];
+    if (!da || !db) return da ? -1 : db ? 1 : a.name.localeCompare(b.name);
+    return compareSdrs(da, db) || a.name.localeCompare(b.name);
+  });
 }
 
 export function gainText(sdr: SdrHealth): string {
