@@ -474,6 +474,7 @@ export function InstanceEditPage() {
           onChange={setConfig}
           jumpTarget={jumpTarget}
           onRevealSecret={revealSecret}
+          persistPrefix={name && `instance:${name}`}
           before={
             name && (
               <InstanceServiceAccount

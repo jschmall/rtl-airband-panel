@@ -40,6 +40,7 @@ export function InstanceServiceAccount({ name, serviceUser, serviceGroup, contro
   return (
     <Collapsible
       defaultOpen
+      persistKey={`instance:${name}:service-account`}
       className="rounded-lg border border-slate-700 bg-slate-900 p-4"
       titleClassName="text-lg font-semibold text-slate-100"
       title="Service account"

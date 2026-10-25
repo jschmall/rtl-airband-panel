@@ -96,9 +96,18 @@ sudo ./install.sh
 The installer sets up:
 
 - the panel and the bundled `rtl_airband`, in
-  `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`; an
-  `rtl_airband` you already have there is left alone). It asks first, and
-  you can install the panel only and keep your own `rtl_airband`. An
+  `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`). It
+  asks first, and you can install the panel only and keep your own
+  `rtl_airband`. If you already have one, it then asks whether the fork
+  **replaces** it or goes **alongside** it:
+  - **Alongside** (the default): yours stays as it is, and existing
+    instances keep running it. New instances run the fork.
+  - **Replace**: your `rtl_airband` path now runs the fork, and the
+    original is kept next to it as `rtl_airband.pre-fork`. Existing
+    instances switch to the fork when they next restart. Only a copy
+    under `/usr/local` is replaced, never one from your system's packages.
+
+  An
   `rtl_airband` that isn't the
   [jschmall/RTLSDR-Airband](https://github.com/jschmall/RTLSDR-Airband)
   fork may not support every panel feature (Apply live, the Hardware
@@ -125,6 +134,8 @@ Then open <http://localhost:3000> on that machine. Useful options (see
 | `--user NAME` | The account to run as, without asking |
 | `--panel-only` | Don't install the bundled `rtl_airband`; use the one you have |
 | `--with-rtl-airband` | Install the bundled `rtl_airband` too, without asking |
+| `--replace-rtl-airband` | Install it in place of the `rtl_airband` you already have (keeping a `.pre-fork` backup) |
+| `--separate-rtl-airband` | Install it alongside the `rtl_airband` you already have (the default) |
 | `--yes` | Don't ask anything; take the defaults (for scripts) |
 | `--no-start` | Install but don't start the panel yet |
 
@@ -138,8 +149,9 @@ It replaces both programs and keeps your setup:
 Running instances keep the old `rtl_airband` until each one is restarted.
 
 **Uninstalling:** `sudo ./install.sh --uninstall` removes the programs, the
-panel's service and its system files. It keeps your configs, settings,
-stats and every instance's own service.
+panel's service and its system files, and puts back an `rtl_airband` it
+replaced. It keeps your configs, settings, stats and every instance's own
+service.
 
 **Already running the old Node.js panel?** The installer backs up its
 service file and replaces it. It keeps the account the panel ran as, and

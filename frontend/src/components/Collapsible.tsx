@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { loadSectionOpen, saveSectionOpen } from "../lib/section-memory.js";
 
 interface CollapsibleProps {
   title: ReactNode;
@@ -15,7 +16,7 @@ interface CollapsibleProps {
    * open, so clicking the same error twice still re-locates it.
    */
   openSignal?: number;
-  /** Called on every open/close transition, including a programmatic force-open via openSignal, with the new state. Omit for no such behavior. */
+  /** Called with the open state on mount and after every change (a toggle, a forced open, a remembered state loading). */
   onOpenChange?: (open: boolean) => void;
   /**
    * False: openSignal only opens the section, without scrolling to it. For a
@@ -23,6 +24,12 @@ interface CollapsibleProps {
    * the group, effects running parent-last, would otherwise scroll last and win.
    */
   scrollOnSignal?: boolean;
+  /**
+   * Remembers whether this section is open under this key (see
+   * section-memory.ts), falling back to defaultOpen. A new key, e.g. the
+   * page switching to another instance, loads that key's state.
+   */
+  persistKey?: string;
 }
 
 export function Collapsible({
@@ -35,8 +42,15 @@ export function Collapsible({
   openSignal,
   onOpenChange,
   scrollOnSignal = true,
+  persistKey,
 }: CollapsibleProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const initialOpen = () => (persistKey ? (loadSectionOpen(persistKey) ?? defaultOpen) : defaultOpen);
+  const [open, setOpen] = useState(initialOpen);
+  const [loadedKey, setLoadedKey] = useState(persistKey);
+  if (persistKey !== loadedKey) {
+    setLoadedKey(persistKey);
+    setOpen(initialOpen());
+  }
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
 
@@ -45,12 +59,16 @@ export function Collapsible({
 
   useEffect(() => {
     if (!openSignal) return;
-    setOpen((o) => {
-      if (!o) onOpenChange?.(true);
-      return true;
-    });
+    setOpen(true);
     if (scrollOnSignal) setScrollFor(openSignal);
   }, [openSignal]);
+
+  // Reports every open state, including the first (a remembered open
+  // section starts open), and remembers it.
+  useEffect(() => {
+    onOpenChange?.(open);
+    if (persistKey) saveSectionOpen(persistKey, open);
+  }, [open, persistKey]);
 
   // Scrolls once the expanded content has rendered, so it's the opened
   // section that gets centered (or, taller than the viewport, top-aligned)
@@ -73,13 +91,7 @@ export function Collapsible({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() =>
-            setOpen((o) => {
-              const next = !o;
-              onOpenChange?.(next);
-              return next;
-            })
-          }
+          onClick={() => setOpen((o) => !o)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           aria-expanded={open}
           aria-controls={contentId}

@@ -22,6 +22,8 @@ interface ConfigEditorProps {
   before?: ReactNode;
   /** Rendered below the mixers -- InstanceEditPage's log viewer. */
   after?: ReactNode;
+  /** Remembers which sections are open under keys starting with this (e.g. "instance:tower"); see Collapsible. */
+  persistPrefix?: string;
 }
 
 const sectionClass = "rounded-lg border border-slate-700 bg-slate-900/60 p-4";
@@ -34,7 +36,7 @@ function jumpSection(path: string): "settings" | "devices" | "mixers" {
   return "settings";
 }
 
-export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, before, after }: ConfigEditorProps) {
+export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, before, after, persistPrefix }: ConfigEditorProps) {
   // Kept alongside the plain `config` prop so callbacks below can be built with
   // useCallback (stable across renders where the thing they depend on didn't
   // change) while still always reading the *current* config when they run --
@@ -150,12 +152,13 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
 
   const signalFor = (section: ReturnType<typeof jumpSection>) =>
     jumpTarget && jumpSection(jumpTarget.path) === section ? jumpTarget.nonce : undefined;
+  const persist = (section: string) => (persistPrefix ? `${persistPrefix}:${section}` : undefined);
 
   return (
     <div className="space-y-6">
       {before}
 
-      <Collapsible defaultOpen className={sectionClass} titleClassName={sectionTitleClass} title="Instance settings" openSignal={signalFor("settings")}>
+      <Collapsible defaultOpen className={sectionClass} titleClassName={sectionTitleClass} title="Instance settings" openSignal={signalFor("settings")} persistKey={persist("settings")}>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
             <input
@@ -281,6 +284,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
         title={`Devices (${config.devices.length})`}
         openSignal={signalFor("devices")}
         scrollOnSignal={false}
+        persistKey={persist("devices")}
         headerActions={
           <button
             type="button"
@@ -300,6 +304,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
             onRemove={handleDeviceRemove}
             onDuplicate={handleDeviceDuplicate}
             pathPrefix={`$.devices[${i}]`}
+            persistKey={persist(`devices[${i}]`)}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
             channelTargets={channelTargets}
@@ -314,6 +319,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
         title={`Mixers (${(config.mixers ?? []).length})`}
         openSignal={signalFor("mixers")}
         scrollOnSignal={false}
+        persistKey={persist("mixers")}
         headerActions={
           <button
             type="button"
@@ -333,6 +339,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
             onRemove={handleMixerRemove}
             onDuplicate={handleMixerDuplicate}
             pathPrefix={`$.mixers[${i}]`}
+            persistKey={persist(`mixers[${i}]`)}
             jumpTarget={jumpTarget}
             onRevealSecret={onRevealSecret}
             channelTargets={channelTargets}

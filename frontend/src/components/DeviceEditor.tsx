@@ -56,6 +56,8 @@ function channelMatchesFilter(channel: MultichannelChannel, filter: string): boo
 }
 
 interface DeviceEditorProps {
+  /** Remembers whether this section is open under this key; see Collapsible. */
+  persistKey?: string;
   device: Device;
   deviceIndex: number;
   onChange: (key: string | number, next: Device) => void;
@@ -93,6 +95,7 @@ export const DeviceEditor = memo(function DeviceEditor({
   onRevealSecret,
   channelTargets,
   onCopyOutputToChannel,
+  persistKey,
 }: DeviceEditorProps) {
   const deviceKey = uiKeyOf(device, deviceIndex);
   // Stable across renders (identity depends only on onChange/deviceKey, not on device's
@@ -238,6 +241,7 @@ export const DeviceEditor = memo(function DeviceEditor({
   return (
     <Collapsible
       openSignal={openSignal}
+      persistKey={persistKey}
       className="rounded-lg border border-slate-700 bg-slate-900 p-4"
       titleClassName="text-lg font-semibold text-slate-100"
       title={
