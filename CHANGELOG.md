@@ -5,6 +5,13 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.123] - 2026-10-25
+
+### Fixed
+
+- `crates/panel/src/hardware.rs` is formatted with `cargo fmt` again: the
+  0.4.121 change left one line that CI's format check rejects.
+
 ## [0.4.122] - 2026-10-24
 
 ### Added

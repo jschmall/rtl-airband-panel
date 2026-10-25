@@ -297,7 +297,9 @@ fn apply_status(sdr: &mut SdrHealth, status: &DeviceStatus, now: Instant, prev: 
     // The suggestion is absolute: applying part of it shrinks the error by
     // the same amount, so it stays put until the error is gone.
     sdr.suggested_correction = match (sdr.correction_unit.as_str(), sdr.freq_error_ppm) {
-        ("ppm", Some(err)) if err.abs() >= CORRECTION_OK_PPM => Some((sdr.correction.unwrap_or(0.0) - err).round() + 0.0),
+        ("ppm", Some(err)) if err.abs() >= CORRECTION_OK_PPM => {
+            Some((sdr.correction.unwrap_or(0.0) - err).round() + 0.0)
+        }
         _ => None,
     };
 }
