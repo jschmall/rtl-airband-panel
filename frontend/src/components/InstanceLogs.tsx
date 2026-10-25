@@ -103,6 +103,7 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
       titleClassName="text-lg font-semibold text-slate-100"
       title="Logs"
       onOpenChange={setOpen}
+      persistKey={`instance:${name}:logs`}
       headerActions={
         // role="status"/aria-live announces connect/disconnect/error transitions to a
         // screen reader -- deliberately not applied to the <pre> below, which would

@@ -15,8 +15,8 @@ function frequencies(instance: InstanceSummary): number[] {
 function Counter({ label, value, title }: { label: string; value: number; title: string }) {
   return (
     <div title={title} className="text-right">
-      <dt className="text-[11px] uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className={`tabular-nums ${value > 0 ? "font-semibold text-amber-300" : "text-slate-300"}`}>{value}</dd>
+      <dt className="text-[10px] uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className={`text-sm tabular-nums ${value > 0 ? "font-semibold text-amber-300" : "text-slate-300"}`}>{value}</dd>
     </div>
   );
 }
@@ -29,27 +29,31 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
   return (
     <GuardedLink
       to={`/instances/${encodeURIComponent(instance.name)}`}
-      className={`group block rounded-lg border bg-slate-900/50 p-4 transition-colors hover:border-slate-600 hover:bg-slate-900 ${
+      className={`group block rounded-lg border bg-slate-900/50 px-4 py-3 transition-colors hover:border-slate-600 hover:bg-slate-900 ${
         state === "failed" ? "border-red-500/50" : "border-slate-800"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-50">{instance.name}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
             <HealthLight state={state} />
             {healthLabel(state)}
             {running && <span className="text-slate-500">· up {formatUptime(instance.status.activeEnterTimestamp)}</span>}
+            {instance.pendingRestart && (
+              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+                Pending restart
+              </span>
+            )}
           </p>
         </div>
-        {instance.pendingRestart && (
-          <span className="flex-shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
-            Pending restart
-          </span>
-        )}
+        <dl className="flex flex-shrink-0 gap-4">
+          <Counter label="Overflows" value={summary?.bufferOverflowTotal ?? 0} title="Device buffer overflows (samples dropped before demodulation)" />
+          <Counter label="Failures" value={summary?.outputFailureTotal ?? 0} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
+        </dl>
       </div>
 
-      <p className="mt-3 text-sm text-slate-300">
+      <p className="mt-2 text-sm text-slate-300">
         {freqs.length === 0 ? (
           <span className="text-slate-500">No channels</span>
         ) : (
@@ -76,10 +80,6 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
         </ul>
       )}
 
-      <dl className="mt-3 flex justify-end gap-6 border-t border-slate-800 pt-3 text-sm">
-        <Counter label="Overflows" value={summary?.bufferOverflowTotal ?? 0} title="Device buffer overflows (samples dropped before demodulation)" />
-        <Counter label="Failures" value={summary?.outputFailureTotal ?? 0} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
-      </dl>
       {!running && instance.status.activeEnterTimestamp && (
         <p className="mt-2 text-xs text-slate-500">Last started {formatDateTime(instance.status.activeEnterTimestamp)}</p>
       )}
@@ -96,23 +96,19 @@ interface Tally {
 function TallyValue({ label, value, tone }: Tally) {
   const color = value === 0 || !tone ? "text-slate-50" : tone === "ok" ? "text-emerald-400" : tone === "warn" ? "text-amber-300" : "text-red-400";
   return (
-    <div>
-      <p className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
-      <p className="text-xs text-slate-400">{label}</p>
-    </div>
+    <p className="flex items-baseline gap-1.5 px-3">
+      <span className={`text-lg font-semibold tabular-nums ${color}`}>{value}</span>
+      <span className="text-xs text-slate-400">{label}</span>
+    </p>
   );
 }
 
-/** One summary tile holding two related counts side by side. */
+/** One compact summary tile holding two related counts side by side. */
 function TallyPair({ left, right }: { left: Tally; right: Tally }) {
   return (
-    <div className="grid grid-cols-2 divide-x divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/50 py-3">
-      <div className="px-4">
-        <TallyValue {...left} />
-      </div>
-      <div className="px-4">
-        <TallyValue {...right} />
-      </div>
+    <div className="flex divide-x divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/50 py-1.5">
+      <TallyValue {...left} />
+      <TallyValue {...right} />
     </div>
   );
 }
@@ -153,7 +149,7 @@ export function OverviewPage() {
       <div className="flex items-end justify-between">
         <h1 className="text-xl font-semibold text-slate-50">Overview</h1>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="flex flex-wrap gap-3">
         <TallyPair
           left={{ label: "Instances", value: instances.length }}
           right={{ label: "Running", value: count((i) => i.status.activeState === "active"), tone: "ok" }}

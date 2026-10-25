@@ -14,6 +14,8 @@ import { pathStartsWith } from "../lib/validation-path.js";
 import type { ChannelTarget } from "../lib/channel-targets.js";
 
 interface MixerEditorProps {
+  /** Remembers whether this section is open under this key; see Collapsible. */
+  persistKey?: string;
   mixer: Mixer;
   mixerIndex: number;
   onChange: (key: string | number, next: Mixer) => void;
@@ -39,6 +41,7 @@ export const MixerEditor = memo(function MixerEditor({
   onRevealSecret,
   channelTargets,
   onCopyOutputToChannel,
+  persistKey,
 }: MixerEditorProps) {
   const mixerKey = uiKeyOf(mixer, mixerIndex);
   const remoteInputsOk = useForkFeature("mixer_remote");
@@ -79,6 +82,7 @@ export const MixerEditor = memo(function MixerEditor({
   return (
     <Collapsible
       openSignal={openSignal}
+      persistKey={persistKey}
       className="rounded-lg border border-slate-700 bg-slate-900 p-4"
       titleClassName="text-lg font-semibold text-slate-100"
       title={`Mixer — ${mixer.name || "(unnamed)"}`}
