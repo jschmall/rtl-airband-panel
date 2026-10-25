@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.11] - 2026-10-25
+
+### Changed
+
+- **Merged the `prod-feedback` branch into `master` (0.6.9 to 0.6.10).**
+  - **`install.sh` asks whether the fork replaces your `rtl_airband` or
+    goes alongside it (#14).**
+  - **The Overview page is more compact,** and **the instance page
+    remembers which sections are open, per instance (#12).**
+- Closes #14.
+
 ## [0.6.10] - 2026-10-25
 
 ### Changed
