@@ -1,5 +1,6 @@
 //! rtl-airband-panel: web control panel for RTLSDR-Airband instances.
 
+pub mod airband;
 pub mod error;
 pub mod hardware;
 pub mod http;

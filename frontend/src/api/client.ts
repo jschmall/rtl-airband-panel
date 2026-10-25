@@ -1,11 +1,13 @@
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue, ValidationResult } from "../types/config.js";
 import type { HardwareSnapshot } from "../generated/HardwareSnapshot";
+import type { AirbandBuild } from "../generated/AirbandBuild";
 
 export type { HardwareSnapshot } from "../generated/HardwareSnapshot";
 export type { InstanceHardware } from "../generated/InstanceHardware";
 export type { SdrHealth } from "../generated/SdrHealth";
 export type { ChannelHealth } from "../generated/ChannelHealth";
+export type { AirbandBuild } from "../generated/AirbandBuild";
 
 export interface InstanceSummary {
   name: string;
@@ -77,7 +79,11 @@ export interface WriteResult {
 /** Outcome of a dynamic_reload `reload_diff` attempt -- see InstanceService.applyConfigLive on the backend. */
 export type LiveApplyOutcome =
   | { attempted: true; applied: string[]; skippedRequiresRestart: string[] }
-  | { attempted: false; reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown"; detail?: string };
+  | {
+      attempted: false;
+      reason: "no-control-socket" | "unreachable" | "protocol-error" | "cooldown" | "stock-rtl-airband";
+      detail?: string;
+    };
 
 export interface ApplyLiveResult {
   warnings: ValidationIssue[];
@@ -251,6 +257,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ newName }),
     }),
+
+  /** Which rtl_airband build the instance runs: the jschmall fork, a stock build, or unknown (Rust panel only). */
+  getAirband: (name: string): Promise<AirbandBuild> => request(`/instances/${encodeURIComponent(name)}/airband`),
 
   /** Every instance's SDRs with live readings where the control socket answers `status` (Rust panel only). */
   getHardware: (): Promise<HardwareSnapshot> => request("/hardware"),

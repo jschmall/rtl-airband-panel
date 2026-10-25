@@ -97,8 +97,15 @@ The installer sets up:
 
 - the panel and the bundled `rtl_airband`, in
   `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`; an
-  `rtl_airband` you already have there is left alone);
-- an `rtl-airband-panel` account that runs the panel and new instances;
+  `rtl_airband` you already have there is left alone). It asks first, and
+  you can install the panel only and keep your own `rtl_airband`. An
+  `rtl_airband` that isn't the
+  [jschmall/RTLSDR-Airband](https://github.com/jschmall/RTLSDR-Airband)
+  fork may not support every panel feature (Apply live, the Hardware
+  page, fork-only settings);
+- the account that runs the panel and new instances: it asks which one,
+  suggesting the account your existing `rtl_airband` services run as
+  (the control socket only answers that account), or `rtl-airband-panel`;
 - access to SDR dongles without root (a udev rule, and a blacklist that
   stops the kernel's TV drivers from grabbing them; if they're already
   loaded, reboot once);
@@ -115,18 +122,28 @@ Then open <http://localhost:3000> on that machine. Useful options (see
 | `--listen-all` | Reachable from your whole network; generates a login password and prints it |
 | `--instances-dir DIR` | Where your instance configs live (default `/etc/rtl-airband-panel/instances`) |
 | `--unit-prefix rtl_` | Only let the panel manage services whose names start with `rtl_` |
+| `--user NAME` | The account to run as, without asking |
+| `--panel-only` | Don't install the bundled `rtl_airband`; use the one you have |
+| `--with-rtl-airband` | Install the bundled `rtl_airband` too, without asking |
+| `--yes` | Don't ask anything; take the defaults (for scripts) |
 | `--no-start` | Install but don't start the panel yet |
 
 **Upgrading:** download the new release and run `sudo ./install.sh` again.
-It replaces both programs and keeps your settings. Running instances keep
-the old `rtl_airband` until each one is restarted.
+It replaces both programs and keeps your setup:
+- `panel.env` is never overwritten.
+- The account, instances folder and unit prefix stay as they are, unless
+  you pass an option to change them.
+- If you've edited the panel's service file, it's left alone.
+
+Running instances keep the old `rtl_airband` until each one is restarted.
 
 **Uninstalling:** `sudo ./install.sh --uninstall` removes the programs, the
 panel's service and its system files. It keeps your configs, settings,
 stats and every instance's own service.
 
 **Already running the old Node.js panel?** The installer backs up its
-service file and replaces it; see
+service file and replaces it. It keeps the account the panel ran as, and
+copies your old `.env` settings into `panel.env`; see
 [Migrating from the Node.js panel](./DEPLOYMENT.md#migrating-from-the-nodejs-panel).
 
 ### Building from source
@@ -262,6 +279,19 @@ live, updating every second:
 Live readings need an instance running the bundled fork (v6.4.0 or later)
 with `control_socket_path` set. Other instances show their configured
 values and say why they aren't live.
+
+**Stock rtl_airband.** The panel checks which rtl_airband each instance
+runs and shows it next to the instance's name. On an instance running a
+build other than the
+[jschmall fork](https://github.com/jschmall/RTLSDR-Airband), the basics
+still work.
+- **Saving:** always restarts the instance; there's no Apply live.
+- **Fork-only settings:** marked "needs the fork". Ones a stock build
+  ignores are warnings. The one it won't start with, a `mixer_remote`
+  output, blocks saving.
+- **JSON logging:** can't be turned on.
+
+If the panel can't tell which build an instance runs, nothing is locked.
 
 **Themes.** The bottom of the left-hand list switches between automatic
 (follows your system), dark and light.

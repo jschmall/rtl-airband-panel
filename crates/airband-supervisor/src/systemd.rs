@@ -96,6 +96,9 @@ pub trait UnitManager: Send + Sync {
     async fn daemon_reload(&self) -> Result<(), UnitError>;
     async fn install_unit_file(&self, unit: &str, contents: &str) -> Result<(), UnitError>;
     async fn remove_unit_file(&self, unit: &str) -> Result<(), UnitError>;
+    /// The unit file's contents, None if there isn't one. Unit files are
+    /// world-readable, so this needs no privileges.
+    async fn read_unit_file(&self, unit: &str) -> Result<Option<String>, UnitError>;
     /// Most recent `lines` journal entries, oldest first. Unknown units have no logs.
     async fn logs(&self, unit: &str, lines: u32) -> Result<Vec<LogLine>, UnitError>;
     /// `lines` of backlog then live entries until the receiver is dropped.
@@ -284,6 +287,11 @@ impl UnitManager for SudoSystemctl {
         Self::sudo(vec!["rm".into(), "-f".into(), format!("{}/{unit}", self.unit_dir)], None).await.map(|_| ())
     }
 
+    async fn read_unit_file(&self, unit: &str) -> Result<Option<String>, UnitError> {
+        self.check(unit)?;
+        Ok(tokio::fs::read_to_string(format!("{}/{unit}", self.unit_dir)).await.ok())
+    }
+
     async fn logs(&self, unit: &str, lines: u32) -> Result<Vec<LogLine>, UnitError> {
         self.check(unit)?;
         match Self::sudo(Self::logs_argv(unit, lines), None).await {
@@ -466,6 +474,9 @@ impl UnitManager for MockUnits {
         let mut s = self.record(format!("remove-unit-file {unit}"));
         s.unit_files.remove(unit);
         Ok(())
+    }
+    async fn read_unit_file(&self, unit: &str) -> Result<Option<String>, UnitError> {
+        Ok(self.state.lock().unwrap().unit_files.get(unit).cloned())
     }
     async fn logs(&self, unit: &str, lines: u32) -> Result<Vec<LogLine>, UnitError> {
         let s = self.state.lock().unwrap();

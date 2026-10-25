@@ -68,6 +68,7 @@ pub fn router(state: AppState) -> Router {
         .route("/instances/{name}", get(get_instance).put(update_instance).delete(delete_instance))
         .route("/instances/{name}/secrets", get(get_secrets))
         .route("/instances/{name}/health", get(instance_health))
+        .route("/instances/{name}/airband", get(instance_airband))
         .route("/instances/{name}/logs", get(get_logs))
         .route("/instances/{name}/logs/stream", get(stream_logs))
         .route("/instances/{name}/validate", post(validate))
@@ -190,6 +191,10 @@ async fn get_secrets(State(s): State<AppState>, Path(name): Path<String>) -> Api
 
 async fn instance_health(State(s): State<AppState>, Path(name): Path<String>) -> ApiResult<impl IntoResponse> {
     Ok(Json(s.service.health(&name).await?))
+}
+
+async fn instance_airband(State(s): State<AppState>, Path(name): Path<String>) -> ApiResult<impl IntoResponse> {
+    Ok(Json(s.service.airband_build(&name).await?))
 }
 
 #[derive(Deserialize)]

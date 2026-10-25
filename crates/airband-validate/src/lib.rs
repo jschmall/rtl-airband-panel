@@ -13,7 +13,7 @@ use airband_config::RtlAirbandConfig;
 pub use constants::*;
 pub use types::{Severity, ValidationIssue, ValidationResult};
 
-use checks::{channels, devices, fork_v6, globals, mixers, outputs};
+use checks::{channels, devices, fork_features, fork_v6, globals, mixers, outputs};
 use types::Issues;
 
 type Check = fn(&RtlAirbandConfig, &mut Issues);
@@ -58,9 +58,20 @@ const CHECKS: &[Check] = &[
 ];
 
 pub fn validate_config(config: &RtlAirbandConfig) -> ValidationResult {
+    validate_config_for(config, None)
+}
+
+/// Like `validate_config`, and when `features` is given (the instance's
+/// rtl_airband is known; see airband_supervisor's binary classification),
+/// also flags settings that build doesn't support: errors for ones it won't
+/// start with, warnings for ones it ignores. None checks nothing extra.
+pub fn validate_config_for(config: &RtlAirbandConfig, features: Option<&[String]>) -> ValidationResult {
     let mut issues = Issues::default();
     for check in CHECKS {
         check(config, &mut issues);
+    }
+    if let Some(features) = features {
+        fork_features::check(config, features, &mut issues);
     }
     let (errors, warnings) = issues.0.into_iter().partition(|i| i.severity == Severity::Error);
     ValidationResult { errors, warnings }

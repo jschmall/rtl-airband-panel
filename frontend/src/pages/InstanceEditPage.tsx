@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
-import { api, ApiError, type LiveApplyOutcome } from "../api/client.js";
+import { api, ApiError, type AirbandBuild, type LiveApplyOutcome } from "../api/client.js";
+import { AirbandBanner } from "../components/AirbandBanner.js";
+import { AirbandBuildProvider } from "../state/AirbandBuildContext.js";
+import { buildLabel, hasFeature } from "../lib/airband-build.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
@@ -52,6 +55,7 @@ export function InstanceEditPage() {
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
   const [serviceAccountPending, setServiceAccountPending] = useState(false);
+  const [airband, setAirband] = useState<AirbandBuild | null>(null);
 
   // Tracks the instance this page is currently showing, so an in-flight
   // save/check for the *previous* instance can tell it's stale once the user
@@ -106,6 +110,25 @@ export function InstanceEditPage() {
     loadConfig();
   }, [loadConfig]);
 
+  // Which rtl_airband this instance runs, for soft-locking fork-only
+  // features. Failing to find out locks nothing.
+  const loadAirband = useCallback(() => {
+    if (!name) return;
+    api
+      .getAirband(name)
+      .then((build) => {
+        if (nameRef.current === name) setAirband(build);
+      })
+      .catch(() => {
+        if (nameRef.current === name) setAirband(null);
+      });
+  }, [name]);
+
+  useEffect(() => {
+    setAirband(null);
+    loadAirband();
+  }, [loadAirband]);
+
   // Two full-tree JSON.stringify passes over the whole config -- memoized so
   // it only re-runs when config/savedConfig actually change identity, not on
   // every render (e.g. the background instance-list poll re-rendering this
@@ -134,10 +157,17 @@ export function InstanceEditPage() {
 
   const summary = instances?.find((i) => i.name === name);
   // Preview whatever isn't running yet: unsaved edits, or a saved-but-unapplied config.
-  const plan = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
+  const predicted = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
+  // A build without the fork's control socket can't apply anything live.
+  const liveCapable = hasFeature(airband, "control_socket");
+  const plan =
+    predicted && !liveCapable && predicted.method === "live"
+      ? { ...predicted, method: "restart" as const, restart: [...predicted.restart, ...predicted.live], live: [], interrupts: [] }
+      : predicted;
   // The server's validator running in the browser: errors show up while
   // editing. Results from an actual save/check (incl. conflicts) take priority.
-  const live = useLiveValidation(config, isDirty);
+  const buildFeatures = airband && airband.kind !== "unknown" ? airband.features : null;
+  const live = useLiveValidation(config, isDirty, buildFeatures);
   const liveErrors = errors.length === 0 ? (live?.errors ?? []) : [];
 
   // Don't leave the flag set for the next page this component happens to render for.
@@ -202,6 +232,7 @@ export function InstanceEditPage() {
           : `Saved ${name}.conf. Changes will take effect after a restart.`
       );
       await refreshInstanceList();
+      loadAirband(); // a (re)started process can answer the control-socket check now
       // The unit may still be settling (activating -> active/failed) -- keep the
       // sidebar's health badge for this instance updating for a few more seconds
       // instead of freezing on whatever snapshot the request above happened to catch.
@@ -260,6 +291,7 @@ export function InstanceEditPage() {
       setSavedConfig(config);
       setLiveApplyResult(result.liveApply);
       await refreshInstanceList();
+      loadAirband(); // a (re)started process can answer the control-socket check now
     } catch (err) {
       if (nameRef.current !== name) return;
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
@@ -332,6 +364,7 @@ export function InstanceEditPage() {
     try {
       await api.updateInstanceOptions(name, { jsonLogging: next });
       await refreshInstanceList();
+      loadAirband(); // the unit was rewritten: it may run another binary now
       pollBriefly();
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Failed to update JSON logging");
@@ -355,6 +388,7 @@ export function InstanceEditPage() {
     try {
       await api.updateInstanceOptions(name, { serviceUser, serviceGroup });
       await refreshInstanceList();
+      loadAirband(); // the unit was rewritten: it may run another binary now
       pollBriefly();
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Failed to update service account");
@@ -392,6 +426,7 @@ export function InstanceEditPage() {
               <HealthStatus state={summary.status.activeState} subState={summary.status.subState} />
               {summary.status.activeState === "active" && <span>up {formatUptime(summary.status.activeEnterTimestamp)}</span>}
               <span className="font-mono text-xs text-slate-500">{summary.unit}</span>
+              {airband && <span className="text-xs text-slate-500">{buildLabel(airband)}</span>}
               {summary.pendingRestart && (
                 <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-medium uppercase tracking-wide text-amber-300">
                   Saved config not running yet
@@ -406,6 +441,7 @@ export function InstanceEditPage() {
         {name && <InstanceActions name={name} />}
       </div>
 
+      <AirbandBanner build={airband} />
       <ValidationBanner
         errors={errors.length > 0 ? errors : liveErrors}
         warnings={warningsDismissed ? [] : warnings}
@@ -418,32 +454,34 @@ export function InstanceEditPage() {
       )}
       {liveApplyResult && <LiveApplyBanner name={name} outcome={liveApplyResult} />}
 
-      <ConfigEditor
-        config={config}
-        onChange={setConfig}
-        jumpTarget={jumpTarget}
-        onRevealSecret={revealSecret}
-        afterGlobalSettings={
-          name && (
-            <>
-              <InstanceLogs
-                name={name}
-                jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
-                jsonLoggingPending={jsonLoggingPending}
-                onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
-              />
-              <InstanceServiceAccount
-                name={name}
-                serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
-                serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
-                controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
-                pending={serviceAccountPending}
-                onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
-              />
-            </>
-          )
-        }
-      />
+      <AirbandBuildProvider value={airband}>
+        <ConfigEditor
+          config={config}
+          onChange={setConfig}
+          jumpTarget={jumpTarget}
+          onRevealSecret={revealSecret}
+          afterGlobalSettings={
+            name && (
+              <>
+                <InstanceLogs
+                  name={name}
+                  jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+                  jsonLoggingPending={jsonLoggingPending}
+                  onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+                />
+                <InstanceServiceAccount
+                  name={name}
+                  serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
+                  serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
+                  controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
+                  pending={serviceAccountPending}
+                  onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
+                />
+              </>
+            )
+          }
+        />
+      </AirbandBuildProvider>
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
         {liveErrors.length > 0 && (
@@ -473,7 +511,7 @@ export function InstanceEditPage() {
         >
           {pendingAction === "save" ? "Saving…" : "Save"}
         </button>
-        {savedConfig?.control_socket_path !== undefined && (
+        {savedConfig?.control_socket_path !== undefined && liveCapable && (
           <button
             type="button"
             disabled={pendingAction !== null}
@@ -554,6 +592,15 @@ function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome:
             </ul>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (outcome.reason === "stock-rtl-airband") {
+    return (
+      <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+        Saved {name}.conf. Changes will take effect after a restart — this instance runs a stock rtl_airband, which has no control socket to apply them
+        live.
       </div>
     );
   }

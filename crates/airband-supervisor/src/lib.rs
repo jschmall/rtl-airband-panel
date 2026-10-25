@@ -15,6 +15,7 @@ pub mod stats;
 pub mod systemd;
 pub mod unit_file;
 
+pub use binary::{AirbandKind, BinaryInfo, Classification, binary_info, classify, legacy_fork_features};
 pub use control_socket::{
     ChannelStatus, Command, CommandResult, ControlSocketClient, DeviceStatus, FreqStatus, ReloadDiffResult,
     StatusReport, StatusResult,

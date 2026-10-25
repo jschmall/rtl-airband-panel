@@ -5,6 +5,187 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.7] - 2026-10-25
+
+### Changed
+
+- **Bundled RTLSDR-Airband bumped from fork v6.4.0 to v6.5.0**
+  (jschmall/RTLSDR-Airband#23). `rtl_airband -v` now prints a
+  `Features: fork ...` line, which the panel uses (since 0.5.4) to tell
+  the fork from a stock build. Instances running the bundled binary are
+  identified by that line rather than the fallbacks.
+  - **Config keys:** none new.
+  - **Build:** no CMake options or dependencies changed, and
+    `airband-static-drivers.patch` still applies.
+
+## [0.5.6] - 2026-10-25
+
+### Added
+
+- **The editor greys out fork-only settings the instance's rtl_airband
+  lacks.**
+  - **Which fields:** the global stats HTTP, rdio-scanner queue and control
+    socket fields; `reserve_channels` and `reserve_inputs`; channel and
+    mixer "Enabled"; file outputs' min RX seconds, post-write script and
+    rdio-scanner upload; Icecast "Send tx tags"; UDP bit depth; and the
+    JSON logging toggle.
+  - **How they look:** each is marked "needs the fork" and disabled, unless
+    it already holds a non-default value. That value stays editable so it
+    can be cleared.
+  - **mixer_remote:** the `mixer_remote` output type can't be picked.
+  - **Remote inputs:** "Add remote input" is disabled.
+  - **Unknown build:** nothing is locked.
+- Disabled inputs and checkboxes now look disabled everywhere (dimmed,
+  not-allowed cursor).
+- **Docs:** the README explains what works on a stock rtl_airband, and
+  DEVELOPMENT.md describes the detection and gating.
+
+## [0.5.5] - 2026-10-25
+
+### Added
+
+- **Fork-only settings are checked against the instance's rtl_airband.**
+  On an instance known to run a build without a fork feature (a stock
+  build, or a fork build without e.g. `rdio_scanner` compiled in),
+  validation flags each setting that build doesn't support. It does this
+  on save, in the browser while editing, and on "Check config".
+  - **Error, blocks saving:** a `mixer_remote` output, which a stock
+    rtl_airband won't start with.
+  - **Warnings, saying what's lost:**
+    - `control_socket_path`
+    - `stats_http_address` and `stats_http_port`
+    - `rdio_scanner_queue_depth` and an output's `rdio_scanner` uploads
+    - `reserve_channels` and `reserve_inputs`
+    - `enabled = false` on a channel or mixer, which a stock build runs
+      anyway
+    - a mixer's `remote_inputs`
+    - `post_write_script` and `min_rx_seconds`
+    - Icecast `send_tx_tags`
+    - UDP `bit_depth`
+  - **Unknown build:** nothing extra is checked.
+  - **API:** issue code `needs-fork-feature`, from the new
+    `airband_validate::validate_config_for`. The browser's wasm validator
+    gains `validate_for`.
+- **Apply live on a stock build:**
+  - The Apply live button is hidden.
+  - The change preview says "needs a restart" instead of "applies live".
+  - `POST .../apply-live` saves without trying the control socket, with
+    reason `stock-rtl-airband`.
+- **JSON logging on a stock build:** turning it on is refused, since a
+  stock rtl_airband doesn't accept `-j` and wouldn't start.
+
+## [0.5.4] - 2026-10-25
+
+### Added
+
+- **The panel tells which rtl_airband each instance runs.**
+  - **API:** `GET /api/instances/{name}/airband` reports the build:
+    - `kind`: `fork`, `stock` or `unknown`;
+    - `version`;
+    - `features`: the fork's capabilities;
+    - `binary`: the binary checked, taken from the instance's unit
+      `ExecStart=`, else `RTL_PANEL_RTL_AIRBAND_BIN`;
+    - `basis`: how it was decided.
+  - **How it decides:**
+    - the fork's upcoming `Features:` line in `rtl_airband -v`;
+    - else a fixed list of fork releases that predate that line (v6.3.0,
+      v6.3.1, v6.4.0);
+    - else whether the instance's control socket answers, which only the
+      fork has.
+    - A plain release version without the line counts as stock.
+    - Anything ambiguous counts as unknown and locks nothing, e.g. a
+      source build such as `v6.2.0-45-g…`, which could be an older fork
+      build.
+    - `-v` output is cached per binary until the file changes.
+- **Instance page:** shows the build next to the unit name.
+  - **Stock build:** a banner explains that the basics work but fork-only
+    features are limited.
+  - **Unknown build:** a softer note.
+- `UnitManager::read_unit_file`, for finding the binary a unit runs. Unit
+  files are world-readable, so no sudo rule changes.
+
+### Fixed
+
+- `Cargo.lock` on the `installer-options` branch: the version bumps for
+  0.5.1 to 0.5.3 also changed three third-party crates (`heck`,
+  `dirs-sys`, `windows-strings`) that happened to share the old version
+  number, which broke the build. The lock file is restored, and only the
+  workspace's own crates are bumped now.
+
+## [0.5.3] - 2026-10-25
+
+### Added
+
+- **`install.sh` can install the panel only.**
+  - **Choosing:** in a terminal it asks whether to install the bundled
+    `rtl_airband` too, and shows any `rtl_airband` already on the machine
+    with its version. `--panel-only` and `--with-rtl-airband` answer up
+    front. A re-run keeps the existing install's choice.
+  - **What panel-only does:**
+    - it doesn't install or upgrade the bundled binary, and leaves a
+      previously bundled copy as it was;
+    - a new `panel.env` points `RTL_PANEL_RTL_AIRBAND_BIN` at the
+      machine's own `rtl_airband`;
+    - the installer warns that a build other than the jschmall fork may
+      not support every panel feature, and says so if no `rtl_airband` is
+      installed yet.
+  - **Switching to bundled later:** the installer notes when `panel.env`
+    still points new instances at another binary.
+  - **Releases:** the release folder no longer needs `bin/rtl_airband`
+    for a panel-only install.
+  - **"New instances run" line:** the summary now reports the binary
+    `panel.env` actually uses.
+
+## [0.5.2] - 2026-10-25
+
+### Added
+
+- **`install.sh` asks which account runs the panel.**
+  - **When it asks:** only when run in a terminal without `--user`.
+  - **What it shows:** the `rtl_airband` services already on the machine
+    and the accounts they run as.
+  - **Suggested default:** the existing install's account, else the
+    services' account (never root), else `rtl-airband-panel`. A new
+    account is created as before.
+  - **Mismatch warnings:**
+    - when the panel's account differs from the services' account, since
+      the control socket, and so Apply live and the Hardware page, only
+      answers its own account;
+    - when `panel.env`'s `RTL_PANEL_DEFAULT_SERVICE_USER` names a
+      different account.
+  - **Skipping the prompt:** the new `-y`/`--yes` option takes the
+    defaults without asking, for scripted installs.
+
+## [0.5.1] - 2026-10-25
+
+### Fixed
+
+- **Re-running `install.sh` no longer resets an existing install to the
+  defaults.** Before, a re-run without the original options rewrote the
+  panel's service file as `User=rtl-airband-panel` and rewrote the sudo
+  rule for that account and the default unit prefix. It now keeps:
+  - **Account:** the existing panel unit's `User=`.
+  - **Instances folder and unit prefix:** from `panel.env`.
+  - **Options:** `--user`, `--instances-dir` and `--unit-prefix` still
+    override all of these.
+- **Edited panel service file:** a service file you've edited is left in
+  place. The only change is moving it to a new account if you pass
+  `--user`.
+  - **How edits are detected:** the installer keeps a copy of the unit it
+    last wrote, in `/usr/local/lib/rtl-airband-panel/`, so an unedited unit
+    from an older release is still updated.
+- **Migrating from the Node.js panel:** the installer now carries your
+  setup over instead of starting from defaults.
+  - **Account:** the old unit's account is kept.
+  - **Settings:** the new `panel.env` is built from the old unit's `.env`:
+    - your settings carry over, except `RTL_PANEL_FRONTEND_DIST`, which
+      the binary no longer needs;
+    - relative paths are anchored to the old checkout;
+    - the bundled `rtl_airband` and sudo mode are added unless you had set
+      them.
+- **Docs:** README and DEPLOYMENT.md describe the new upgrade and
+  migration behaviour.
+
 ## [0.5.0] - 2026-10-25
 
 ### Changed

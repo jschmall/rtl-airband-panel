@@ -178,14 +178,24 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Stats HTTP address (optional, fork build only)" tooltip={GLOBAL_TOOLTIPS.statsHttpAddress}>
+        <Field
+          label="Stats HTTP address (optional, fork build only)"
+          tooltip={GLOBAL_TOOLTIPS.statsHttpAddress}
+          requires="stats_http"
+          hasValue={config.stats_http_address !== undefined}
+        >
           <input
             className={inputClass}
             value={config.stats_http_address ?? ""}
             onChange={(e) => onChange({ ...config, stats_http_address: e.target.value || undefined })}
           />
         </Field>
-        <Field label="Stats HTTP port (optional, fork build only)" tooltip={GLOBAL_TOOLTIPS.statsHttpPort}>
+        <Field
+          label="Stats HTTP port (optional, fork build only)"
+          tooltip={GLOBAL_TOOLTIPS.statsHttpPort}
+          requires="stats_http"
+          hasValue={config.stats_http_port !== undefined}
+        >
           <input
             type="number"
             min="1"
@@ -195,7 +205,12 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, stats_http_port: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Rdio-scanner queue depth (optional, fork build only, default 64)" tooltip={GLOBAL_TOOLTIPS.rdioScannerQueueDepth}>
+        <Field
+          label="Rdio-scanner queue depth (optional, fork build only, default 64)"
+          tooltip={GLOBAL_TOOLTIPS.rdioScannerQueueDepth}
+          requires="rdio_scanner"
+          hasValue={config.rdio_scanner_queue_depth !== undefined}
+        >
           <input
             type="number"
             min="1"
@@ -204,7 +219,12 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, aft
             onChange={(e) => onChange({ ...config, rdio_scanner_queue_depth: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Control socket path (optional, dynamic_reload fork build only)" tooltip={GLOBAL_TOOLTIPS.controlSocketPath}>
+        <Field
+          label="Control socket path (optional, fork build only)"
+          tooltip={GLOBAL_TOOLTIPS.controlSocketPath}
+          requires="control_socket"
+          hasValue={config.control_socket_path !== undefined}
+        >
           <input
             className={inputClass}
             value={config.control_socket_path ?? ""}

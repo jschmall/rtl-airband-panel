@@ -1,6 +1,7 @@
 import { memo, useCallback, useRef } from "react";
 import type { Mixer, MixerRemoteInput, Output } from "../types/config.js";
-import { BoolField, Field } from "./Field.js";
+import { BoolField, Field, NeedsFork } from "./Field.js";
+import { useForkFeature } from "../state/AirbandBuildContext.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2, responsiveGrid3 } from "./styles.js";
@@ -40,6 +41,7 @@ export const MixerEditor = memo(function MixerEditor({
   onCopyOutputToChannel,
 }: MixerEditorProps) {
   const mixerKey = uiKeyOf(mixer, mixerIndex);
+  const remoteInputsOk = useForkFeature("mixer_remote");
   const emitChange = useCallback((next: Mixer) => onChange(mixerKey, next), [onChange, mixerKey]);
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   // Mirrors `mixer` so the output-level callbacks below can look up an output's
@@ -83,7 +85,14 @@ export const MixerEditor = memo(function MixerEditor({
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => emitChange({ ...mixer, disable: v })} />
-          <BoolField label="Enabled" tooltip={MIXER_TOOLTIPS.enabled} checked={mixer.enabled ?? true} onChange={(v) => emitChange({ ...mixer, enabled: v })} />
+          <BoolField
+            label="Enabled"
+            tooltip={MIXER_TOOLTIPS.enabled}
+            checked={mixer.enabled ?? true}
+            onChange={(v) => emitChange({ ...mixer, enabled: v })}
+            requires="control_socket"
+            defaultValue
+          />
           <button type="button" onClick={() => onDuplicate(mixerKey)} className={addButtonClass}>
             Duplicate mixer
           </button>
@@ -119,7 +128,12 @@ export const MixerEditor = memo(function MixerEditor({
             onChange={(e) => emitChange({ ...mixer, lowpass: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Reserve inputs (optional, default 0)" tooltip={MIXER_TOOLTIPS.reserveInputs}>
+        <Field
+          label="Reserve inputs (optional, default 0)"
+          tooltip={MIXER_TOOLTIPS.reserveInputs}
+          requires="reserve"
+          hasValue={mixer.reserve_inputs !== undefined}
+        >
           <input
             type="number"
             min="0"
@@ -164,10 +178,12 @@ export const MixerEditor = memo(function MixerEditor({
         <div className="flex flex-wrap items-center justify-between">
           <h5 className="text-sm font-medium text-slate-400" title={MIXER_TOOLTIPS.remoteInputsSection}>
             Remote inputs (cross-instance, fork-only)
+            {!remoteInputsOk && <NeedsFork />}
           </h5>
           <button
             type="button"
-            className={addButtonClass}
+            disabled={!remoteInputsOk}
+            className={`${addButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
             onClick={() => emitChange({ ...mixer, remote_inputs: appendItem(mixer.remote_inputs ?? [], defaultMixerRemoteInput()) })}
           >
             + Add remote input
