@@ -5,3 +5,4 @@ pub mod fork_v6;
 pub mod globals;
 pub mod mixers;
 pub mod outputs;
+pub mod whole_numbers;

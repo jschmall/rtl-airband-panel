@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo, useRef } from "react";
 import type { Output, ScanChannel } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
+import { DraftInput } from "./DraftInput.js";
 import { OutputEditor } from "./OutputEditor.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
@@ -102,17 +103,21 @@ export const ScanChannelEditor = memo(function ScanChannelEditor({
     >
       <div className={responsiveGrid2}>
         <Field label="Frequencies, Hz (comma-separated, one per scanned frequency)" tooltip={CHANNEL_TOOLTIPS.freqs}>
-          <input
+          <DraftInput
             className={inputClass}
-            value={formatNumberList(channel.freqs)}
-            onChange={(e) => onChange({ ...channel, freqs: parseNumberList(e.target.value) })}
+            value={channel.freqs}
+            parse={parseNumberList}
+            format={formatNumberList}
+            onChange={(freqs) => onChange({ ...channel, freqs })}
           />
         </Field>
         <Field label="Labels (optional, comma-separated, one per frequency)" tooltip={CHANNEL_TOOLTIPS.labels}>
-          <input
+          <DraftInput
             className={inputClass}
-            value={formatStringList(channel.labels)}
-            onChange={(e) => onChange({ ...channel, labels: parseStringListOrUndefined(e.target.value) })}
+            value={channel.labels}
+            parse={parseStringListOrUndefined}
+            format={formatStringList}
+            onChange={(labels) => onChange({ ...channel, labels })}
           />
         </Field>
         <Field label="Modulation, applied to all (blank = default: am)" tooltip={CHANNEL_TOOLTIPS.modulation}>
@@ -127,10 +132,12 @@ export const ScanChannelEditor = memo(function ScanChannelEditor({
           </select>
         </Field>
         <Field label="Modulations (optional, comma-separated per frequency; overrides Modulation above)" tooltip={CHANNEL_TOOLTIPS.modulations}>
-          <input
+          <DraftInput
             className={inputClass}
-            value={formatStringList(channel.modulations)}
-            onChange={(e) => onChange({ ...channel, modulations: parseStringListOrUndefined(e.target.value) })}
+            value={channel.modulations}
+            parse={parseStringListOrUndefined}
+            format={formatStringList}
+            onChange={(modulations) => onChange({ ...channel, modulations })}
           />
         </Field>
         <Field label="AFC (blank = default: 0)" tooltip={CHANNEL_TOOLTIPS.afc}>
@@ -228,7 +235,7 @@ function NumberOrListField({
 }) {
   return (
     <Field label={label} tooltip={tooltip}>
-      <input className={inputClass} value={formatNumberOrList(value)} onChange={(e) => onChange(parseNumberOrList(e.target.value))} />
+      <DraftInput className={inputClass} value={value} parse={parseNumberOrList} format={formatNumberOrList} onChange={onChange} />
     </Field>
   );
 }

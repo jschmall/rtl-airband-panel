@@ -199,6 +199,7 @@ export const ChannelEditor = memo(function ChannelEditor({
         <Field label="Squelch SNR threshold (optional)" tooltip={CHANNEL_TOOLTIPS.squelchSnrThreshold}>
           <input
             type="number"
+            step="0.1"
             className={inputClass}
             value={channel.squelch_snr_threshold ?? ""}
             onChange={(e) => emitChange({ ...channel, squelch_snr_threshold: numberOrUndefined(e.target.value) })}

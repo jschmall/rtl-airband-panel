@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.1] - 2026-10-25
+
+### Fixed
+
+- **Decimal values can be typed again (#13).** Fields that parse as you
+  type, such as device gain and the comma-separated scan channel fields
+  (frequencies, labels, modulations, per-frequency values), dropped a `.`
+  or `,` as soon as it was typed. That made a gain like `37.2`, or a
+  second list entry, impossible to enter. These fields now keep what you
+  type while it still means the same value.
+- **Settings rtl_airband reads as whole numbers now reject decimals.** A new
+  `not-whole-number` validation error blocks saving one. A decimal in a Hz
+  setting (`centerfreq`, `sample_rate`, `freq`/`freqs`, channel
+  `bandwidth`) would be read as MHz, and in the other integer settings
+  rtl_airband wouldn't start. Settings the fork takes as decimals (gain,
+  soapysdr correction, ampfactor, balance, ctcss, notch, notch_q,
+  squelch_snr_threshold, min_rx_seconds) are unaffected. The correction
+  and SNR squelch fields also step correctly for decimal values.
+
 ## [0.6.0] - 2026-10-25
 
 ### Changed

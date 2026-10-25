@@ -6,6 +6,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from "@dnd-kit/utilities";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
+import { DraftInput } from "./DraftInput.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid3 } from "./styles.js";
@@ -315,7 +316,13 @@ export const DeviceEditor = memo(function DeviceEditor({
           label={isSoapy ? "Gain (number, or 'component=value' pairs; blank = AGC)" : "Gain"}
           tooltip={isSoapy ? DEVICE_TOOLTIPS.gainSoapy : DEVICE_TOOLTIPS.gain}
         >
-          <input className={inputClass} value={gainToText(device.gain)} onChange={(e) => emitChange({ ...device, gain: parseGain(e.target.value) })} />
+          <DraftInput
+            className={inputClass}
+            value={device.gain}
+            parse={parseGain}
+            format={gainToText}
+            onChange={(gain) => emitChange({ ...device, gain })}
+          />
         </Field>
         {!isScan && (
           <Field label="Center frequency (Hz)" tooltip={DEVICE_TOOLTIPS.centerfreq}>
@@ -377,6 +384,7 @@ export const DeviceEditor = memo(function DeviceEditor({
         >
           <input
             type="number"
+            step={isSoapy ? "any" : "1"}
             className={inputClass}
             value={device.correction ?? ""}
             onChange={(e) => emitChange({ ...device, correction: numberOrUndefined(e.target.value) })}
