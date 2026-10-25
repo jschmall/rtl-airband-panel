@@ -5,6 +5,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.0] - 2026-10-25
+
+### Changed
+
+- **Merged the `hardware-polish` branch into `master` (0.4.120 to
+  0.4.123).** This wraps up the Hardware page added in 0.4.119:
+  - SDRs are sorted by serial number.
+  - The frequency-correction advice is clearer: "Set correction to X ppm
+    (now Y)", then "Correction OK".
+  - New gain advice: lower the gain when peaks near clipping, raise it when
+    there's room, snapped to the tuner's gain steps.
+
 ## [0.4.123] - 2026-10-25
 
 ### Fixed
