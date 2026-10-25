@@ -5,6 +5,44 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.4] - 2026-10-25
+
+### Added
+
+- **The panel tells which rtl_airband each instance runs.**
+  - **API:** `GET /api/instances/{name}/airband` reports the build:
+    - `kind`: `fork`, `stock` or `unknown`;
+    - `version`;
+    - `features`: the fork's capabilities;
+    - `binary`: the binary checked, taken from the instance's unit
+      `ExecStart=`, else `RTL_PANEL_RTL_AIRBAND_BIN`;
+    - `basis`: how it was decided.
+  - **How it decides:**
+    - the fork's upcoming `Features:` line in `rtl_airband -v`;
+    - else a fixed list of fork releases that predate that line (v6.3.0,
+      v6.3.1, v6.4.0);
+    - else whether the instance's control socket answers, which only the
+      fork has.
+    - A plain release version without the line counts as stock.
+    - Anything ambiguous counts as unknown and locks nothing, e.g. a
+      source build such as `v6.2.0-45-g…`, which could be an older fork
+      build.
+    - `-v` output is cached per binary until the file changes.
+- **Instance page:** shows the build next to the unit name.
+  - **Stock build:** a banner explains that the basics work but fork-only
+    features are limited.
+  - **Unknown build:** a softer note.
+- `UnitManager::read_unit_file`, for finding the binary a unit runs. Unit
+  files are world-readable, so no sudo rule changes.
+
+### Fixed
+
+- `Cargo.lock` on the `installer-options` branch: the version bumps for
+  0.5.1 to 0.5.3 also changed three third-party crates (`heck`,
+  `dirs-sys`, `windows-strings`) that happened to share the old version
+  number, which broke the build. The lock file is restored, and only the
+  workspace's own crates are bumped now.
+
 ## [0.5.3] - 2026-10-25
 
 ### Added

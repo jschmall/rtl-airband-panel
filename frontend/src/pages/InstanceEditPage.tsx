@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
-import { api, ApiError, type LiveApplyOutcome } from "../api/client.js";
+import { api, ApiError, type AirbandBuild, type LiveApplyOutcome } from "../api/client.js";
+import { AirbandBanner } from "../components/AirbandBanner.js";
+import { buildLabel } from "../lib/airband-build.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
@@ -52,6 +54,7 @@ export function InstanceEditPage() {
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
   const [serviceAccountPending, setServiceAccountPending] = useState(false);
+  const [airband, setAirband] = useState<AirbandBuild | null>(null);
 
   // Tracks the instance this page is currently showing, so an in-flight
   // save/check for the *previous* instance can tell it's stale once the user
@@ -105,6 +108,25 @@ export function InstanceEditPage() {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  // Which rtl_airband this instance runs, for soft-locking fork-only
+  // features. Failing to find out locks nothing.
+  const loadAirband = useCallback(() => {
+    if (!name) return;
+    api
+      .getAirband(name)
+      .then((build) => {
+        if (nameRef.current === name) setAirband(build);
+      })
+      .catch(() => {
+        if (nameRef.current === name) setAirband(null);
+      });
+  }, [name]);
+
+  useEffect(() => {
+    setAirband(null);
+    loadAirband();
+  }, [loadAirband]);
 
   // Two full-tree JSON.stringify passes over the whole config -- memoized so
   // it only re-runs when config/savedConfig actually change identity, not on
@@ -202,6 +224,7 @@ export function InstanceEditPage() {
           : `Saved ${name}.conf. Changes will take effect after a restart.`
       );
       await refreshInstanceList();
+      loadAirband(); // a (re)started process can answer the control-socket check now
       // The unit may still be settling (activating -> active/failed) -- keep the
       // sidebar's health badge for this instance updating for a few more seconds
       // instead of freezing on whatever snapshot the request above happened to catch.
@@ -260,6 +283,7 @@ export function InstanceEditPage() {
       setSavedConfig(config);
       setLiveApplyResult(result.liveApply);
       await refreshInstanceList();
+      loadAirband(); // a (re)started process can answer the control-socket check now
     } catch (err) {
       if (nameRef.current !== name) return;
       if (err instanceof ApiError && err.status === 422 && err.body.errors) {
@@ -332,6 +356,7 @@ export function InstanceEditPage() {
     try {
       await api.updateInstanceOptions(name, { jsonLogging: next });
       await refreshInstanceList();
+      loadAirband(); // the unit was rewritten: it may run another binary now
       pollBriefly();
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Failed to update JSON logging");
@@ -355,6 +380,7 @@ export function InstanceEditPage() {
     try {
       await api.updateInstanceOptions(name, { serviceUser, serviceGroup });
       await refreshInstanceList();
+      loadAirband(); // the unit was rewritten: it may run another binary now
       pollBriefly();
     } catch (err) {
       window.alert(err instanceof ApiError ? err.message : "Failed to update service account");
@@ -392,6 +418,7 @@ export function InstanceEditPage() {
               <HealthStatus state={summary.status.activeState} subState={summary.status.subState} />
               {summary.status.activeState === "active" && <span>up {formatUptime(summary.status.activeEnterTimestamp)}</span>}
               <span className="font-mono text-xs text-slate-500">{summary.unit}</span>
+              {airband && <span className="text-xs text-slate-500">{buildLabel(airband)}</span>}
               {summary.pendingRestart && (
                 <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-medium uppercase tracking-wide text-amber-300">
                   Saved config not running yet
@@ -406,6 +433,7 @@ export function InstanceEditPage() {
         {name && <InstanceActions name={name} />}
       </div>
 
+      <AirbandBanner build={airband} />
       <ValidationBanner
         errors={errors.length > 0 ? errors : liveErrors}
         warnings={warningsDismissed ? [] : warnings}

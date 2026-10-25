@@ -427,3 +427,45 @@ async fn websocket_hardware_topic_is_opt_in() {
     assert_eq!(frame["data"]["instances"][0]["live"], true);
     let _ = ws.send(Message::Close(None)).await;
 }
+
+/// A stand-in rtl_airband whose `-v` prints `output`.
+fn stub_binary(dir: &Path, name: &str, output: &str) -> String {
+    use std::os::unix::fs::PermissionsExt;
+    let path = dir.join(name);
+    std::fs::write(&path, format!("#!/bin/sh\nprintf '{output}'\n")).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path.display().to_string()
+}
+
+#[tokio::test]
+async fn airband_endpoint_tells_the_fork_from_a_stock_build() {
+    let bins = tempfile::tempdir().unwrap();
+    let fork = stub_binary(
+        bins.path(),
+        "fork",
+        "RTLSDR-Airband version v6.5.0\\nFeatures: fork control_socket device_status rdio_scanner\\n",
+    );
+    let h = harness(&["--rtl-airband-bin", &fork]);
+    let (status, _, build) = send(&h.router, get("/api/instances/alpha/airband")).await;
+    assert_eq!(status, StatusCode::OK, "{build}");
+    assert_eq!((build["kind"].as_str(), build["basis"].as_str()), (Some("fork"), Some("features-line")));
+    assert_eq!(build["version"], "v6.5.0");
+    assert_eq!(build["binary"], fork.as_str(), "no unit file yet: the binary a new unit would run");
+    assert!(build["features"].as_array().unwrap().contains(&json!("rdio_scanner")));
+
+    let stock = stub_binary(bins.path(), "stock", "RTLSDR-Airband version v6.2.0\\n");
+    let h = harness(&["--rtl-airband-bin", &stock]);
+    let (_, _, build) = send(&h.router, get("/api/instances/alpha/airband")).await;
+    assert_eq!((build["kind"].as_str(), build["basis"].as_str()), (Some("stock"), Some("stock-release")));
+    assert_eq!(build["features"], json!([]));
+
+    // ...unless its control socket answers, which only the fork has.
+    let _sock = fake_socket(&h.socket, "{\"ok\":false,\"error\":\"unknown cmd: status\"}\n");
+    let (_, _, build) = send(&h.router, get("/api/instances/alpha/airband")).await;
+    assert_eq!((build["kind"].as_str(), build["basis"].as_str()), (Some("fork"), Some("control-socket")));
+    assert!(!build["features"].as_array().unwrap().contains(&json!("device_status")), "{build}");
+
+    let h = harness(&["--rtl-airband-bin", "/nonexistent/rtl_airband"]);
+    let (_, _, build) = send(&h.router, get("/api/instances/alpha/airband")).await;
+    assert_eq!((build["kind"].as_str(), build["basis"].as_str()), (Some("unknown"), Some("not-runnable")));
+}

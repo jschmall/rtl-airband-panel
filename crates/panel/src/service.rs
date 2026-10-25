@@ -19,14 +19,15 @@ use airband_config::{RtlAirbandConfig, jsnum, parse_config};
 use airband_supervisor::instance::{unit_name, validate_instance_name};
 use airband_supervisor::systemd::{ActiveState, LogLine, UnitManager, UnitStatus};
 use airband_supervisor::{
-    Baseline, ChangePlan, ControlSocketClient, KeyedMutex, ReloadDiffResult, UnitTemplate, plan_change,
-    render_unit_file,
+    AirbandKind, Baseline, ChangePlan, ControlSocketClient, KeyedMutex, ReloadDiffResult, StatusResult, UnitTemplate,
+    classify, legacy_fork_features, parse_exec_start, plan_change, render_unit_file,
 };
 use airband_validate::{ValidationIssue, ValidationResult, validate_config};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
+use crate::airband::{AirbandBuild, BinaryCache};
 use crate::error::ApiError;
 use crate::secrets::{redact_secrets, restore_secrets};
 use crate::store::{
@@ -138,6 +139,7 @@ pub struct InstanceService {
     opts: ServiceOptions,
     mutex: KeyedMutex,
     last_live_apply: Mutex<HashMap<String, Instant>>,
+    binaries: BinaryCache,
 }
 
 fn unknown_status(unit: &str) -> UnitStatus {
@@ -235,6 +237,7 @@ impl InstanceService {
             opts,
             mutex: KeyedMutex::default(),
             last_live_apply: Mutex::new(HashMap::new()),
+            binaries: BinaryCache::default(),
         }
     }
 
@@ -259,6 +262,46 @@ impl InstanceService {
             service_user: options.service_user.clone().or_else(|| self.opts.default_service_user.clone()),
             service_group: options.service_group.clone().or_else(|| self.opts.default_service_group.clone()),
         }
+    }
+
+    /// Which rtl_airband build the instance runs (see crate::airband).
+    pub async fn airband_build(&self, name: &str) -> Result<AirbandBuild, ApiError> {
+        self.require_exists(name).await?;
+        let unit = unit_name(name);
+        let binary = match self.units.read_unit_file(&unit).await {
+            Ok(Some(text)) => parse_exec_start(&text).map(|e| e.binary_path),
+            _ => None,
+        }
+        .unwrap_or_else(|| self.opts.rtl_airband_bin.clone());
+        let info = self.binaries.info(&binary).await;
+        let c = classify(info.as_ref());
+        let mut build = AirbandBuild {
+            kind: c.kind,
+            version: info.and_then(|i| i.version),
+            features: c.features,
+            binary,
+            basis: c.basis.to_string(),
+        };
+        if build.kind != AirbandKind::Fork
+            && let Ok(config) = self.configs.read(name).await
+            && let Some(socket) = config.config.control_socket_path.clone()
+        {
+            // Only the fork has a control socket: an answer settles it.
+            let tag = match self.control.status(std::path::Path::new(&socket)).await {
+                StatusResult::Ok(report) => Some(report.version),
+                StatusResult::Unsupported => Some(String::new()),
+                _ => None,
+            };
+            if let Some(tag) = tag {
+                build.kind = AirbandKind::Fork;
+                build.features = legacy_fork_features(&tag);
+                if !tag.is_empty() && !build.has("device_status") {
+                    build.features.push("device_status".into());
+                }
+                build.basis = "control-socket".into();
+            }
+        }
+        Ok(build)
     }
 
     /// The process (re)started with whatever is on disk now.
