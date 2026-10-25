@@ -17,9 +17,25 @@ interface CollapsibleProps {
   openSignal?: number;
   /** Called on every open/close transition, including a programmatic force-open via openSignal, with the new state. Omit for no such behavior. */
   onOpenChange?: (open: boolean) => void;
+  /**
+   * False: openSignal only opens the section, without scrolling to it. For a
+   * group (e.g. the instance's Devices) whose own child scrolls to the target;
+   * the group, effects running parent-last, would otherwise scroll last and win.
+   */
+  scrollOnSignal?: boolean;
 }
 
-export function Collapsible({ title, headerActions, defaultOpen = false, className, titleClassName, children, openSignal, onOpenChange }: CollapsibleProps) {
+export function Collapsible({
+  title,
+  headerActions,
+  defaultOpen = false,
+  className,
+  titleClassName,
+  children,
+  openSignal,
+  onOpenChange,
+  scrollOnSignal = true,
+}: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
@@ -33,7 +49,7 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
       if (!o) onOpenChange?.(true);
       return true;
     });
-    setScrollFor(openSignal);
+    if (scrollOnSignal) setScrollFor(openSignal);
   }, [openSignal]);
 
   // Scrolls once the expanded content has rendered, so it's the opened

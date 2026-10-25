@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.5] - 2026-10-25
+
+### Changed
+
+- **The instance page is reordered, and every section collapses (#12).**
+  The order is now Service account, Instance settings, Devices, Mixers,
+  Logs. Instance settings has a title, and the Devices and Mixers groups
+  show how many each holds. Logs stay collapsed by default, as before. A
+  validation issue or a Hardware page link opens whatever it points into,
+  even inside a collapsed group.
+
 ## [0.6.4] - 2026-10-25
 
 ### Changed

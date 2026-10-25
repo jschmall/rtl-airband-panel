@@ -474,24 +474,26 @@ export function InstanceEditPage() {
           onChange={setConfig}
           jumpTarget={jumpTarget}
           onRevealSecret={revealSecret}
-          afterGlobalSettings={
+          before={
             name && (
-              <>
-                <InstanceLogs
-                  name={name}
-                  jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
-                  jsonLoggingPending={jsonLoggingPending}
-                  onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
-                />
-                <InstanceServiceAccount
-                  name={name}
-                  serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
-                  serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
-                  controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
-                  pending={serviceAccountPending}
-                  onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
-                />
-              </>
+              <InstanceServiceAccount
+                name={name}
+                serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
+                serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
+                controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
+                pending={serviceAccountPending}
+                onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
+              />
+            )
+          }
+          after={
+            name && (
+              <InstanceLogs
+                name={name}
+                jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+                jsonLoggingPending={jsonLoggingPending}
+                onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+              />
             )
           }
         />

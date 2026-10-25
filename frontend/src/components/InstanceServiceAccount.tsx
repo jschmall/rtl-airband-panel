@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Collapsible } from "./Collapsible.js";
 import { Field } from "./Field.js";
 import { inputClass, responsiveGrid2 } from "./styles.js";
 import { INSTANCE_OPTIONS_TOOLTIPS } from "../lib/config-descriptions.js";
@@ -37,8 +38,12 @@ export function InstanceServiceAccount({ name, serviceUser, serviceGroup, contro
   const showWarning = controlSocketPathSet && !serviceUser && !serviceGroup;
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-900 p-4">
-      <h4 className="text-lg font-semibold text-slate-100">Service account</h4>
+    <Collapsible
+      defaultOpen
+      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      titleClassName="text-lg font-semibold text-slate-100"
+      title="Service account"
+    >
       {showWarning && (
         <p className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-300">
           This instance's config sets Control socket path, but no service account is set below. The control socket only accepts
@@ -62,6 +67,6 @@ export function InstanceServiceAccount({ name, serviceUser, serviceGroup, contro
       >
         {pending ? "Saving…" : "Save service account"}
       </button>
-    </div>
+    </Collapsible>
   );
 }
