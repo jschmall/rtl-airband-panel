@@ -3,7 +3,7 @@
 This covers running rtl-airband-panel as a long-lived service, rather than
 just starting it in a terminal to try it out. See [README.md](./README.md)
 for installing and a first run, and its
-[Settings](./README.md#settings) section for every setting
+[Settings](./docs/guide.md#settings) section for every setting
 mentioned here.
 
 **If you installed from a release, `install.sh` has already done the
@@ -32,7 +32,7 @@ It manages the *panel's own* process, separate from the per-instance
 `<name>.service` units the panel creates and controls for each
 RTLSDR-Airband instance.
 
-1. Install the binary (see [Installing](./README.md#installing)):
+1. Install the binary (from a release, or see [Building from source](./DEVELOPMENT.md#building-from-source)):
 
    ```bash
    sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
@@ -88,7 +88,7 @@ RTLSDR-Airband instance.
 ### Updating
 
 From a release: run the new release's `sudo ./install.sh`. From source:
-build the new version (see [Installing](./README.md#installing)), then:
+build the new version (see [Building from source](./DEVELOPMENT.md#building-from-source)), then:
 
 ```bash
 sudo install -m 0755 target/release/rtl-airband-panel /usr/local/bin/
