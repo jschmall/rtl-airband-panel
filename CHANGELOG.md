@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.2] - 2026-10-25
+
+### Fixed
+
+- **The Hardware page's gain advice no longer starts from nothing on every
+  visit (#10).**
+  - The panel now records each live SDR's headroom, noise floor, frequency
+    error and gain in its stats database every time it reads them. The
+    page loads the last 5 minutes when it opens (`GET
+    /api/hardware/history`), so a reload keeps its trends and advice.
+  - Readings are also taken every 15 seconds while nobody has the page
+    open (`RTL_PANEL_HARDWARE_BACKGROUND_POLL_INTERVAL_MS`; `0` turns this
+    off), so the history covers that time too.
+  - "Lower gain" now waits for two minutes of readings at the current
+    gain, as "Raise gain" already did. Until then the page says
+    "Collecting readings…". Samples clipping right now still call for a
+    lower gain at once.
+- **Lower and raise suggestions look different (#10).** Lowering the gain
+  (and fixing the correction) is amber with an arrow. Room to raise the
+  gain is blue with an up arrow. Collecting readings is grey.
+
 ## [0.6.1] - 2026-10-25
 
 ### Fixed

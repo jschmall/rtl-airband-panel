@@ -8,6 +8,7 @@ import {
   formatSpan,
   gainAdvice,
   headroomLevel,
+  mergeHistory,
   notLiveReason,
   sdrTitle,
   sortBySerial,
@@ -124,7 +125,7 @@ describe("serial ordering", () => {
 describe("correctionAdvice", () => {
   it("names the absolute value to set alongside the current one", () => {
     expect(correctionAdvice(sdr({ correction: 2, freqErrorPpm: -3.4, suggestedCorrection: 5 }))).toEqual({
-      tone: "action",
+      tone: "warn",
       text: "Set correction to 5 ppm (now 2)",
     });
   });
@@ -141,44 +142,51 @@ describe("correctionAdvice", () => {
 });
 
 describe("gainAdvice", () => {
-  const hist = (headrooms: (number | null)[], gainDb: number | null = null, stepMs = 30_000) =>
+  // Three points a minute apart span the two-minute warm-up.
+  const hist = (headrooms: (number | null)[], gainDb: number | null = null, stepMs = 60_000) =>
     headrooms.map((headroomDb, i) => ({ ts: i * stepMs, headroomDb, noiseFloorDbfs: null, freqErrorPpm: null, gainDb }));
 
   it("lowers to the tuner step that puts the worst recent peak about 6 dB down", () => {
     // worst headroom 0.4 dB at 49.6 dB gain -> target 49.6 - 5.6 = 44.0 -> step 43.9
     expect(gainAdvice(sdr({ gainDb: 49.6, headroomDb: 8 }), hist([9, 0.4, 8], 49.6))).toEqual({
-      tone: "action",
+      tone: "warn",
       text: "Lower gain to 43.9 dB (now 49.6 dB)",
     });
   });
 
-  it("lowers at least one step whenever samples are clipping", () => {
+  it("lowers at least one step at once whenever samples are clipping", () => {
     expect(gainAdvice(sdr({ gainDb: 33.8, headroomDb: 7, clippedPerSec: 3 }), hist([7], 33.8))?.text).toBe(
       "Lower gain to 32.8 dB (now 33.8 dB)"
     );
-    expect(gainAdvice(sdr({ gainDb: 0, headroomDb: 0.1 }), hist([0.1], 0))?.text).toMatch(/minimum gain/);
+    expect(gainAdvice(sdr({ gainDb: 0, headroomDb: 0.1, clippedPerSec: 1 }), hist([0.1], 0))?.text).toMatch(/minimum gain/);
+  });
+
+  it("waits for two minutes of readings before calling low headroom without clipping", () => {
+    expect(gainAdvice(sdr({ gainDb: 49.6, headroomDb: 0.4 }), hist([0.4], 49.6))).toEqual({ tone: "pending", text: "Collecting readings…" });
+    expect(gainAdvice(sdr({ gainDb: 49.6, headroomDb: 8 }), hist([9, 0.4, 8], 49.6, 30_000))?.tone).toBe("pending");
   });
 
   it("rounds down to whole dB off the R820T table", () => {
-    expect(gainAdvice(sdr({ driver: "soapysdr", gainDb: 30, headroomDb: 1.5 }), hist([1.5], 30))?.text).toBe(
+    expect(gainAdvice(sdr({ driver: "soapysdr", gainDb: 30, headroomDb: 1.5 }), hist([1.5, 1.5, 1.5], 30))?.text).toBe(
       "Lower gain to 25 dB (now 30 dB)"
     );
   });
 
-  it("suggests raising only after two quiet minutes", () => {
+  it("suggests raising only after two quiet minutes, as an optional step", () => {
     const quiet = sdr({ gainDb: 12.5, headroomDb: 31 });
-    expect(gainAdvice(quiet, hist([31, 31, 31], 12.5))).toEqual({ tone: "ok", text: "Gain OK so far" });
+    expect(gainAdvice(quiet, hist([31, 31, 31], 12.5, 30_000))).toEqual({ tone: "pending", text: "Collecting readings…" });
     // 12.5 + (25 - 6) = 31.5 -> 29.7
-    expect(gainAdvice(quiet, hist([31, 25, 31, 31, 31], 12.5))).toEqual({
-      tone: "action",
+    expect(gainAdvice(quiet, hist([31, 25, 31], 12.5))).toEqual({
+      tone: "info",
       text: "Room to raise gain to 29.7 dB (now 12.5 dB)",
     });
   });
 
   it("ignores readings from before a live gain change", () => {
     const before = hist([0.2, 0.3], 49.6);
-    const after = hist([9, 8], 43.9).map((p) => ({ ...p, ts: p.ts + 60_000 }));
+    const after = hist([9, 8, 8], 43.9).map((p) => ({ ...p, ts: p.ts + 120_000 }));
     expect(gainAdvice(sdr({ gainDb: 43.9, headroomDb: 8 }), [...before, ...after])).toEqual({ tone: "ok", text: "Gain OK" });
+    expect(gainAdvice(sdr({ gainDb: 43.9, headroomDb: 8 }), [...before, ...after.slice(1)])?.tone).toBe("pending");
   });
 
   it("leaves a gain in the ideal band alone", () => {
@@ -186,8 +194,26 @@ describe("gainAdvice", () => {
   });
 
   it("asks for manual gain only when automatic gain clips", () => {
-    expect(gainAdvice(sdr({ gainDb: null, headroomDb: 0.5 }), hist([0.5], null))?.text).toMatch(/manual gain/);
+    expect(gainAdvice(sdr({ gainDb: null, headroomDb: 0.5 }), hist([0.5, 0.5, 0.5], null))?.text).toMatch(/manual gain/);
+    expect(gainAdvice(sdr({ gainDb: null, headroomDb: 0.5 }), hist([0.5], null))).toBeNull();
     expect(gainAdvice(sdr({ gainDb: null, headroomDb: 9 }), hist([9], null))).toBeNull();
     expect(gainAdvice(sdr({ headroomDb: null }), [])).toBeNull();
+  });
+});
+
+describe("mergeHistory", () => {
+  const point = (ts: number, headroomDb: number) => ({ ts, headroomDb, noiseFloorDbfs: null, freqErrorPpm: null, gainDb: 30 });
+
+  it("unions recorded and live points by timestamp, oldest first, inside the window", () => {
+    const live = new Map([["a/0", [point(5000, 9)]]]);
+    const merged = mergeHistory(live, { sdrs: [{ instance: "a", index: 0, points: [point(500, 1), point(2000, 2), point(5000, 9)] }] }, 6000, 5000);
+    expect(merged.get("a/0")).toEqual([point(2000, 2), point(5000, 9)]);
+  });
+
+  it("adds recorded SDRs and keeps live-only ones", () => {
+    const live = new Map([["b/1", [point(5000, 9)]]]);
+    const merged = mergeHistory(live, { sdrs: [{ instance: "a", index: 0, points: [point(4000, 3)] }] }, 6000, 5000);
+    expect(merged.get("a/0")).toEqual([point(4000, 3)]);
+    expect(merged.get("b/1")).toEqual([point(5000, 9)]);
   });
 });

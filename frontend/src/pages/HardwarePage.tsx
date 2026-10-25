@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { InstanceHardware } from "../api/client.js";
+import { api, type InstanceHardware } from "../api/client.js";
 import { SdrCard } from "../components/hardware/SdrCard.js";
-import { appendHistory, notLiveReason, sdrKey, sortBySerial, type HistoryPoint } from "../lib/hardware-format.js";
+import { appendHistory, HISTORY_WINDOW_MS, mergeHistory, notLiveReason, sdrKey, sortBySerial, type HistoryPoint } from "../lib/hardware-format.js";
 import { useHardwareFeed, type FeedConnection } from "../lib/use-hardware-feed.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 
@@ -41,6 +41,22 @@ export function HardwarePage() {
   const { snapshot, connection, error } = useHardwareFeed();
   const { searchQuery } = useInstanceList();
   const [history, setHistory] = useState<ReadonlyMap<string, HistoryPoint[]>>(new Map());
+
+  // Seed from the panel's recorded readings, so the trends and gain advice
+  // don't start from nothing on every visit. Best-effort: without it the
+  // page just builds its history from the live feed.
+  useEffect(() => {
+    let stopped = false;
+    api
+      .getHardwareHistory(HISTORY_WINDOW_MS)
+      .then((recorded) => {
+        if (!stopped) setHistory((prev) => mergeHistory(prev, recorded, Date.now()));
+      })
+      .catch(() => undefined);
+    return () => {
+      stopped = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!snapshot) return;

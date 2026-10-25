@@ -1,9 +1,12 @@
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue, ValidationResult } from "../types/config.js";
 import type { HardwareSnapshot } from "../generated/HardwareSnapshot";
+import type { HardwareHistory } from "../generated/HardwareHistory";
 import type { AirbandBuild } from "../generated/AirbandBuild";
 
 export type { HardwareSnapshot } from "../generated/HardwareSnapshot";
+export type { HardwareHistory } from "../generated/HardwareHistory";
+export type { HardwareHistoryPoint } from "../generated/HardwareHistoryPoint";
 export type { InstanceHardware } from "../generated/InstanceHardware";
 export type { SdrHealth } from "../generated/SdrHealth";
 export type { ChannelHealth } from "../generated/ChannelHealth";
@@ -263,6 +266,10 @@ export const api = {
 
   /** Every instance's SDRs with live readings where the control socket answers `status` (Rust panel only). */
   getHardware: (): Promise<HardwareSnapshot> => request("/hardware"),
+
+  /** Each SDR's recorded readings from the last `windowMs` (default 5 minutes). */
+  getHardwareHistory: (windowMs?: number): Promise<HardwareHistory> =>
+    request(windowMs === undefined ? "/hardware/history" : `/hardware/history?windowMs=${windowMs}`),
 
   getLatestStats: (name: string): Promise<StatSample[]> => request(`/instances/${encodeURIComponent(name)}/stats/latest`),
 

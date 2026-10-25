@@ -81,6 +81,7 @@ pub fn router(state: AppState) -> Router {
         .route("/instances/{name}/stats/poll-status", get(stats_poll_status))
         .route("/instances/{name}/stats/history", get(stats_history))
         .route("/hardware", get(hardware))
+        .route("/hardware/history", get(hardware_history))
         .route("/ws", get(ws::upgrade))
         .fallback(api_not_found);
 
@@ -376,6 +377,28 @@ async fn require_instance(s: &AppState, name: &str) -> ApiResult<()> {
 
 async fn hardware(State(s): State<AppState>) -> ApiResult<impl IntoResponse> {
     Ok(Json(s.hardware.snapshot().await?))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HardwareHistoryParams {
+    window_ms: Option<String>,
+}
+
+/// The longest window /hardware/history serves: a day of every SDR's readings.
+const MAX_HARDWARE_HISTORY_MS: i64 = 86_400_000;
+
+async fn hardware_history(
+    State(s): State<AppState>,
+    Query(q): Query<HardwareHistoryParams>,
+) -> ApiResult<impl IntoResponse> {
+    let window = match q.window_ms {
+        None => 5 * 60_000,
+        Some(t) => t.parse::<i64>().ok().filter(|w| (1..=MAX_HARDWARE_HISTORY_MS).contains(w)).ok_or_else(|| {
+            ApiError::BadRequest(format!("Expected 'windowMs' to be 1-{MAX_HARDWARE_HISTORY_MS} (at $.query)"))
+        })?,
+    };
+    Ok(Json(s.hardware.history(window)?))
 }
 
 async fn stats_summary(State(s): State<AppState>) -> ApiResult<impl IntoResponse> {

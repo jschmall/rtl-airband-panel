@@ -110,6 +110,12 @@ pub struct Settings {
     #[arg(long, env = "RTL_PANEL_HARDWARE_POLL_INTERVAL_MS", default_value_t = 1_000)]
     pub hardware_poll_interval_ms: u64,
 
+    /// How often the Hardware page's readings are recorded while nobody has
+    /// the page open, so its gain advice opens with recent history. 0 turns
+    /// background polling off.
+    #[arg(long, env = "RTL_PANEL_HARDWARE_BACKGROUND_POLL_INTERVAL_MS", default_value_t = 15_000)]
+    pub hardware_background_poll_interval_ms: u64,
+
     /// Serve the frontend from this directory instead of the copy embedded
     /// in the binary.
     #[arg(long, env = "RTL_PANEL_FRONTEND_DIST")]

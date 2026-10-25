@@ -324,9 +324,18 @@ Instances that aren't live keep their config view, and carry a `reason`:
 `no-control-socket`, `not-running`, `unsupported` (older binary),
 `unreachable`, `protocol-error` or `config-error`.
 
+Every snapshot also records each live SDR's headroom, noise floor,
+frequency error and gain in the stats DB (`hardware_samples`, pruned with
+the stats retention). With nobody watching, the panel still takes a
+snapshot every `RTL_PANEL_HARDWARE_BACKGROUND_POLL_INTERVAL_MS` (15 s; 0
+turns it off), so the history covers time nobody had the page open. Those
+background readings sample the ~1 s peak window every 15 s, so they can
+miss a short burst; the clipping counter doesn't.
+
 The frontend page (`pages/HardwarePage.tsx`) opens its own `/api/ws`
 connection and subscribes. It falls back to polling `GET /api/hardware`
-every 2 s, and keeps a 5-minute client-side history for the sparklines.
+every 2 s. It seeds its 5-minute history for the sparklines and gain
+advice from `GET /api/hardware/history`, then appends each snapshot.
 
 How the fork measures:
 - **ADC peak.** The largest |I|/|Q| over the last ~1 s of input, relative
@@ -348,6 +357,9 @@ and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - a `plan` field on save and apply-live results;
 - `frequencies` on each instance in the list;
 - `GET /api/hardware` (a `HardwareSnapshot`, see below);
+- `GET /api/hardware/history?windowMs=` (a `HardwareHistory`: each SDR's
+  recorded readings from the last `windowMs`, default 5 minutes, at most a
+  day);
 - `GET /api/instances/:name/airband` (an `AirbandBuild`, see
   "Fork or stock rtl_airband" below).
 
@@ -359,9 +371,10 @@ systemd command, with `exitCode` and `stderr`).
   while anyone is connected);
 - `instance-changed` after any mutation;
 - `hardware` (a `HardwareSnapshot`) every `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`,
-  only to clients that sent `{"type":"subscribe","topic":"hardware"}`. The
-  watcher sends no control-socket traffic while nobody is subscribed. A new
-  subscriber gets a frame right away.
+  only to clients that sent `{"type":"subscribe","topic":"hardware"}`. A new
+  subscriber gets a frame right away. While nobody is subscribed, the
+  watcher only takes the slower background snapshots, which are recorded
+  and not sent.
 
 A client that falls behind is disconnected, so it reconnects to fresh
 state. The frontend merges `health` in place, refetches on

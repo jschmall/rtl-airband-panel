@@ -20,19 +20,30 @@ import { ChannelTable } from "./ChannelTable.js";
 import { HeadroomMeter } from "./HeadroomMeter.js";
 import { Sparkline } from "./Sparkline.js";
 
+const ADVICE_STYLE: Record<Advice["tone"], { color: string; icon: ReactNode }> = {
+  ok: { color: "text-emerald-300", icon: <polyline points="2.5,6.5 5,9 9.5,3.5" /> },
+  // Something to change: lower the gain, fix the correction.
+  warn: { color: "text-amber-300", icon: <path d="M2 6h7M6.5 3l3 3-3 3" /> },
+  // Optional: room to raise the gain.
+  info: { color: "text-sky-300", icon: <path d="M6 10V2.5M3 5.5l3-3 3 3" /> },
+  pending: {
+    color: "text-slate-400",
+    icon: (
+      <>
+        <circle cx="6" cy="6" r="4.5" />
+        <path d="M6 3.5V6l1.5 1.5" />
+      </>
+    ),
+  },
+};
+
 function AdviceLine({ advice }: { advice: Advice }) {
-  const ok = advice.tone === "ok";
+  const { color, icon } = ADVICE_STYLE[advice.tone];
   return (
-    <p className={`mt-1 flex items-start gap-1 text-xs font-medium ${ok ? "text-emerald-300" : "text-amber-300"}`}>
-      {ok ? (
-        <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-0.5 h-3 w-3 shrink-0 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="2.5,6.5 5,9 9.5,3.5" />
-        </svg>
-      ) : (
-        <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-0.5 h-3 w-3 shrink-0 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 6h7M6.5 3l3 3-3 3" />
-        </svg>
-      )}
+    <p className={`mt-1 flex items-start gap-1 text-xs font-medium ${color}`}>
+      <svg aria-hidden="true" viewBox="0 0 12 12" className="mt-0.5 h-3 w-3 shrink-0 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {icon}
+      </svg>
       <span>{advice.text}</span>
     </p>
   );

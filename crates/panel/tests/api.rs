@@ -385,6 +385,37 @@ async fn hardware_endpoint_joins_config_with_live_status() {
 }
 
 #[tokio::test]
+async fn hardware_snapshots_are_recorded_as_history() {
+    let h = harness(&[]);
+    let (status, _, history) = send(&h.router, get("/api/hardware/history")).await;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    assert_eq!(history["sdrs"], serde_json::json!([]));
+
+    let _sock = fake_socket(&h.socket, STATUS_REPLY);
+    let (_, _, snap) = send(&h.router, get("/api/hardware")).await;
+    let (status, _, history) = send(&h.router, get("/api/hardware/history?windowMs=60000")).await;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    let sdr = &history["sdrs"][0];
+    assert_eq!(sdr["instance"], "alpha");
+    assert_eq!(sdr["index"], 0);
+    assert_eq!(sdr["points"].as_array().unwrap().len(), 1, "{history}");
+    assert_eq!(sdr["points"][0]["ts"], snap["sampledAtMs"]);
+    assert_eq!(sdr["points"][0]["headroomDb"], 7.25);
+    assert_eq!(sdr["points"][0]["gainDb"], 28.0);
+
+    assert_eq!(send(&h.router, get("/api/hardware/history?windowMs=0")).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(send(&h.router, get("/api/hardware/history?windowMs=abc")).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn hardware_history_skips_instances_that_are_not_live() {
+    let h = harness(&[]); // nothing listening on the socket
+    send(&h.router, get("/api/hardware")).await;
+    let (_, _, history) = send(&h.router, get("/api/hardware/history")).await;
+    assert_eq!(history["sdrs"], serde_json::json!([]));
+}
+
+#[tokio::test]
 async fn hardware_endpoint_falls_back_to_config_when_not_live() {
     let h = harness(&[]); // nothing listening on the socket
     let (status, _, snap) = send(&h.router, get("/api/hardware")).await;
