@@ -5,6 +5,60 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.4.123] - 2026-10-25
+
+### Fixed
+
+- `crates/panel/src/hardware.rs` is formatted with `cargo fmt` again: the
+  0.4.121 change left one line that CI's format check rejects.
+
+## [0.4.122] - 2026-10-24
+
+### Added
+
+- **Hardware page: suggested gain.** The Headroom tile now gives gain advice,
+  based on the smallest headroom in the SDR's last 5 minutes of readings.
+  - **Target:** the strongest peak about 6 dB below clipping.
+  - **Lowering:** when peaks come within 3 dB of clipping, or samples are
+    clipping, it shows "Lower gain to X dB (now Y dB)". When a sample
+    clips, it always suggests at least one step down.
+  - **Raising:** it suggests "Room to raise gain" only after 2 minutes in
+    which no peak came within 12 dB of clipping.
+  - **Otherwise:** it shows "Gain OK".
+  - **Gain steps:** rtl-sdr suggestions snap down to the R820T/R828D
+    tuner's gain steps. Other gains round down to a whole dB.
+  - **Gain changes:** readings from before a live gain change are ignored.
+  - **Automatic gain:** under AGC, the page only speaks up if it clips.
+  - **README:** the Hardware section documents the gain advice, the
+    correction advice and the serial-number order.
+
+## [0.4.121] - 2026-10-24
+
+### Changed
+
+- **Hardware page: clearer frequency-correction advice.** The old
+  "try correction = X" hint looked stuck: it didn't change after a
+  restart with a new correction. It wasn't stuck. X is the absolute
+  correction to set, not an amount to add. Setting part of it shrinks the
+  error by the same amount, so X stays the same until you reach it.
+  - The hint now reads "Set correction to X ppm (now Y)".
+  - Once less than 0.75 ppm of error remains, it changes to
+    "Correction OK". This threshold also stops the hint flickering at the
+    ±0.5 ppm rounding edge.
+  - The frequency-error tooltip explains this.
+  - The API's `suggestedCorrection` is now `null` once the remaining error
+    is under 0.75 ppm.
+
+## [0.4.120] - 2026-10-24
+
+### Changed
+
+- **Hardware page: SDRs are sorted by serial number.** All-digit serials
+  come first, in numeric order (leading zeros ignored, so `00000002` sorts
+  before `10`). Other serials follow alphabetically, and SDRs without a
+  serial come last. Instances are ordered by their first SDR's serial;
+  instances with no devices come after the rest.
+
 ## [0.4.119] - 2026-10-24
 
 ### Changed

@@ -58,6 +58,8 @@ freqErrorPpm: number | null,
  */
 freqErrorSamples: number, 
 /**
- * `correction` that would cancel freq_error_ppm (ppm drivers only).
+ * The absolute `correction` value that would cancel freq_error_ppm
+ * (ppm drivers only). It stays the same as the correction approaches
+ * it; None once the remaining error is under CORRECTION_OK_PPM.
  */
 suggestedCorrection: number | null, bufferOverflows: number | null, overflowsPerSec: number | null, outputOverruns: number | null, retuneFailures: number | null, channels: Array<ChannelHealth>, };
