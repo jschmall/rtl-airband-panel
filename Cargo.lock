@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "airband-config"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "regex",
  "serde",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "airband-supervisor"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "airband-config",
  "async-trait",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "airband-validate"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "airband-config",
  "serde",
@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "airband-wasm"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "airband-config",
  "airband-validate",
@@ -1241,7 +1241,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rtl-airband-panel"
-version = "0.6.11"
+version = "0.6.12"
 dependencies = [
  "airband-config",
  "airband-supervisor",
