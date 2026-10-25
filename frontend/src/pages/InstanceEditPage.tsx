@@ -4,6 +4,7 @@ import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
 import { api, ApiError, type AirbandBuild, type LiveApplyOutcome } from "../api/client.js";
 import { AirbandBanner } from "../components/AirbandBanner.js";
+import { AirbandBuildProvider } from "../state/AirbandBuildContext.js";
 import { buildLabel, hasFeature } from "../lib/airband-build.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
@@ -453,32 +454,34 @@ export function InstanceEditPage() {
       )}
       {liveApplyResult && <LiveApplyBanner name={name} outcome={liveApplyResult} />}
 
-      <ConfigEditor
-        config={config}
-        onChange={setConfig}
-        jumpTarget={jumpTarget}
-        onRevealSecret={revealSecret}
-        afterGlobalSettings={
-          name && (
-            <>
-              <InstanceLogs
-                name={name}
-                jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
-                jsonLoggingPending={jsonLoggingPending}
-                onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
-              />
-              <InstanceServiceAccount
-                name={name}
-                serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
-                serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
-                controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
-                pending={serviceAccountPending}
-                onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
-              />
-            </>
-          )
-        }
-      />
+      <AirbandBuildProvider value={airband}>
+        <ConfigEditor
+          config={config}
+          onChange={setConfig}
+          jumpTarget={jumpTarget}
+          onRevealSecret={revealSecret}
+          afterGlobalSettings={
+            name && (
+              <>
+                <InstanceLogs
+                  name={name}
+                  jsonLogging={instances?.find((i) => i.name === name)?.jsonLogging ?? false}
+                  jsonLoggingPending={jsonLoggingPending}
+                  onToggleJsonLogging={(next) => void handleToggleJsonLogging(next)}
+                />
+                <InstanceServiceAccount
+                  name={name}
+                  serviceUser={instances?.find((i) => i.name === name)?.serviceUser}
+                  serviceGroup={instances?.find((i) => i.name === name)?.serviceGroup}
+                  controlSocketPathSet={savedConfig?.control_socket_path !== undefined}
+                  pending={serviceAccountPending}
+                  onSave={(user, group) => void handleUpdateServiceAccount(user, group)}
+                />
+              </>
+            )
+          }
+        />
+      </AirbandBuildProvider>
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
         {liveErrors.length > 0 && (

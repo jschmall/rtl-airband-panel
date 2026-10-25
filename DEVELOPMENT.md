@@ -347,7 +347,9 @@ and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - `POST /api/instances/:name/plan`;
 - a `plan` field on save and apply-live results;
 - `frequencies` on each instance in the list;
-- `GET /api/hardware` (a `HardwareSnapshot`, see below).
+- `GET /api/hardware` (a `HardwareSnapshot`, see below);
+- `GET /api/instances/:name/airband` (an `AirbandBuild`, see
+  "Fork or stock rtl_airband" below).
 
 Errors are `{ error }` with 400/404/409/422 (with `errors`)/502 (failed
 systemd command, with `exitCode` and `stderr`).
@@ -368,6 +370,45 @@ state. The frontend merges `health` in place, refetches on
 Logs stream over SSE (`/api/instances/:name/logs/stream`, `journalctl -f`
 underneath, a `: ping` comment every 15 s, a named `stream-error` event
 on failure). Responses are gzip/brotli-compressed, except the SSE stream.
+
+### Fork or stock rtl_airband
+
+The panel soft-locks fork-only features on instances that don't run the
+jschmall fork. `crates/panel/src/airband.rs` and
+`airband_supervisor::binary` decide what an instance runs:
+- **Which binary:** the one its unit's `ExecStart=` names, else
+  `RTL_PANEL_RTL_AIRBAND_BIN`.
+- **Fork:** `-v` prints a `Features: fork ...` line (fork v6.5.0+), or the
+  version is a fork release that predates that line (`LEGACY_FORK_TAGS`:
+  v6.3.0, v6.3.1, v6.4.0).
+- **Fork, by control socket:** for any other result, an instance whose
+  control socket answers `status` (only the fork has one).
+- **Stock:** a plain release version without the line. Upstream uses
+  v6.x too, so a version number alone can't identify the fork.
+- **Unknown:** anything else, e.g. `v6.2.0-45-g…`, which could be an
+  older fork source build. Unknown locks nothing.
+
+What depends on it:
+- **Validation:** `airband_validate::validate_config_for(config,
+  Some(features))` (and the wasm `validate_for`) adds `needs-fork-feature`
+  issues:
+  - an error for a `mixer_remote` output, which stock won't start with;
+  - warnings for settings stock ignores.
+- **Saving:** saves and checks use the instance's build; creating an
+  instance uses the configured binary.
+- **Apply live:** on a stock build, apply-live skips the socket (reason
+  `stock-rtl-airband`), and the UI hides the button.
+- **JSON logging:** turning it on for a stock build is refused.
+- **Editor:** fields take `requires="<feature>"` (`Field`, `BoolField`)
+  and read the build from `AirbandBuildContext`. A field whose feature is
+  missing is marked "needs the fork" and disabled unless it already holds
+  a non-default value, so that value can be cleared.
+
+Feature names are the fork's: `control_socket`, `device_status`,
+`reserve`, `mixer_remote`, `send_tx_tags`, `stats_http`, `json_log`,
+`post_write_script`, plus build components (`rdio_scanner`, `soapysdr`,
+`mirisdr`, `pulseaudio`, `nfm`). `fork` itself covers small fork-only
+settings such as UDP `bit_depth`.
 
 ### Security
 

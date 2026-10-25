@@ -402,7 +402,12 @@ export const DeviceEditor = memo(function DeviceEditor({
           />
         </Field>
         {!isScan && (
-          <Field label="Reserve channels (optional, default 0)" tooltip={DEVICE_TOOLTIPS.reserveChannels}>
+          <Field
+            label="Reserve channels (optional, default 0)"
+            tooltip={DEVICE_TOOLTIPS.reserveChannels}
+            requires="reserve"
+            hasValue={device.reserve_channels !== undefined}
+          >
             <input
               type="number"
               min="0"

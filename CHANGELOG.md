@@ -5,6 +5,28 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.6] - 2026-10-25
+
+### Added
+
+- **The editor greys out fork-only settings the instance's rtl_airband
+  lacks.**
+  - **Which fields:** the global stats HTTP, rdio-scanner queue and control
+    socket fields; `reserve_channels` and `reserve_inputs`; channel and
+    mixer "Enabled"; file outputs' min RX seconds, post-write script and
+    rdio-scanner upload; Icecast "Send tx tags"; UDP bit depth; and the
+    JSON logging toggle.
+  - **How they look:** each is marked "needs the fork" and disabled, unless
+    it already holds a non-default value. That value stays editable so it
+    can be cleared.
+  - **mixer_remote:** the `mixer_remote` output type can't be picked.
+  - **Remote inputs:** "Add remote input" is disabled.
+  - **Unknown build:** nothing is locked.
+- Disabled inputs and checkboxes now look disabled everywhere (dimmed,
+  not-allowed cursor).
+- **Docs:** the README explains what works on a stock rtl_airband, and
+  DEVELOPMENT.md describes the detection and gating.
+
 ## [0.5.5] - 2026-10-25
 
 ### Added

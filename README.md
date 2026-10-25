@@ -280,6 +280,19 @@ Live readings need an instance running the bundled fork (v6.4.0 or later)
 with `control_socket_path` set. Other instances show their configured
 values and say why they aren't live.
 
+**Stock rtl_airband.** The panel checks which rtl_airband each instance
+runs and shows it next to the instance's name. On an instance running a
+build other than the
+[jschmall fork](https://github.com/jschmall/RTLSDR-Airband), the basics
+still work.
+- **Saving:** always restarts the instance; there's no Apply live.
+- **Fork-only settings:** marked "needs the fork". Ones a stock build
+  ignores are warnings. The one it won't start with, a `mixer_remote`
+  output, blocks saving.
+- **JSON logging:** can't be turned on.
+
+If the panel can't tell which build an instance runs, nothing is locked.
+
 **Themes.** The bottom of the left-hand list switches between automatic
 (follows your system), dark and light.
 

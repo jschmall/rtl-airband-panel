@@ -109,7 +109,14 @@ export const ChannelEditor = memo(function ChannelEditor({
       headerActions={
         <div className="flex items-center gap-3">
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => emitChange({ ...channel, disable: v })} />
-          <BoolField label="Enabled" tooltip={CHANNEL_TOOLTIPS.enabled} checked={channel.enabled ?? true} onChange={(v) => emitChange({ ...channel, enabled: v })} />
+          <BoolField
+            label="Enabled"
+            tooltip={CHANNEL_TOOLTIPS.enabled}
+            checked={channel.enabled ?? true}
+            onChange={(v) => emitChange({ ...channel, enabled: v })}
+            requires="control_socket"
+            defaultValue
+          />
           <button type="button" onClick={() => onDuplicate(channelKey)} className={addButtonClass}>
             Duplicate channel
           </button>

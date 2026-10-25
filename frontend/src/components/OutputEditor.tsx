@@ -11,6 +11,7 @@ import type {
   UdpStreamOutput,
 } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
+import { useForkFeature } from "../state/AirbandBuildContext.js";
 import { Collapsible } from "./Collapsible.js";
 import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
 import { PasswordInput } from "./PasswordInput.js";
@@ -76,6 +77,7 @@ export const OutputEditor = memo(function OutputEditor({
 }: OutputEditorProps) {
   const outputKey = uiKeyOf(output, outputIndex);
   const emitChange = useCallback((next: Output) => onChange(outputKey, next), [onChange, outputKey]);
+  const mixerRemoteOk = useForkFeature("mixer_remote");
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
   const revealField = onRevealSecret ? (suffix: string) => () => onRevealSecret(`${pathPrefix}.${suffix}`) : undefined;
   const hasCopyTargets = channelTargets !== undefined && channelTargets.length > 0;
@@ -210,7 +212,9 @@ export const OutputEditor = memo(function OutputEditor({
             <option value="icecast">icecast</option>
             <option value="udp_stream">udp_stream</option>
             {!excludeMixerType && <option value="mixer">mixer</option>}
-            <option value="mixer_remote">mixer_remote</option>
+            <option value="mixer_remote" disabled={!mixerRemoteOk && output.type !== "mixer_remote"}>
+              {mixerRemoteOk ? "mixer_remote" : "mixer_remote (needs the fork)"}
+            </option>
           </select>
         </Field>
       </div>
@@ -329,7 +333,12 @@ function FileFields({
   return (
     <div className={responsiveGrid2}>
       <FileLikeTextFields output={output} onChange={onChange} />
-      <Field label="Min RX seconds (only used if split_on_transmission)" tooltip={OUTPUT_TOOLTIPS.minRxSeconds}>
+      <Field
+        label="Min RX seconds (only used if split_on_transmission)"
+        tooltip={OUTPUT_TOOLTIPS.minRxSeconds}
+        requires="post_write_script"
+        hasValue={output.min_rx_seconds !== undefined}
+      >
         <input
           type="number"
           step="0.1"
@@ -338,7 +347,12 @@ function FileFields({
           onChange={(e) => onChange({ ...output, min_rx_seconds: numberOrUndefined(e.target.value) })}
         />
       </Field>
-      <Field label="Post-write script (optional)" tooltip={OUTPUT_TOOLTIPS.postWriteScript}>
+      <Field
+        label="Post-write script (optional)"
+        tooltip={OUTPUT_TOOLTIPS.postWriteScript}
+        requires="post_write_script"
+        hasValue={output.post_write_script !== undefined}
+      >
         <input
           className={inputClass}
           value={output.post_write_script ?? ""}
@@ -350,6 +364,7 @@ function FileFields({
         <BoolField
           label="Upload to rdio-scanner"
           tooltip={OUTPUT_TOOLTIPS.rdioScannerEnabled}
+          requires="rdio_scanner"
           checked={output.rdio_scanner !== undefined && !output.rdio_scanner.disable}
           onChange={(v) =>
             onChange({
@@ -569,6 +584,7 @@ function IcecastFields({
         <BoolField
           label="Send tx tags"
           tooltip={OUTPUT_TOOLTIPS.sendTxTags}
+          requires="send_tx_tags"
           checked={output.send_tx_tags}
           onChange={(v) => onChange({ ...output, send_tx_tags: v })}
         />
@@ -600,7 +616,7 @@ function UdpStreamFields({ output, onChange }: { output: UdpStreamOutput; onChan
           onChange={(e) => onChange({ ...output, dest_port: e.target.value })}
         />
       </Field>
-      <Field label="Bit depth (optional)" tooltip={OUTPUT_TOOLTIPS.bitDepth}>
+      <Field label="Bit depth (optional)" tooltip={OUTPUT_TOOLTIPS.bitDepth} requires="fork" hasValue={output.bit_depth != null}>
         <select
           className={inputClass}
           value={output.bit_depth != null ? String(output.bit_depth) : ""}

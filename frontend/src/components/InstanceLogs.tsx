@@ -115,6 +115,7 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
       <BoolField
         label={jsonLoggingPending ? "JSON logging (restarting…)" : "JSON logging"}
         tooltip={INSTANCE_OPTIONS_TOOLTIPS.jsonLogging}
+        requires="json_log"
         checked={jsonLogging}
         onChange={onToggleJsonLogging}
       />
