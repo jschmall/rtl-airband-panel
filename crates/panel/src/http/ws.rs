@@ -9,7 +9,7 @@
 //! instead of acting on stale events.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -127,21 +127,26 @@ pub async fn health_watcher(state: AppState, interval: Duration) {
     }
 }
 
-/// Broadcasts a hardware snapshot every interval while any client is
-/// subscribed to the "hardware" topic. Idle otherwise: no control-socket
-/// traffic when nobody is looking.
-pub async fn hardware_watcher(state: AppState, interval: Duration) {
+/// Broadcasts a hardware snapshot every `interval` while any client is
+/// subscribed to the "hardware" topic. With nobody subscribed it still takes
+/// one every `background` (zero: never), which only feeds the recorded
+/// history (see HardwareService::snapshot).
+pub async fn hardware_watcher(state: AppState, interval: Duration, background: Duration) {
     let mut ticker = tokio::time::interval(interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut last: Option<Instant> = None;
     loop {
         ticker.tick().await;
-        if state.hardware_subscribers.load(Ordering::Relaxed) == 0 {
+        let watched = state.hardware_subscribers.load(Ordering::Relaxed) > 0;
+        if !watched && (background.is_zero() || last.is_some_and(|t| t.elapsed() < background)) {
             continue;
         }
+        last = Some(Instant::now());
         match state.hardware.snapshot().await {
-            Ok(snapshot) => {
+            Ok(snapshot) if watched => {
                 let _ = state.events.send(json!({ "type": "hardware", "data": snapshot }));
             }
+            Ok(_) => {}
             Err(e) => tracing::warn!("hardware snapshot failed: {e}"),
         }
     }

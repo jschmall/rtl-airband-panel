@@ -10,10 +10,11 @@ mod view;
 
 use airband_config::RtlAirbandConfig;
 
+pub use checks::devices::usable_window_hz;
 pub use constants::*;
 pub use types::{Severity, ValidationIssue, ValidationResult};
 
-use checks::{channels, devices, fork_features, fork_v6, globals, mixers, outputs};
+use checks::{channels, devices, fork_features, fork_v6, globals, mixers, outputs, whole_numbers};
 use types::Issues;
 
 type Check = fn(&RtlAirbandConfig, &mut Issues);
@@ -55,6 +56,7 @@ const CHECKS: &[Check] = &[
     fork_v6::stats_update_interval,
     fork_v6::split_file_settings,
     fork_v6::unknown_settings,
+    whole_numbers::whole_numbers,
 ];
 
 pub fn validate_config(config: &RtlAirbandConfig) -> ValidationResult {

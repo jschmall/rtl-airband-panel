@@ -3,23 +3,36 @@
 
 use std::collections::HashMap;
 
-use airband_config::domain::{Channel, RtlAirbandConfig};
+use airband_config::domain::{Channel, Device, RtlAirbandConfig};
 
 use crate::constants::*;
 use crate::types::Issues;
 use crate::view::{ChannelView, is_scan_device, js};
+
+/// A non-scan device's centerfreq and the half-width of its usable capture
+/// window. None for a scan-mode device (it retunes per frequency) or one
+/// without a centerfreq.
+fn window(device: &Device) -> Option<(f64, f64)> {
+    let centerfreq = device.centerfreq?;
+    if is_scan_device(device) {
+        return None;
+    }
+    let sample_rate = device.sample_rate.unwrap_or(DEFAULT_SAMPLE_RATE_HZ);
+    Some((centerfreq, (sample_rate / 2.0) * SOFT_BW_THRESHOLD))
+}
+
+/// The usable capture window (low, high Hz) frequency_window checks a
+/// device's channels against; see `window`.
+pub fn usable_window_hz(device: &Device) -> Option<(f64, f64)> {
+    window(device).map(|(centerfreq, bw_limit)| (centerfreq - bw_limit, centerfreq + bw_limit))
+}
 
 /// Warns (RTLSDR-Airband itself only logs a warning) when a channel sits
 /// outside the SDR's usable capture bandwidth around its device's
 /// centerfreq. Not applicable to scan-mode devices, which retune per frequency.
 pub fn frequency_window(config: &RtlAirbandConfig, issues: &mut Issues) {
     for (di, device) in config.devices.iter().enumerate() {
-        let Some(centerfreq) = device.centerfreq else { continue };
-        if is_scan_device(device) {
-            continue;
-        }
-        let sample_rate = device.sample_rate.unwrap_or(DEFAULT_SAMPLE_RATE_HZ);
-        let bw_limit = (sample_rate / 2.0) * SOFT_BW_THRESHOLD;
+        let Some((centerfreq, bw_limit)) = window(device) else { continue };
         for (ci, channel) in device.channels.iter().enumerate() {
             let Some(freq) = channel.freq() else { continue };
             if (freq - centerfreq).abs() < bw_limit {

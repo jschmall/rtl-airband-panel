@@ -17,6 +17,79 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::service::InstanceService;
+use crate::stats_db::{HardwareSample, StatsDb};
+
+/// Recent readings of every SDR, from the stats DB, so the Hardware page's
+/// trends and gain advice start from history instead of an empty page.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct HardwareHistory {
+    pub sdrs: Vec<SdrHistory>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SdrHistory {
+    pub instance: String,
+    /// As SdrHealth.index: among the config's non-disabled devices.
+    pub index: u32,
+    /// Oldest first.
+    pub points: Vec<HardwareHistoryPoint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct HardwareHistoryPoint {
+    #[ts(type = "number")]
+    pub ts: i64,
+    pub headroom_db: Option<f64>,
+    pub noise_floor_dbfs: Option<f64>,
+    pub freq_error_ppm: Option<f64>,
+    pub gain_db: Option<f64>,
+}
+
+/// Groups DB rows (oldest first) by SDR, keeping each SDR's first-seen order.
+fn group_history(rows: Vec<HardwareSample>) -> HardwareHistory {
+    let mut sdrs: Vec<SdrHistory> = Vec::new();
+    let mut at: HashMap<(String, u32), usize> = HashMap::new();
+    for r in rows {
+        let i = *at.entry((r.instance.clone(), r.device)).or_insert_with(|| {
+            sdrs.push(SdrHistory { instance: r.instance.clone(), index: r.device, points: Vec::new() });
+            sdrs.len() - 1
+        });
+        sdrs[i].points.push(HardwareHistoryPoint {
+            ts: r.ts,
+            headroom_db: r.headroom_db,
+            noise_floor_dbfs: r.noise_floor_dbfs,
+            freq_error_ppm: r.freq_error_ppm,
+            gain_db: r.gain_db,
+        });
+    }
+    HardwareHistory { sdrs }
+}
+
+/// The DB rows for a snapshot's live SDRs; instances that aren't live have no readings.
+fn history_rows(snapshot: &HardwareSnapshot) -> Vec<HardwareSample> {
+    snapshot
+        .instances
+        .iter()
+        .filter(|i| i.live)
+        .flat_map(|i| {
+            i.devices.iter().map(|d| HardwareSample {
+                instance: i.name.clone(),
+                device: d.index,
+                ts: snapshot.sampled_at_ms as i64,
+                headroom_db: d.headroom_db,
+                noise_floor_dbfs: d.noise_floor_dbfs,
+                freq_error_ppm: d.freq_error_ppm,
+                gain_db: d.gain_db,
+            })
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 #[ts(export)]
@@ -51,6 +124,9 @@ pub struct SdrHealth {
     /// Index among the config's non-disabled devices: what rtl_airband,
     /// its stats file and its control socket call `device`.
     pub index: u32,
+    /// Position in the config's `devices` list, disabled devices included:
+    /// what the editor's `$.devices[n]` paths use.
+    pub config_index: u32,
     /// The config's `type` (rtlsdr, soapysdr, ...).
     pub driver: String,
     pub serial: Option<String>,
@@ -205,10 +281,11 @@ fn channel_disabled(channel: &Channel) -> bool {
 
 /// The config's view of one device: everything is "as configured", no
 /// live readings.
-fn config_sdr(index: u32, device: &Device) -> SdrHealth {
+fn config_sdr(index: u32, config_index: u32, device: &Device) -> SdrHealth {
     let (gain_db, gain_text) = config_gain(device);
     SdrHealth {
         index,
+        config_index,
         driver: device.device_type.clone(),
         serial: device.serial.clone(),
         device_string: device.device_string.clone(),
@@ -315,9 +392,10 @@ pub fn derive_devices(
     let mut sdrs: Vec<SdrHealth> = config
         .devices
         .iter()
-        .filter(|d| d.disable != Some(true))
         .enumerate()
-        .map(|(i, d)| config_sdr(i as u32, d))
+        .filter(|(_, d)| d.disable != Some(true))
+        .enumerate()
+        .map(|(i, (ci, d))| config_sdr(i as u32, ci as u32, d))
         .collect();
     let Some(report) = report else { return sdrs };
     for status in &report.devices {
@@ -339,14 +417,38 @@ pub struct HardwareService {
     instances: Arc<InstanceService>,
     client: ControlSocketClient,
     counters: Mutex<HashMap<String, HashMap<u32, CounterSample>>>,
+    db: Arc<StatsDb>,
 }
 
 impl HardwareService {
-    pub fn new(instances: Arc<InstanceService>, timeout: Duration) -> Self {
-        HardwareService { instances, client: ControlSocketClient::new(timeout), counters: Mutex::default() }
+    pub fn new(instances: Arc<InstanceService>, timeout: Duration, db: Arc<StatsDb>) -> Self {
+        HardwareService { instances, client: ControlSocketClient::new(timeout), counters: Mutex::default(), db }
     }
 
+    /// Every SDR's readings from the last `window_ms`.
+    pub fn history(&self, window_ms: i64) -> Result<HardwareHistory, crate::error::ApiError> {
+        let rows = self
+            .db
+            .hardware_history(crate::stats_db::now_ms() - window_ms)
+            .map_err(|e| crate::error::ApiError::Internal(e.to_string()))?;
+        Ok(group_history(rows))
+    }
+
+    /// Takes a snapshot and records its live readings in the stats DB.
+    /// Recording is best-effort: a DB error is logged, not returned.
     pub async fn snapshot(&self) -> Result<HardwareSnapshot, crate::error::ApiError> {
+        let snapshot = self.take_snapshot().await?;
+        let rows = history_rows(&snapshot);
+        let db = self.db.clone();
+        match tokio::task::spawn_blocking(move || db.insert_hardware(&rows)).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::warn!("recording hardware history failed: {e}"),
+            Err(e) => tracing::warn!("recording hardware history failed: {e}"),
+        }
+        Ok(snapshot)
+    }
+
+    async fn take_snapshot(&self) -> Result<HardwareSnapshot, crate::error::ApiError> {
         let health = self.instances.all_health().await?;
         let results = futures::future::join_all(health.into_iter().map(|(name, status)| async move {
             let config = self.instances.configs.read(&name).await.map(|c| c.config);
@@ -481,7 +583,10 @@ devices: (
         let sdrs = derive_devices(&config(TWO_DEVICES), None, Instant::now(), &mut HashMap::new());
         assert_eq!(sdrs.len(), 1);
         let sdr = &sdrs[0];
-        assert_eq!((sdr.index, sdr.serial.as_deref(), sdr.gain_db), (0, Some("00000002"), Some(33.8)));
+        assert_eq!(
+            (sdr.index, sdr.config_index, sdr.serial.as_deref(), sdr.gain_db),
+            (0, 1, Some("00000002"), Some(33.8))
+        );
         assert_eq!(sdr.center_freq_hz, Some(120_000_000.0));
         let freqs: Vec<(u32, f64)> = sdr.channels.iter().map(|c| (c.channel, c.freq_hz)).collect();
         assert_eq!(freqs, [(0, 120_100_000.0), (1, 120_300_000.0), (2, 120_400_000.0)]);

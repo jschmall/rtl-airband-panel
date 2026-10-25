@@ -1,4 +1,4 @@
-import type { InstanceHardware, SdrHealth } from "../api/client.js";
+import type { HardwareHistory, HardwareHistoryPoint, InstanceHardware, SdrHealth } from "../api/client.js";
 
 export type HealthLevel = "good" | "warning" | "critical";
 
@@ -97,9 +97,14 @@ export function gainText(sdr: SdrHealth): string {
   return "—";
 }
 
-/** A next step shown under a reading: something to change, or a confirmation that nothing needs to. */
+/**
+ * A next step shown under a reading. `warn`: something should change
+ * (clipping, lower the gain, fix the correction). `info`: an optional
+ * improvement (room to raise the gain). `ok`: nothing needs to change.
+ * `pending`: not enough readings for a verdict yet.
+ */
 export interface Advice {
-  tone: "ok" | "action";
+  tone: "ok" | "warn" | "info" | "pending";
   text: string;
 }
 
@@ -114,7 +119,7 @@ export function correctionAdvice(sdr: SdrHealth): Advice | null {
   if (sdr.suggestedCorrection === null || sdr.suggestedCorrection === current) {
     return { tone: "ok", text: "Correction OK" };
   }
-  return { tone: "action", text: `Set correction to ${sdr.suggestedCorrection} ppm (now ${current})` };
+  return { tone: "warn", text: `Set correction to ${sdr.suggestedCorrection} ppm (now ${current})` };
 }
 
 /** Gain steps (dB) of the R820T/R828D tuners on most rtl-sdr dongles; librtlsdr rounds to these. */
@@ -126,8 +131,14 @@ export const R820T_GAINS_DB = [
 /** Headroom the gain advice aims for, and the band it leaves alone (dB below full scale). */
 export const GAIN_TARGET_HEADROOM_DB = 6;
 export const GAIN_IDEAL_HEADROOM_DB = { min: 3, max: 12 } as const;
-/** How much history a "raise gain" suggestion needs: quiet minutes can hide a strong transmitter. */
-export const GAIN_RAISE_MIN_HISTORY_MS = 2 * 60_000;
+/**
+ * How much history at the current gain any gain verdict needs, short of
+ * live clipping: quiet minutes can hide a strong transmitter, and one loud
+ * second shouldn't call for a lower gain.
+ */
+export const GAIN_ADVICE_MIN_HISTORY_MS = 2 * 60_000;
+
+const COLLECTING: Advice = { tone: "pending", text: "Collecting readings…" };
 
 function snapGain(sdr: SdrHealth, current: number, target: number): number {
   const onTable = sdr.driver === "rtlsdr" && R820T_GAINS_DB.some((g) => Math.abs(g - current) < 0.05);
@@ -143,10 +154,11 @@ function formatGain(db: number): string {
 /**
  * Gain advice from the worst (smallest) headroom in the SDR's recent
  * history, so a transmission a minute ago still counts: lower the gain when
- * peaks reach within GAIN_IDEAL_HEADROOM_DB.min of full scale (or samples
- * are clipping), raise it when even the strongest peak stayed more than
- * GAIN_IDEAL_HEADROOM_DB.max below for a couple of minutes. Either way the
- * suggestion moves the worst peak to GAIN_TARGET_HEADROOM_DB.
+ * peaks reach within GAIN_IDEAL_HEADROOM_DB.min of full scale, raise it when
+ * even the strongest peak stayed more than GAIN_IDEAL_HEADROOM_DB.max below.
+ * Either way the suggestion moves the worst peak to GAIN_TARGET_HEADROOM_DB.
+ * Samples clipping right now call for a lower gain at once; anything else
+ * waits for GAIN_ADVICE_MIN_HISTORY_MS of readings at the current gain.
  */
 export function gainAdvice(sdr: SdrHealth, allHistory: readonly HistoryPoint[]): Advice | null {
   // Only readings taken at the current gain (a live set_gain keeps the history).
@@ -157,25 +169,28 @@ export function gainAdvice(sdr: SdrHealth, allHistory: readonly HistoryPoint[]):
   if (sdr.headroomDb !== null) headrooms.push(sdr.headroomDb);
   if (headrooms.length === 0) return null;
   const worst = Math.min(...headrooms);
-  const clipping = (sdr.clippedPerSec ?? 0) > 0 || worst < GAIN_IDEAL_HEADROOM_DB.min;
+  const clippingNow = (sdr.clippedPerSec ?? 0) > 0;
+  const span = history.length > 1 ? history[history.length - 1]!.ts - history[0]!.ts : 0;
+  const warmedUp = span >= GAIN_ADVICE_MIN_HISTORY_MS;
+  const tooHot = clippingNow || (warmedUp && worst < GAIN_IDEAL_HEADROOM_DB.min);
   const current = sdr.gainDb;
   if (current === null) {
-    return clipping ? { tone: "action", text: "Clipping under automatic gain: set a manual gain" } : null;
+    return tooHot ? { tone: "warn", text: "Clipping under automatic gain: set a manual gain" } : null;
   }
-  if (clipping) {
+  if (tooHot) {
     let next = snapGain(sdr, current, current - (GAIN_TARGET_HEADROOM_DB - worst));
     if (next >= current) next = snapGain(sdr, current, current - 1);
-    if (next >= current) return { tone: "action", text: "Clipping at minimum gain: add attenuation or a filter" };
-    return { tone: "action", text: `Lower gain to ${formatGain(next)} (now ${formatGain(current)})` };
+    if (next >= current) return { tone: "warn", text: "Clipping at minimum gain: add attenuation or a filter" };
+    return { tone: "warn", text: `Lower gain to ${formatGain(next)} (now ${formatGain(current)})` };
   }
-  const span = history.length > 1 ? history[history.length - 1]!.ts - history[0]!.ts : 0;
-  if (worst > GAIN_IDEAL_HEADROOM_DB.max && span >= GAIN_RAISE_MIN_HISTORY_MS) {
+  if (!warmedUp) return COLLECTING;
+  if (worst > GAIN_IDEAL_HEADROOM_DB.max) {
     const next = snapGain(sdr, current, current + (worst - GAIN_TARGET_HEADROOM_DB));
     if (next > current) {
-      return { tone: "action", text: `Room to raise gain to ${formatGain(next)} (now ${formatGain(current)})` };
+      return { tone: "info", text: `Room to raise gain to ${formatGain(next)} (now ${formatGain(current)})` };
     }
   }
-  return { tone: "ok", text: worst > GAIN_IDEAL_HEADROOM_DB.max ? "Gain OK so far" : "Gain OK" };
+  return { tone: "ok", text: "Gain OK" };
 }
 
 /** Why an instance's readings aren't live, in words. */
@@ -198,19 +213,47 @@ export function notLiveReason(reason: string | null, detail: string | null): str
   }
 }
 
-export interface HistoryPoint {
-  ts: number;
-  headroomDb: number | null;
-  noiseFloorDbfs: number | null;
-  freqErrorPpm: number | null;
-  gainDb: number | null;
-}
+/** One SDR's readings at one snapshot; the same shape GET /api/hardware/history returns. */
+export type HistoryPoint = HardwareHistoryPoint;
 
 export const HISTORY_WINDOW_MS = 5 * 60_000;
+
+/** The instance editor, opened at this SDR's device section (see InstanceEditPage's `device` parameter). */
+export function sdrEditorHref(instance: string, sdr: SdrHealth): string {
+  return `${instanceEditorHref(instance)}?device=${sdr.configIndex}`;
+}
+
+export function instanceEditorHref(instance: string): string {
+  return `/instances/${encodeURIComponent(instance)}`;
+}
 
 /** Key for an SDR's history across snapshots: instance plus device index. */
 export function sdrKey(instance: string, sdr: SdrHealth): string {
   return `${instance}/${sdr.index}`;
+}
+
+/**
+ * Merges recorded history (GET /api/hardware/history) into the page's
+ * history: points are unioned by timestamp, so a snapshot both recorded and
+ * already appended isn't counted twice. SDRs with no recorded points keep
+ * their own. Returns a new map.
+ */
+export function mergeHistory(
+  history: ReadonlyMap<string, HistoryPoint[]>,
+  recorded: HardwareHistory,
+  now: number,
+  windowMs = HISTORY_WINDOW_MS
+): Map<string, HistoryPoint[]> {
+  const next = new Map(history);
+  for (const { instance, index, points } of recorded.sdrs) {
+    const key = `${instance}/${index}`;
+    const byTs = new Map<number, HistoryPoint>();
+    for (const p of [...points, ...(history.get(key) ?? [])]) {
+      if (p.ts > now - windowMs) byTs.set(p.ts, p);
+    }
+    next.set(key, [...byTs.values()].sort((a, b) => a.ts - b.ts));
+  }
+  return next;
 }
 
 /**

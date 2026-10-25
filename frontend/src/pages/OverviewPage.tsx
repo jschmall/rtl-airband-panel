@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { api, type InstanceStatsSummary, type InstanceSummary } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { formatDateTime, formatUptime } from "../lib/time-format.js";
-import { formatCpuSeconds } from "../lib/stats-format.js";
 import { GuardedLink } from "../components/GuardedLink.js";
 import { HealthLight, healthLabel } from "../components/HealthLight.js";
 
@@ -15,7 +14,7 @@ function frequencies(instance: InstanceSummary): number[] {
 
 function Counter({ label, value, title }: { label: string; value: number; title: string }) {
   return (
-    <div title={title}>
+    <div title={title} className="text-right">
       <dt className="text-[11px] uppercase tracking-wide text-slate-500">{label}</dt>
       <dd className={`tabular-nums ${value > 0 ? "font-semibold text-amber-300" : "text-slate-300"}`}>{value}</dd>
     </div>
@@ -25,6 +24,7 @@ function Counter({ label, value, title }: { label: string; value: number; title:
 function InstanceCard({ instance, summary }: { instance: InstanceSummary; summary?: InstanceStatsSummary }) {
   const state = instance.status.activeState;
   const freqs = frequencies(instance);
+  const windows = instance.deviceWindows ?? [];
   const running = state === "active";
   return (
     <GuardedLink
@@ -63,15 +63,22 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
           </>
         )}
       </p>
+      {windows.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-xs text-slate-500">
+          {windows.map((w, i) => (
+            <li key={i} title="Where a new channel fits on this SDR: its usable capture window around the center frequency">
+              {windows.length > 1 && w.serial ? `SN ${w.serial} window` : "Window"}{" "}
+              <span className="tabular-nums text-slate-400">
+                {(w.lowHz / 1e6).toFixed(3)}–{(w.highHz / 1e6).toFixed(3)} MHz
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-slate-800 pt-3 text-sm">
+      <dl className="mt-3 flex justify-end gap-6 border-t border-slate-800 pt-3 text-sm">
         <Counter label="Overflows" value={summary?.bufferOverflowTotal ?? 0} title="Device buffer overflows (samples dropped before demodulation)" />
-        <Counter label="Overruns" value={summary?.outputOverrunTotal ?? 0} title="Output overruns across devices and mixers" />
         <Counter label="Failures" value={summary?.outputFailureTotal ?? 0} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
-        <div title="Process CPU time since start">
-          <dt className="text-[11px] uppercase tracking-wide text-slate-500">CPU</dt>
-          <dd className="tabular-nums text-slate-300">{formatCpuSeconds(summary?.processCpuSeconds)}</dd>
-        </div>
       </dl>
       {!running && instance.status.activeEnterTimestamp && (
         <p className="mt-2 text-xs text-slate-500">Last started {formatDateTime(instance.status.activeEnterTimestamp)}</p>
@@ -80,12 +87,32 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
   );
 }
 
-function Tally({ label, value, tone }: { label: string; value: number; tone?: "ok" | "warn" | "bad" }) {
+interface Tally {
+  label: string;
+  value: number;
+  tone?: "ok" | "warn" | "bad";
+}
+
+function TallyValue({ label, value, tone }: Tally) {
   const color = value === 0 || !tone ? "text-slate-50" : tone === "ok" ? "text-emerald-400" : tone === "warn" ? "text-amber-300" : "text-red-400";
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 px-4 py-3">
+    <div>
       <p className={`text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
       <p className="text-xs text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+/** One summary tile holding two related counts side by side. */
+function TallyPair({ left, right }: { left: Tally; right: Tally }) {
+  return (
+    <div className="grid grid-cols-2 divide-x divide-slate-800 rounded-lg border border-slate-800 bg-slate-900/50 py-3">
+      <div className="px-4">
+        <TallyValue {...left} />
+      </div>
+      <div className="px-4">
+        <TallyValue {...right} />
+      </div>
     </div>
   );
 }
@@ -126,11 +153,15 @@ export function OverviewPage() {
       <div className="flex items-end justify-between">
         <h1 className="text-xl font-semibold text-slate-50">Overview</h1>
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tally label="Instances" value={instances.length} />
-        <Tally label="Running" value={count((i) => i.status.activeState === "active")} tone="ok" />
-        <Tally label="Failed" value={count((i) => i.status.activeState === "failed")} tone="bad" />
-        <Tally label="Pending restart" value={count((i) => i.pendingRestart)} tone="warn" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TallyPair
+          left={{ label: "Instances", value: instances.length }}
+          right={{ label: "Running", value: count((i) => i.status.activeState === "active"), tone: "ok" }}
+        />
+        <TallyPair
+          left={{ label: "Failed", value: count((i) => i.status.activeState === "failed"), tone: "bad" }}
+          right={{ label: "Pending restart", value: count((i) => i.pendingRestart), tone: "warn" }}
+        />
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {instances.map((instance) => (

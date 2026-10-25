@@ -49,15 +49,16 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
         },
     );
     let service = Arc::new(service);
+    let db = Arc::new(StatsDb::open(&settings.stats_db_path()).map_err(|e| format!("opening stats DB: {e}"))?);
     let hardware = Arc::new(HardwareService::new(
         service.clone(),
         Duration::from_millis(settings.control_socket_timeout_ms.min(2_000)),
+        db.clone(),
     ));
-    let db = StatsDb::open(&settings.stats_db_path()).map_err(|e| format!("opening stats DB: {e}"))?;
     let (events, _) = broadcast::channel(256);
     let state = AppState {
         service,
-        stats: Arc::new(StatsService { db: Arc::new(db), poll_status: Arc::new(PollStatusTracker::default()) }),
+        stats: Arc::new(StatsService { db, poll_status: Arc::new(PollStatusTracker::default()) }),
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
         allowed_hosts: Arc::new(
@@ -117,6 +118,7 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let hardware_watcher = tokio::spawn(http::ws::hardware_watcher(
         app.state.clone(),
         Duration::from_millis(settings.hardware_poll_interval_ms.max(250)),
+        Duration::from_millis(settings.hardware_background_poll_interval_ms),
     ));
 
     let addr = SocketAddr::new(settings.host, settings.port);

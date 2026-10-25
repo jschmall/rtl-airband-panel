@@ -386,6 +386,7 @@ for the full list.
 | `RTL_PANEL_STATS_PRUNE_INTERVAL_MS` | `--stats-prune-interval-ms` | `3600000` | How often old stats are cleaned up, in milliseconds |
 | `RTL_PANEL_CONTROL_SOCKET_TIMEOUT_MS` | `--control-socket-timeout-ms` | `8000` | How long Apply live waits for an answer, in milliseconds |
 | `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS` | `--hardware-poll-interval-ms` | `1000` | How often the Hardware page's live readings refresh while someone has it open, in milliseconds |
+| `RTL_PANEL_HARDWARE_BACKGROUND_POLL_INTERVAL_MS` | `--hardware-background-poll-interval-ms` | `15000` | How often the Hardware page's readings are recorded while nobody has it open, so its gain advice opens with recent history, in milliseconds (`0` turns it off) |
 | `RTL_PANEL_LOG_LEVEL` | `--log-level` | `info` | How much the panel logs: `error`, `warn`, `info`, `debug` |
 | `RTL_PANEL_LOG_FILE` | `--log-file` | none | Write the panel's log to this file instead of the system journal |
 

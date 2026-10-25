@@ -27,6 +27,19 @@ pub struct HistoryPoint {
     pub value: f64,
 }
 
+/// One SDR's Hardware-page readings at one poll (see hardware.rs), kept so
+/// the page's gain advice starts from recent history instead of nothing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HardwareSample {
+    pub instance: String,
+    pub device: u32,
+    pub ts: i64,
+    pub headroom_db: Option<f64>,
+    pub noise_floor_dbfs: Option<f64>,
+    pub freq_error_ppm: Option<f64>,
+    pub gain_db: Option<f64>,
+}
+
 pub struct HistoryQuery {
     pub metric: String,
     pub labels: BTreeMap<String, String>,
@@ -76,7 +89,17 @@ impl StatsDb {
                ts INTEGER NOT NULL
              );
              CREATE INDEX IF NOT EXISTS idx_samples_series_ts ON samples(series_id, ts);
-             CREATE INDEX IF NOT EXISTS idx_samples_ts ON samples(ts);",
+             CREATE INDEX IF NOT EXISTS idx_samples_ts ON samples(ts);
+             CREATE TABLE IF NOT EXISTS hardware_samples (
+               instance TEXT NOT NULL,
+               device INTEGER NOT NULL,
+               ts INTEGER NOT NULL,
+               headroom_db REAL,
+               noise_floor_dbfs REAL,
+               freq_error_ppm REAL,
+               gain_db REAL
+             );
+             CREATE INDEX IF NOT EXISTS idx_hardware_samples_ts ON hardware_samples(ts);",
         )?;
         Ok(StatsDb { conn: Mutex::new(conn), series_ids: Mutex::new(HashMap::new()) })
     }
@@ -209,6 +232,43 @@ impl StatsDb {
         rows.collect()
     }
 
+    pub fn insert_hardware(&self, rows: &[HardwareSample]) -> rusqlite::Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        for r in rows {
+            tx.execute(
+                "INSERT INTO hardware_samples (instance, device, ts, headroom_db, noise_floor_dbfs, freq_error_ppm, gain_db)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                params![r.instance, r.device, r.ts, r.headroom_db, r.noise_floor_dbfs, r.freq_error_ppm, r.gain_db],
+            )?;
+        }
+        tx.commit()
+    }
+
+    /// Every SDR's hardware samples since `since_ms`, oldest first.
+    pub fn hardware_history(&self, since_ms: i64) -> rusqlite::Result<Vec<HardwareSample>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT instance, device, ts, headroom_db, noise_floor_dbfs, freq_error_ppm, gain_db
+               FROM hardware_samples WHERE ts >= ? ORDER BY ts ASC",
+        )?;
+        let rows = stmt.query_map(params![since_ms], |r| {
+            Ok(HardwareSample {
+                instance: r.get(0)?,
+                device: r.get(1)?,
+                ts: r.get(2)?,
+                headroom_db: r.get(3)?,
+                noise_floor_dbfs: r.get(4)?,
+                freq_error_ppm: r.get(5)?,
+                gain_db: r.get(6)?,
+            })
+        })?;
+        rows.collect()
+    }
+
     /// Deletes samples older than `retention_days` (<= 0 keeps everything) and orphaned series.
     pub fn prune(&self, retention_days: f64) -> rusqlite::Result<()> {
         if retention_days <= 0.0 {
@@ -217,6 +277,7 @@ impl StatsDb {
         let cutoff = now_ms() - (retention_days * 86_400_000.0) as i64;
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM samples WHERE ts < ?", params![cutoff])?;
+        conn.execute("DELETE FROM hardware_samples WHERE ts < ?", params![cutoff])?;
         let orphaned =
             conn.execute("DELETE FROM series WHERE id NOT IN (SELECT DISTINCT series_id FROM samples)", [])?;
         if orphaned > 0 {
@@ -270,5 +331,27 @@ mod tests {
         db.prune(7.0).unwrap();
         assert!(db.latest("a").unwrap().is_empty(), "samples from 1970 are older than 7 days");
         db.ping().unwrap();
+    }
+
+    #[test]
+    fn hardware_history_round_trips_and_prunes() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = StatsDb::open(&dir.path().join("stats.db")).unwrap();
+        let row = |instance: &str, device, ts| HardwareSample {
+            instance: instance.into(),
+            device,
+            ts,
+            headroom_db: Some(4.5),
+            noise_floor_dbfs: None,
+            freq_error_ppm: Some(-0.4),
+            gain_db: Some(37.2),
+        };
+        db.insert_hardware(&[row("a", 0, 1000), row("a", 1, 1000)]).unwrap();
+        db.insert_hardware(&[row("a", 0, 2000)]).unwrap();
+
+        assert_eq!(db.hardware_history(0).unwrap(), [row("a", 0, 1000), row("a", 1, 1000), row("a", 0, 2000)]);
+        assert_eq!(db.hardware_history(1001).unwrap(), [row("a", 0, 2000)]);
+        db.prune(7.0).unwrap();
+        assert!(db.hardware_history(0).unwrap().is_empty(), "samples from 1970 are older than 7 days");
     }
 }

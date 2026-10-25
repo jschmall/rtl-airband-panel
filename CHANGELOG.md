@@ -5,6 +5,88 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.5] - 2026-10-25
+
+### Changed
+
+- **The instance page is reordered, and every section collapses (#12).**
+  The order is now Service account, Instance settings, Devices, Mixers,
+  Logs. Instance settings has a title, and the Devices and Mixers groups
+  show how many each holds. Logs stay collapsed by default, as before. A
+  validation issue or a Hardware page link opens whatever it points into,
+  even inside a collapsed group.
+
+## [0.6.4] - 2026-10-25
+
+### Changed
+
+- **Overview page reworked (#12).**
+  - The four summary tiles are now two: Instances with Running, and Failed
+    with Pending restart.
+  - Instance cards show each SDR's usable window under its frequencies
+    (e.g. "Window 154.370–155.630 MHz"): where a new channel fits without
+    an out-of-window warning. It's the same window the validator checks
+    against, sent as `deviceWindows` in `/api/instances`.
+  - Instance cards drop the Overruns and CPU counters. Overflows and
+    Failures sit on the right.
+
+## [0.6.3] - 2026-10-25
+
+### Added
+
+- **The Hardware page links to the editor (#11).** An instance's name opens
+  that instance. An SDR's title opens its instance scrolled to that device,
+  with its settings expanded. They're ordinary links, so they also open in
+  a new tab. Each SDR in `/api/hardware` now carries `configIndex`, its
+  position in the config's `devices` list.
+
+### Fixed
+
+- **Jumping to a section scrolls to it once it's open.** Clicking a
+  validation issue scrolled before the section expanded, so a long device
+  could end up with its settings below the screen. Sections now scroll
+  after they open: a tall one to its top, a short one to the middle.
+
+## [0.6.2] - 2026-10-25
+
+### Fixed
+
+- **The Hardware page's gain advice no longer starts from nothing on every
+  visit (#10).**
+  - The panel now records each live SDR's headroom, noise floor, frequency
+    error and gain in its stats database every time it reads them. The
+    page loads the last 5 minutes when it opens (`GET
+    /api/hardware/history`), so a reload keeps its trends and advice.
+  - Readings are also taken every 15 seconds while nobody has the page
+    open (`RTL_PANEL_HARDWARE_BACKGROUND_POLL_INTERVAL_MS`; `0` turns this
+    off), so the history covers that time too.
+  - "Lower gain" now waits for two minutes of readings at the current
+    gain, as "Raise gain" already did. Until then the page says
+    "Collecting readings…". Samples clipping right now still call for a
+    lower gain at once.
+- **Lower and raise suggestions look different (#10).** Lowering the gain
+  (and fixing the correction) is amber with an arrow. Room to raise the
+  gain is blue with an up arrow. Collecting readings is grey.
+
+## [0.6.1] - 2026-10-25
+
+### Fixed
+
+- **Decimal values can be typed again (#13).** Fields that parse as you
+  type, such as device gain and the comma-separated scan channel fields
+  (frequencies, labels, modulations, per-frequency values), dropped a `.`
+  or `,` as soon as it was typed. That made a gain like `37.2`, or a
+  second list entry, impossible to enter. These fields now keep what you
+  type while it still means the same value.
+- **Settings rtl_airband reads as whole numbers now reject decimals.** A new
+  `not-whole-number` validation error blocks saving one. A decimal in a Hz
+  setting (`centerfreq`, `sample_rate`, `freq`/`freqs`, channel
+  `bandwidth`) would be read as MHz, and in the other integer settings
+  rtl_airband wouldn't start. Settings the fork takes as decimals (gain,
+  soapysdr correction, ampfactor, balance, ctcss, notch, notch_q,
+  squelch_snr_threshold, min_rx_seconds) are unaffected. The correction
+  and SNR squelch fields also step correctly for decimal values.
+
 ## [0.6.0] - 2026-10-25
 
 ### Changed

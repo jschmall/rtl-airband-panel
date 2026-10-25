@@ -320,6 +320,8 @@ async fn instance_list_reports_active_frequencies() {
     let h = harness(&[]);
     let (_, _, list) = send(&h.router, get("/api/instances")).await;
     assert_eq!(list[0]["frequencies"], json!([151100000.0, 151200000.0]));
+    // 151 MHz at the default 2.56 Msps, 90% of the Nyquist half-width either side.
+    assert_eq!(list[0]["deviceWindows"], json!([{ "serial": "1", "lowHz": 149848000.0, "highHz": 152152000.0 }]));
 }
 
 #[tokio::test]
@@ -382,6 +384,37 @@ async fn hardware_endpoint_joins_config_with_live_status() {
     assert_eq!(sdr["channels"].as_array().unwrap().len(), 2);
     assert_eq!(sdr["channels"][0]["squelchOpen"], true);
     assert_eq!(sdr["channels"][0]["snrDb"], 22.0);
+}
+
+#[tokio::test]
+async fn hardware_snapshots_are_recorded_as_history() {
+    let h = harness(&[]);
+    let (status, _, history) = send(&h.router, get("/api/hardware/history")).await;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    assert_eq!(history["sdrs"], serde_json::json!([]));
+
+    let _sock = fake_socket(&h.socket, STATUS_REPLY);
+    let (_, _, snap) = send(&h.router, get("/api/hardware")).await;
+    let (status, _, history) = send(&h.router, get("/api/hardware/history?windowMs=60000")).await;
+    assert_eq!(status, StatusCode::OK, "{history}");
+    let sdr = &history["sdrs"][0];
+    assert_eq!(sdr["instance"], "alpha");
+    assert_eq!(sdr["index"], 0);
+    assert_eq!(sdr["points"].as_array().unwrap().len(), 1, "{history}");
+    assert_eq!(sdr["points"][0]["ts"], snap["sampledAtMs"]);
+    assert_eq!(sdr["points"][0]["headroomDb"], 7.25);
+    assert_eq!(sdr["points"][0]["gainDb"], 28.0);
+
+    assert_eq!(send(&h.router, get("/api/hardware/history?windowMs=0")).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(send(&h.router, get("/api/hardware/history?windowMs=abc")).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn hardware_history_skips_instances_that_are_not_live() {
+    let h = harness(&[]); // nothing listening on the socket
+    send(&h.router, get("/api/hardware")).await;
+    let (_, _, history) = send(&h.router, get("/api/hardware/history")).await;
+    assert_eq!(history["sdrs"], serde_json::json!([]));
 }
 
 #[tokio::test]

@@ -114,3 +114,15 @@ describe("DeviceEditor frequency-range summary", () => {
     expect(screen.getByText("Channel: 0.0000 MHz (device window: 0.0000–0.0000 MHz)")).toBeInTheDocument();
   });
 });
+
+describe("DeviceEditor gain", () => {
+  it("accepts a decimal gain as it's typed", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+    const gain = screen.getByLabelText(/^Gain/);
+    await user.clear(gain);
+    await user.type(gain, "37.2");
+    expect(gain).toHaveValue("37.2");
+  });
+});
