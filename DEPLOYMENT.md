@@ -13,6 +13,13 @@ this page still applies: network access, the reverse proxy, logs and
 backups. To change a setting, edit `/etc/rtl-airband-panel/panel.env` and
 `sudo systemctl restart rtl-airband-panel`. Re-running `install.sh` never
 overwrites that file.
+- **Defaults on a re-run:** the account comes from the existing panel unit,
+  and the instances folder and unit prefix from `panel.env`. Options still
+  override them.
+- **Edited panel unit:** a unit you've edited is kept. The release's
+  version is saved as `/usr/local/lib/rtl-airband-panel/rtl-airband-panel.service`
+  so you can compare them. Prefer a drop-in
+  (`systemctl edit rtl-airband-panel`) for your own changes.
 
 The steps below are for a panel built from source, or for setting things up
 by hand.
@@ -157,14 +164,21 @@ directory, the same `.pending-restarts.json`, `.instance-options.json` and
 `.backups/`, and the same stats database, and takes the same `RTL_PANEL_*`
 settings.
 
-**With a release:** run `sudo ./install.sh --instances-dir <your configs
-folder>`. It stops the old service, saves its unit as
-`rtl-airband-panel.service.node-backup`, and installs the new one with a
-fresh `panel.env` and sudoers rule. Copy any other settings from your old
-`.env` into `/etc/rtl-airband-panel/panel.env` (step 3 below), and make
-sure the panel's user (`--user`, default `rtl-airband-panel`) can read and
-write your configs folder. If your old panel ran as a different account,
-pass that with `--user` instead.
+**With a release:** run `sudo ./install.sh`. It:
+- stops the old service and saves its unit as
+  `rtl-airband-panel.service.node-backup`;
+- keeps the account the old unit ran as (`User=`);
+- creates `/etc/rtl-airband-panel/panel.env` from the old unit's
+  `EnvironmentFile` (your `.env`):
+  - your instances folder, password and other settings carry over;
+  - relative paths, such as a stats database under the old checkout, are
+    anchored to its `WorkingDirectory`;
+  - the bundled `rtl_airband` and sudo mode are added unless you had set
+    them;
+- installs the sudoers rule for that account.
+
+Check the new `panel.env`. `--user` and `--instances-dir` override what
+the installer finds.
 
 **By hand:**
 

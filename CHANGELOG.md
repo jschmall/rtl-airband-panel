@@ -5,6 +5,36 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.1] - 2026-10-25
+
+### Fixed
+
+- **Re-running `install.sh` no longer resets an existing install to the
+  defaults.** Before, a re-run without the original options rewrote the
+  panel's service file as `User=rtl-airband-panel` and rewrote the sudo
+  rule for that account and the default unit prefix. It now keeps:
+  - **Account:** the existing panel unit's `User=`.
+  - **Instances folder and unit prefix:** from `panel.env`.
+  - **Options:** `--user`, `--instances-dir` and `--unit-prefix` still
+    override all of these.
+- **Edited panel service file:** a service file you've edited is left in
+  place. The only change is moving it to a new account if you pass
+  `--user`.
+  - **How edits are detected:** the installer keeps a copy of the unit it
+    last wrote, in `/usr/local/lib/rtl-airband-panel/`, so an unedited unit
+    from an older release is still updated.
+- **Migrating from the Node.js panel:** the installer now carries your
+  setup over instead of starting from defaults.
+  - **Account:** the old unit's account is kept.
+  - **Settings:** the new `panel.env` is built from the old unit's `.env`:
+    - your settings carry over, except `RTL_PANEL_FRONTEND_DIST`, which
+      the binary no longer needs;
+    - relative paths are anchored to the old checkout;
+    - the bundled `rtl_airband` and sudo mode are added unless you had set
+      them.
+- **Docs:** README and DEPLOYMENT.md describe the new upgrade and
+  migration behaviour.
+
 ## [0.5.0] - 2026-10-25
 
 ### Changed

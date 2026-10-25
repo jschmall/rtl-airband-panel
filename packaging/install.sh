@@ -6,11 +6,14 @@
 # Installs the panel and the bundled rtl_airband, a service user, the udev
 # rule and kernel-driver blacklist for SDR dongles, the sudoers rule, and
 # the panel's systemd service, then starts it. Running it again upgrades the
-# binaries and keeps your settings. It never touches your instances' own
-# services or configs, an existing /usr/local/bin/rtl_airband, or an
-# existing settings file.
+# binaries and keeps your setup: the account, instances folder and unit
+# prefix default to what the existing install uses, settings are never
+# overwritten, and a panel service file you've edited is left alone. An
+# old Node.js panel's account and .env settings carry over. It never
+# touches your instances' own services or configs, or an existing
+# /usr/local/bin/rtl_airband.
 #
-# Options:
+# Options (defaults are the existing install's, else the ones shown):
 #   --instances-dir DIR  Where instance .conf files live
 #                        (default: /etc/rtl-airband-panel/instances)
 #   --user NAME          Account the panel (and new instances) run as
@@ -34,9 +37,12 @@ SUDOERS_FILE=/etc/sudoers.d/rtl-airband-panel
 UDEV_FILE=/etc/udev/rules.d/60-rtl-airband-panel.rules
 BLACKLIST_FILE=/etc/modprobe.d/rtl-airband-panel-blacklist.conf
 
-instances_dir="$ETC_DIR/instances"
-user=rtl-airband-panel
+# Empty until an option or the existing install sets them; see "Existing
+# install" below for the fallbacks.
+instances_dir=""
+user=""
 unit_prefix=""
+unit_prefix_set=0
 listen_all=0
 start=1
 action=install
@@ -45,12 +51,17 @@ say() { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 die() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
 usage() { sed -n '2,/^set -eu/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }
+# The last KEY=value in a unit or env file, quotes stripped; empty if absent.
+file_value() {
+  [ -f "$2" ] || return 0
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$2" | tail -1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\\1/"
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --instances-dir) [ $# -ge 2 ] || die "--instances-dir needs a value"; instances_dir="$2"; shift 2 ;;
     --user) [ $# -ge 2 ] || die "--user needs a value"; user="$2"; shift 2 ;;
-    --unit-prefix) [ $# -ge 2 ] || die "--unit-prefix needs a value"; unit_prefix="$2"; shift 2 ;;
+    --unit-prefix) [ $# -ge 2 ] || die "--unit-prefix needs a value"; unit_prefix="$2"; unit_prefix_set=1; shift 2 ;;
     --listen-all) listen_all=1; shift ;;
     --no-start) start=0; shift ;;
     --uninstall) action=uninstall; shift ;;
@@ -62,8 +73,38 @@ done
 [ "$(id -u)" -eq 0 ] || die "run as root: sudo $0"
 command -v systemctl >/dev/null 2>&1 || die "systemd is required"
 command -v visudo >/dev/null 2>&1 || die "sudo (visudo) is required"
+
+# ------------------------------------------------------------ existing install
+
+# An upgrade keeps the existing install's choices unless an option says
+# otherwise: the account from the panel's service (the old Node.js one
+# too), the instances folder and unit prefix from panel.env. A Node.js
+# install's .env seeds the new panel.env.
+node_unit=0
+node_dir=""
+node_env=""
+[ -f "$UNIT_FILE" ] && grep -q '/usr/bin/node' "$UNIT_FILE" && node_unit=1
+existing_user="$(file_value User "$UNIT_FILE")"
+if [ "$node_unit" -eq 1 ]; then
+  node_dir="$(file_value WorkingDirectory "$UNIT_FILE")"
+  node_env="$(file_value EnvironmentFile "$UNIT_FILE" | sed 's/^-//')"
+  case "$node_env" in
+    /*) ;;
+    ?*) node_env="$node_dir/$node_env" ;;
+  esac
+  [ -n "$node_env" ] && [ -f "$node_env" ] || node_env=""
+fi
+settings_file="$ENV_FILE"
+[ -f "$settings_file" ] || settings_file="$node_env"
+if [ -n "$settings_file" ]; then
+  [ -n "$instances_dir" ] || instances_dir="$(file_value RTL_PANEL_INSTANCES_DIR "$settings_file")"
+  [ "$unit_prefix_set" -eq 1 ] || unit_prefix="$(file_value RTL_PANEL_SUDO_UNIT_PREFIX "$settings_file")"
+fi
+[ -n "$user" ] || user="${existing_user:-rtl-airband-panel}"
+[ -n "$instances_dir" ] || instances_dir="$ETC_DIR/instances"
+
 case "$unit_prefix" in *[!A-Za-z0-9_-]*) die "--unit-prefix may only contain letters, digits, _ and -" ;; esac
-case "$user" in "" | *[!a-z0-9_-]*) die "--user must be a lowercase account name" ;; esac
+case "$user" in "" | *[!a-z0-9_-]*) die "--user must be a lowercase account name (got '$user')" ;; esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
 
@@ -149,6 +190,28 @@ fi
 password=""
 if [ -f "$ENV_FILE" ]; then
   say "kept your existing settings"
+  configured_dir="$(file_value RTL_PANEL_INSTANCES_DIR "$ENV_FILE")"
+  [ "$instances_dir" = "${configured_dir:-$ETC_DIR/instances}" ] \
+    || say "note: panel.env still says RTL_PANEL_INSTANCES_DIR=${configured_dir:-(unset)}; edit it to use $instances_dir"
+elif [ -n "$node_env" ]; then
+  # Carry the Node.js panel's settings over, minus the ones the binary
+  # dropped, and add the bundled binary and stats path if they're missing.
+  umask 077
+  {
+    printf '# rtl-airband-panel settings, carried over from %s.\n' "$node_env"
+    # Relative paths were relative to the old checkout; anchor them there.
+    grep -v -e '^[[:space:]]*RTL_PANEL_FRONTEND_DIST=' -e '^[[:space:]]*RTL_PANEL_INSTANCES_DIR=' "$node_env" \
+      | sed "s#^\([[:space:]]*RTL_PANEL_[A-Z_]*\(DIR\|PATH\|BIN\)=\)\([\"']\{0,1\}\)\([^/\"'][^\"']*\)#\1\3$node_dir/\4#"
+    printf 'RTL_PANEL_INSTANCES_DIR=%s\n' "$instances_dir"
+    [ -n "$(file_value RTL_PANEL_STATS_DB_PATH "$node_env")" ] || printf 'RTL_PANEL_STATS_DB_PATH=%s\n' "$STATE_DIR/stats.db"
+    [ -n "$(file_value RTL_PANEL_SYSTEMD_MODE "$node_env")" ] || printf 'RTL_PANEL_SYSTEMD_MODE=sudo\n'
+    [ -n "$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$node_env")" ] || printf 'RTL_PANEL_RTL_AIRBAND_BIN=%s\n' "$LIB_DIR/rtl_airband"
+    [ -n "$(file_value RTL_PANEL_DEFAULT_SERVICE_USER "$node_env")" ] || printf 'RTL_PANEL_DEFAULT_SERVICE_USER=%s\nRTL_PANEL_DEFAULT_SERVICE_GROUP=%s\n' "$user" "$user"
+  } > "$ENV_FILE"
+  umask 022
+  chown "$user:$user" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+  say "created from your Node.js panel's $node_env"
 else
   host=127.0.0.1
   if [ "$listen_all" -eq 1 ]; then
@@ -187,16 +250,34 @@ rm -f "$tmp"
 say "installed (services: $glob)"
 
 step "Panel service"
-if [ -f "$UNIT_FILE" ] && grep -q '/usr/bin/node' "$UNIT_FILE"; then
-  say "replacing the old Node.js panel service (backup: $UNIT_FILE.node-backup)"
-  systemctl stop rtl-airband-panel >/dev/null 2>&1 || true
-  cp "$UNIT_FILE" "$UNIT_FILE.node-backup"
-fi
+unit_tmp="$(mktemp)"
 sed -e "s|^User=.*|User=$user|" \
     -e "s|^EnvironmentFile=.*|EnvironmentFile=$ENV_FILE|" \
     -e "s|^ExecStart=.*|ExecStart=$LIB_DIR/rtl-airband-panel|" \
-    "$here/deploy/rtl-airband-panel.service" > "$UNIT_FILE"
-chmod 0644 "$UNIT_FILE"
+    "$here/deploy/rtl-airband-panel.service" > "$unit_tmp"
+# $LIB_DIR keeps a copy of the unit as last installed: a service file that
+# still matches it (or this release's) wasn't edited and can be replaced.
+installed_unit="$LIB_DIR/rtl-airband-panel.service"
+if [ "$node_unit" -eq 1 ]; then
+  say "replacing the old Node.js panel service (backup: $UNIT_FILE.node-backup)"
+  systemctl stop rtl-airband-panel >/dev/null 2>&1 || true
+  cp "$UNIT_FILE" "$UNIT_FILE.node-backup"
+  install -m 0644 "$unit_tmp" "$UNIT_FILE"
+elif [ ! -f "$UNIT_FILE" ]; then
+  install -m 0644 "$unit_tmp" "$UNIT_FILE"
+  say "installed"
+elif cmp -s "$unit_tmp" "$UNIT_FILE"; then
+  say "up to date"
+elif cmp -s "$installed_unit" "$UNIT_FILE"; then
+  install -m 0644 "$unit_tmp" "$UNIT_FILE"
+  say "updated"
+else
+  # Edited by hand: keep it, only moving it to a newly chosen account.
+  [ "$existing_user" = "$user" ] || sed -i "s|^User=.*|User=$user|" "$UNIT_FILE"
+  say "kept your edited service file; this release's version is $installed_unit"
+fi
+install -m 0644 "$unit_tmp" "$installed_unit"
+rm -f "$unit_tmp"
 systemctl daemon-reload
 systemctl enable rtl-airband-panel >/dev/null 2>&1
 if [ "$start" -eq 1 ]; then

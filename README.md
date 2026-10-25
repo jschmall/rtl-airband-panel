@@ -118,15 +118,21 @@ Then open <http://localhost:3000> on that machine. Useful options (see
 | `--no-start` | Install but don't start the panel yet |
 
 **Upgrading:** download the new release and run `sudo ./install.sh` again.
-It replaces both programs and keeps your settings. Running instances keep
-the old `rtl_airband` until each one is restarted.
+It replaces both programs and keeps your setup:
+- `panel.env` is never overwritten.
+- The account, instances folder and unit prefix stay as they are, unless
+  you pass an option to change them.
+- If you've edited the panel's service file, it's left alone.
+
+Running instances keep the old `rtl_airband` until each one is restarted.
 
 **Uninstalling:** `sudo ./install.sh --uninstall` removes the programs, the
 panel's service and its system files. It keeps your configs, settings,
 stats and every instance's own service.
 
 **Already running the old Node.js panel?** The installer backs up its
-service file and replaces it; see
+service file and replaces it. It keeps the account the panel ran as, and
+copies your old `.env` settings into `panel.env`; see
 [Migrating from the Node.js panel](./DEPLOYMENT.md#migrating-from-the-nodejs-panel).
 
 ### Building from source
