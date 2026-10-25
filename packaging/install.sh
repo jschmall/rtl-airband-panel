@@ -30,6 +30,17 @@
 #   --with-rtl-airband   Install the bundled rtl_airband too (the default,
 #                        unless the existing install is panel-only). Asked
 #                        for when run in a terminal without either option.
+#   --separate-rtl-airband
+#                        When another rtl_airband is already installed, put
+#                        the bundled one alongside it: existing instances
+#                        keep running theirs (the default)
+#   --replace-rtl-airband
+#                        When another rtl_airband is already installed under
+#                        /usr/local, replace it with the bundled one, keeping
+#                        the original as <path>.pre-fork (restored by
+#                        --uninstall). Existing instances that run it switch
+#                        to the fork when they next restart. Asked for when
+#                        run in a terminal without either option.
 #   --no-start           Install everything but don't (re)start the panel
 #   -y, --yes            Don't ask anything; take the defaults
 #   --uninstall          Remove the panel; keep configs, settings and stats
@@ -55,6 +66,8 @@ unit_prefix_set=0
 listen_all=0
 assume_yes=0
 bundle=""
+# replace | separate: what the bundled rtl_airband does to one already installed.
+airband_mode=""
 start=1
 action=install
 
@@ -78,6 +91,8 @@ while [ $# -gt 0 ]; do
     -y | --yes) assume_yes=1; shift ;;
     --panel-only) bundle=0; shift ;;
     --with-rtl-airband) bundle=1; shift ;;
+    --replace-rtl-airband) bundle=1; airband_mode=replace; shift ;;
+    --separate-rtl-airband) bundle=1; airband_mode=separate; shift ;;
     --uninstall) action=uninstall; shift ;;
     -h | --help) usage; exit 0 ;;
     *) die "unknown option: $1 (see --help)" ;;
@@ -138,6 +153,12 @@ if [ "$action" = uninstall ]; then
   [ -L "$PREFIX/bin/rtl-airband-panel" ] && rm -f "$PREFIX/bin/rtl-airband-panel"
   [ -L "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband")" = "$LIB_DIR/rtl_airband" ] \
     && rm -f "$PREFIX/bin/rtl_airband"
+  # An rtl_airband the installer replaced (--replace-rtl-airband) gets its original back.
+  for replaced in "$PREFIX/bin/rtl_airband" "$PREFIX/sbin/rtl_airband" $(command -v rtl_airband 2>/dev/null); do
+    [ -e "$replaced.pre-fork" ] || continue
+    mv -f "$replaced.pre-fork" "$replaced"
+    say "restored your original $replaced"
+  done
   rm -rf "$LIB_DIR"
   command -v udevadm >/dev/null 2>&1 && udevadm control --reload || true
   say ""
@@ -198,6 +219,19 @@ for candidate in "$PREFIX/bin/rtl_airband" $(command -v rtl_airband 2>/dev/null)
   other_airband="$candidate"
   break
 done
+# A previous --replace-rtl-airband left the original next to it: an upgrade
+# keeps replacing it, and that original is what was "already installed".
+if [ -n "$other_airband" ] && [ -e "$other_airband.pre-fork" ]; then
+  [ -n "$airband_mode" ] || airband_mode=replace
+fi
+# Only a plain file under $PREFIX, not a package manager's, is replaced.
+replaceable_airband() {
+  case "$1" in "$PREFIX"/*) ;; *) return 1 ;; esac
+  [ -f "$1" ] && [ ! -L "$1" ] || return 1
+  if command -v dpkg >/dev/null 2>&1 && dpkg -S "$1" >/dev/null 2>&1; then return 1; fi
+  if command -v rpm >/dev/null 2>&1 && rpm -qf "$1" >/dev/null 2>&1; then return 1; fi
+  return 0
+}
 if [ -z "$bundle" ]; then
   bundle=1
   [ -x "$LIB_DIR/rtl-airband-panel" ] && [ ! -e "$LIB_DIR/rtl_airband" ] && bundle=0
@@ -205,7 +239,7 @@ if [ -z "$bundle" ]; then
     step "Install the bundled rtl_airband too?"
     say "This release includes rtl_airband $(airband_version "$here/bin/rtl_airband"), built from the jschmall/RTLSDR-Airband fork the"
     say "panel is developed against. Apply live, the Hardware page and other fork-only settings need it."
-    [ -z "$other_airband" ] || say "Already on this machine: $other_airband ($(airband_version "$other_airband" || true)), which is left alone either way."
+    [ -z "$other_airband" ] || say "Already on this machine: $other_airband ($(airband_version "$other_airband" || true)). If you install the fork, you'll choose next whether it replaces that one."
     if [ "$bundle" -eq 1 ]; then printf 'Install it? [Y/n]: '; else printf 'Install it? [y/N]: '; fi
     read -r answer || answer=""
     case "$answer" in [Yy]*) bundle=1 ;; [Nn]*) bundle=0 ;; esac
@@ -213,6 +247,26 @@ if [ -z "$bundle" ]; then
 fi
 if [ "$bundle" -eq 1 ]; then
   [ -x "$here/bin/rtl_airband" ] || die "bin/rtl_airband is missing from this release folder; use --panel-only"
+fi
+
+# The bundled rtl_airband and one already installed: replace it, or alongside?
+if [ "$bundle" -eq 1 ] && [ -n "$other_airband" ]; then
+  if [ "$airband_mode" != separate ] && ! replaceable_airband "$other_airband"; then
+    [ "$airband_mode" != replace ] \
+      || say "note: $other_airband belongs to your system's packages (or isn't under $PREFIX); installing the fork alongside it instead of replacing it"
+    airband_mode=separate
+  elif [ -z "$airband_mode" ] && [ "$assume_yes" -eq 0 ] && [ -t 0 ]; then
+    step "Replace your rtl_airband, or install the fork alongside it?"
+    say "  1) Alongside: $other_airband stays as it is, and existing instances keep"
+    say "     running it. New instances run the fork, $LIB_DIR/rtl_airband."
+    say "  2) Replace: $other_airband becomes the fork. The original is kept as"
+    say "     $other_airband.pre-fork (--uninstall puts it back). Existing instances"
+    say "     that run $other_airband switch to the fork when they next restart."
+    printf 'Choice [1]: '
+    read -r answer || answer=""
+    case "$answer" in 2 | [Rr]*) airband_mode=replace ;; *) airband_mode=separate ;; esac
+  fi
+  [ -n "$airband_mode" ] || airband_mode=separate
 fi
 
 panel_version="$("$here/bin/rtl-airband-panel" --version | awk '{print $2}')"
@@ -248,7 +302,16 @@ if [ "$bundle" -eq 0 ]; then
   fi
 else
   install -m 0755 "$here/bin/rtl_airband" "$LIB_DIR/rtl_airband"
-  if [ -e "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband" 2>/dev/null)" != "$LIB_DIR/rtl_airband" ]; then
+  if [ "$airband_mode" = replace ]; then
+    if [ -e "$other_airband.pre-fork" ]; then
+      say "replaced $other_airband with the fork again (your original is still $other_airband.pre-fork)"
+    else
+      mv "$other_airband" "$other_airband.pre-fork"
+      say "replaced $other_airband with the fork; your original is now $other_airband.pre-fork"
+    fi
+    install -m 0755 "$here/bin/rtl_airband" "$other_airband"
+    say "instances that run $other_airband switch to the fork when they next restart"
+  elif [ -e "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband" 2>/dev/null)" != "$LIB_DIR/rtl_airband" ]; then
     say "left your existing $PREFIX/bin/rtl_airband alone; the bundled one is $LIB_DIR/rtl_airband"
   else
     ln -sf "$LIB_DIR/rtl_airband" "$PREFIX/bin/rtl_airband"

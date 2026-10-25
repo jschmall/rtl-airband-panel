@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.9] - 2026-10-25
+
+### Added
+
+- **`install.sh` asks whether the fork replaces your `rtl_airband` (#14).**
+  When it finds an `rtl_airband` already installed and you choose to
+  install the bundled fork, it now asks:
+  - **Alongside** (the default, and what it did before): yours stays, and
+    existing instances keep running it. New instances run the fork.
+  - **Replace**: your `rtl_airband` path now runs the fork, with the
+    original kept as `rtl_airband.pre-fork`. Existing instances switch to
+    the fork when they next restart. Later upgrades keep replacing it, and
+    `--uninstall` puts the original back.
+
+  Only a plain file under `/usr/local` is replaced, never one from your
+  system's packages. `--replace-rtl-airband` and `--separate-rtl-airband`
+  choose without asking.
+
 ## [0.6.8] - 2026-10-25
 
 ### Changed
