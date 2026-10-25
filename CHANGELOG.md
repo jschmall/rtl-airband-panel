@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.7] - 2026-10-25
+
+### Added
+
+- **Page-level tests for the instance page's Apply live button (#4).**
+  - When the button shows: a saved `control_socket_path` and a build with a
+    control socket. It stays hidden without one, and on stock rtl_airband.
+  - The confirm dialog, and that cancelling sends nothing.
+  - The result banner for a fully applied change, a partly applied one,
+    and an unreachable or protocol-error reply.
+  - A shared `renderPage` test setup (`frontend/test/pages/harness.tsx`)
+    renders whole pages for future tests.
+
 ## [0.6.6] - 2026-10-25
 
 ### Changed

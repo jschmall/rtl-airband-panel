@@ -59,7 +59,10 @@ directory: the Rust tests use a mock unit manager, temp directories, and
 fake control-socket/stats servers. Frontend tests use Vitest + React
 Testing Library in jsdom (`frontend/test/`, mirroring `frontend/src/`);
 `tsc --noEmit` (part of `npm run build --workspace=frontend`) catches what
-they don't.
+they don't. Whole pages render through `renderPage` in
+`frontend/test/pages/harness.tsx` (router plus the app's providers),
+with the api client mocked by `vi.mock`; see
+`frontend/test/pages/InstanceEditPage.test.tsx`.
 
 CI (`.github/workflows/ci.yml`) runs a `frontend` job (tests, build) and a
 `rust` job (fmt, clippy, tests, generated-type drift, wasm build).
