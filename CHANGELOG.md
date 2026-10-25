@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.3] - 2026-10-25
+
+### Added
+
+- **The Hardware page links to the editor (#11).** An instance's name opens
+  that instance. An SDR's title opens its instance scrolled to that device,
+  with its settings expanded. They're ordinary links, so they also open in
+  a new tab. Each SDR in `/api/hardware` now carries `configIndex`, its
+  position in the config's `devices` list.
+
+### Fixed
+
+- **Jumping to a section scrolls to it once it's open.** Clicking a
+  validation issue scrolled before the section expanded, so a long device
+  could end up with its settings below the screen. Sections now scroll
+  after they open: a tall one to its top, a short one to the middle.
+
 ## [0.6.2] - 2026-10-25
 
 ### Fixed

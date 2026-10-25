@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
 import { api, ApiError, type AirbandBuild, type LiveApplyOutcome } from "../api/client.js";
@@ -53,6 +53,11 @@ export function InstanceEditPage() {
   // scroll/expand even though the path string didn't change. See Collapsible's
   // openSignal prop.
   const [jumpTarget, setJumpTarget] = useState<{ path: string; nonce: number } | null>(null);
+  // `?device=n` (the Hardware page's SDR links) opens and scrolls to that
+  // device once its config is loaded, through the same jump as a validation
+  // issue. Once per instance and device, so later edits don't re-jump.
+  const deviceParam = useSearchParams()[0].get("device");
+  const jumpedTo = useRef<string | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
   const [serviceAccountPending, setServiceAccountPending] = useState(false);
   const [airband, setAirband] = useState<AirbandBuild | null>(null);
@@ -64,6 +69,15 @@ export function InstanceEditPage() {
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
+
+  useEffect(() => {
+    if (!config || deviceParam === null) return;
+    const index = Number(deviceParam);
+    const key = `${name}?${index}`;
+    if (jumpedTo.current === key || !Number.isInteger(index) || !config.devices[index]) return;
+    jumpedTo.current = key;
+    setJumpTarget({ path: `$.devices[${index}]`, nonce: Date.now() });
+  }, [config, name, deviceParam]);
 
   // Validation state (errors/warnings/etc.) is a result of an action taken
   // against one specific instance -- it must not carry over when the user

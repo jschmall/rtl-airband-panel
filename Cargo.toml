@@ -4,7 +4,7 @@ members = ["crates/*"]
 
 [workspace.package]
 # Moves in lockstep with every package.json version (see CLAUDE.md Conventions).
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 license = "GPL-2.0-only"
 rust-version = "1.85"

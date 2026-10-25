@@ -10,6 +10,7 @@ import {
   headroomLevel,
   mergeHistory,
   notLiveReason,
+  sdrEditorHref,
   sdrTitle,
   sortBySerial,
 } from "./hardware-format.js";
@@ -17,6 +18,7 @@ import {
 function sdr(overrides: Partial<SdrHealth> = {}): SdrHealth {
   return {
     index: 0,
+    configIndex: 0,
     driver: "rtlsdr",
     serial: null,
     deviceString: null,
@@ -215,5 +217,12 @@ describe("mergeHistory", () => {
     const merged = mergeHistory(live, { sdrs: [{ instance: "a", index: 0, points: [point(4000, 3)] }] }, 6000, 5000);
     expect(merged.get("a/0")).toEqual([point(4000, 3)]);
     expect(merged.get("b/1")).toEqual([point(5000, 9)]);
+  });
+});
+
+describe("sdrEditorHref", () => {
+  it("opens the editor at the device's position in the config, not its running index", () => {
+    // A disabled device before it shifts rtl_airband's index but not the config's.
+    expect(sdrEditorHref("tower 1", sdr({ index: 0, configIndex: 1 }))).toBe("/instances/tower%201?device=1");
   });
 });

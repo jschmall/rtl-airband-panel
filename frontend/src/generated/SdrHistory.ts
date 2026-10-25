@@ -3,7 +3,7 @@ import type { HardwareHistoryPoint } from "./HardwareHistoryPoint";
 
 export type SdrHistory = { instance: string, 
 /**
- * The device's index in its config, as SdrHealth.index.
+ * As SdrHealth.index: among the config's non-disabled devices.
  */
 index: number, 
 /**

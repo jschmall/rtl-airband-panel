@@ -10,11 +10,13 @@ import {
   formatSpan,
   gainAdvice,
   gainText,
+  sdrEditorHref,
   sdrTitle,
   type Advice,
   type HistoryPoint,
 } from "../../lib/hardware-format.js";
 import { HARDWARE_TOOLTIPS } from "../../lib/stats-descriptions.js";
+import { GuardedLink } from "../GuardedLink.js";
 import { Tooltip } from "../Tooltip.js";
 import { ChannelTable } from "./ChannelTable.js";
 import { HeadroomMeter } from "./HeadroomMeter.js";
@@ -108,7 +110,11 @@ function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
   return (
     <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4" aria-label={`${instance} ${sdrTitle(sdr)}`}>
       <header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h3 className="font-medium text-slate-100">{sdrTitle(sdr)}</h3>
+        <h3 className="font-medium text-slate-100">
+          <GuardedLink to={sdrEditorHref(instance, sdr)} className="hover:text-sky-300 hover:underline decoration-slate-500 underline-offset-2" title="Edit this device's settings">
+            {sdrTitle(sdr)}
+          </GuardedLink>
+        </h3>
         <span className="text-xs text-slate-400">
           {instance}
           {sdr.mode === "scan" ? " · scan" : ""}

@@ -33,7 +33,7 @@ pub struct HardwareHistory {
 #[serde(rename_all = "camelCase")]
 pub struct SdrHistory {
     pub instance: String,
-    /// The device's index in its config, as SdrHealth.index.
+    /// As SdrHealth.index: among the config's non-disabled devices.
     pub index: u32,
     /// Oldest first.
     pub points: Vec<HardwareHistoryPoint>,
@@ -124,6 +124,9 @@ pub struct SdrHealth {
     /// Index among the config's non-disabled devices: what rtl_airband,
     /// its stats file and its control socket call `device`.
     pub index: u32,
+    /// Position in the config's `devices` list, disabled devices included:
+    /// what the editor's `$.devices[n]` paths use.
+    pub config_index: u32,
     /// The config's `type` (rtlsdr, soapysdr, ...).
     pub driver: String,
     pub serial: Option<String>,
@@ -278,10 +281,11 @@ fn channel_disabled(channel: &Channel) -> bool {
 
 /// The config's view of one device: everything is "as configured", no
 /// live readings.
-fn config_sdr(index: u32, device: &Device) -> SdrHealth {
+fn config_sdr(index: u32, config_index: u32, device: &Device) -> SdrHealth {
     let (gain_db, gain_text) = config_gain(device);
     SdrHealth {
         index,
+        config_index,
         driver: device.device_type.clone(),
         serial: device.serial.clone(),
         device_string: device.device_string.clone(),
@@ -388,9 +392,10 @@ pub fn derive_devices(
     let mut sdrs: Vec<SdrHealth> = config
         .devices
         .iter()
-        .filter(|d| d.disable != Some(true))
         .enumerate()
-        .map(|(i, d)| config_sdr(i as u32, d))
+        .filter(|(_, d)| d.disable != Some(true))
+        .enumerate()
+        .map(|(i, (ci, d))| config_sdr(i as u32, ci as u32, d))
         .collect();
     let Some(report) = report else { return sdrs };
     for status in &report.devices {
@@ -578,7 +583,10 @@ devices: (
         let sdrs = derive_devices(&config(TWO_DEVICES), None, Instant::now(), &mut HashMap::new());
         assert_eq!(sdrs.len(), 1);
         let sdr = &sdrs[0];
-        assert_eq!((sdr.index, sdr.serial.as_deref(), sdr.gain_db), (0, Some("00000002"), Some(33.8)));
+        assert_eq!(
+            (sdr.index, sdr.config_index, sdr.serial.as_deref(), sdr.gain_db),
+            (0, 1, Some("00000002"), Some(33.8))
+        );
         assert_eq!(sdr.center_freq_hz, Some(120_000_000.0));
         let freqs: Vec<(u32, f64)> = sdr.channels.iter().map(|c| (c.channel, c.freq_hz)).collect();
         assert_eq!(freqs, [(0, 120_100_000.0), (1, 120_300_000.0), (2, 120_400_000.0)]);

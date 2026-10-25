@@ -8,6 +8,11 @@ export type SdrHealth = {
  */
 index: number, 
 /**
+ * Position in the config's `devices` list, disabled devices included:
+ * what the editor's `$.devices[n]` paths use.
+ */
+configIndex: number, 
+/**
  * The config's `type` (rtlsdr, soapysdr, ...).
  */
 driver: string, serial: string | null, deviceString: string | null, 

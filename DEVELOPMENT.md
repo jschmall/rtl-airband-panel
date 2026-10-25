@@ -336,6 +336,10 @@ The frontend page (`pages/HardwarePage.tsx`) opens its own `/api/ws`
 connection and subscribes. It falls back to polling `GET /api/hardware`
 every 2 s. It seeds its 5-minute history for the sparklines and gain
 advice from `GET /api/hardware/history`, then appends each snapshot.
+Instance names link to the editor, and SDR titles to
+`/instances/:name?device=n`, which opens and scrolls to that device.
+`n` is `SdrHealth.configIndex` (the position in the config's `devices`),
+not `index` (which skips disabled devices).
 
 How the fork measures:
 - **ADC peak.** The largest |I|/|Q| over the last ~1 s of input, relative

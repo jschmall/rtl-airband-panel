@@ -218,6 +218,15 @@ export type HistoryPoint = HardwareHistoryPoint;
 
 export const HISTORY_WINDOW_MS = 5 * 60_000;
 
+/** The instance editor, opened at this SDR's device section (see InstanceEditPage's `device` parameter). */
+export function sdrEditorHref(instance: string, sdr: SdrHealth): string {
+  return `${instanceEditorHref(instance)}?device=${sdr.configIndex}`;
+}
+
+export function instanceEditorHref(instance: string): string {
+  return `/instances/${encodeURIComponent(instance)}`;
+}
+
 /** Key for an SDR's history across snapshots: instance plus device index. */
 export function sdrKey(instance: string, sdr: SdrHealth): string {
   return `${instance}/${sdr.index}`;

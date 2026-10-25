@@ -24,17 +24,32 @@ export function Collapsible({ title, headerActions, defaultOpen = false, classNa
   const rootRef = useRef<HTMLDivElement>(null);
   const contentId = useId();
 
+  // The openSignal it was forced open for, until that scroll is done.
+  const [scrollFor, setScrollFor] = useState<number | undefined>(undefined);
+
   useEffect(() => {
     if (!openSignal) return;
     setOpen((o) => {
       if (!o) onOpenChange?.(true);
       return true;
     });
-    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setScrollFor(openSignal);
   }, [openSignal]);
 
+  // Scrolls once the expanded content has rendered, so it's the opened
+  // section that gets centered (or, taller than the viewport, top-aligned)
+  // rather than its collapsed header with the content then pushing out below.
+  useEffect(() => {
+    if (!scrollFor || !open) return;
+    setScrollFor(undefined);
+    const el = rootRef.current;
+    if (!el) return;
+    const tall = el.getBoundingClientRect().height > window.innerHeight * 0.8;
+    el.scrollIntoView({ behavior: "smooth", block: tall ? "start" : "center" });
+  }, [scrollFor, open]);
+
   return (
-    <div ref={rootRef} className={className}>
+    <div ref={rootRef} className={className} style={{ scrollMarginTop: 16 }}>
       {/* flex-wrap: without it, a headerActions cluster (Disable/Duplicate/Remove, etc.)
           that doesn't fit next to the title on a narrow viewport squeezes the title
           button's flex-1 all the way to zero width instead of just wrapping below --
