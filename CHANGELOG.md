@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.8] - 2026-10-25
+
+### Changed
+
+- **Merged the `instance-page-tests` branch into `master` (0.6.7).**
+  - **Page-level tests for Apply live,** and a shared `renderPage` setup
+    for testing whole pages (#4).
+- Closes #4.
+
 ## [0.6.7] - 2026-10-25
 
 ### Added
