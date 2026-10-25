@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.6] - 2026-10-25
+
+### Changed
+
+- **Merged the `ui-fixes` branch into `master` (0.6.1 to 0.6.5).**
+  - **Decimals can be typed again,** and settings rtl_airband reads as
+    whole numbers reject them (#13).
+  - **Hardware page gain advice starts from recorded history,** waits for
+    two minutes of readings before advising, and lower and raise
+    suggestions look different (#10).
+  - **The Hardware page links to the instance editor,** opening an SDR's
+    device section (#11).
+  - **The Overview page has two summary tiles, and each card shows its
+    SDRs' usable windows (#12).**
+  - **The instance page is reordered, and every section collapses (#12).**
+- Closes #10, #11 and #13.
+
 ## [0.6.5] - 2026-10-25
 
 ### Changed
