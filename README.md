@@ -97,7 +97,12 @@ The installer sets up:
 
 - the panel and the bundled `rtl_airband`, in
   `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`; an
-  `rtl_airband` you already have there is left alone);
+  `rtl_airband` you already have there is left alone). It asks first, and
+  you can install the panel only and keep your own `rtl_airband`. An
+  `rtl_airband` that isn't the
+  [jschmall/RTLSDR-Airband](https://github.com/jschmall/RTLSDR-Airband)
+  fork may not support every panel feature (Apply live, the Hardware
+  page, fork-only settings);
 - the account that runs the panel and new instances: it asks which one,
   suggesting the account your existing `rtl_airband` services run as
   (the control socket only answers that account), or `rtl-airband-panel`;
@@ -118,6 +123,8 @@ Then open <http://localhost:3000> on that machine. Useful options (see
 | `--instances-dir DIR` | Where your instance configs live (default `/etc/rtl-airband-panel/instances`) |
 | `--unit-prefix rtl_` | Only let the panel manage services whose names start with `rtl_` |
 | `--user NAME` | The account to run as, without asking |
+| `--panel-only` | Don't install the bundled `rtl_airband`; use the one you have |
+| `--with-rtl-airband` | Install the bundled `rtl_airband` too, without asking |
 | `--yes` | Don't ask anything; take the defaults (for scripts) |
 | `--no-start` | Install but don't start the panel yet |
 

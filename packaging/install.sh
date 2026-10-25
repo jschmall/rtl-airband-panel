@@ -3,7 +3,8 @@
 #
 #   sudo ./install.sh [options]
 #
-# Installs the panel and the bundled rtl_airband, a service user, the udev
+# Installs the panel and (unless you choose the panel only) the bundled
+# rtl_airband built from the jschmall/RTLSDR-Airband fork, a service user, the udev
 # rule and kernel-driver blacklist for SDR dongles, the sudoers rule, and
 # the panel's systemd service, then starts it. Running it again upgrades the
 # binaries and keeps your setup: the account, instances folder and unit
@@ -23,6 +24,12 @@
 #                        e.g. rtl_ (default: any validly named service)
 #   --listen-all         Listen on every network interface and generate a
 #                        login password (default: this machine only)
+#   --panel-only         Don't install or upgrade the bundled rtl_airband; use
+#                        the one already on this machine. A build other than
+#                        the jschmall fork may not support every panel feature.
+#   --with-rtl-airband   Install the bundled rtl_airband too (the default,
+#                        unless the existing install is panel-only). Asked
+#                        for when run in a terminal without either option.
 #   --no-start           Install everything but don't (re)start the panel
 #   -y, --yes            Don't ask anything; take the defaults
 #   --uninstall          Remove the panel; keep configs, settings and stats
@@ -47,6 +54,7 @@ unit_prefix=""
 unit_prefix_set=0
 listen_all=0
 assume_yes=0
+bundle=""
 start=1
 action=install
 
@@ -68,6 +76,8 @@ while [ $# -gt 0 ]; do
     --listen-all) listen_all=1; shift ;;
     --no-start) start=0; shift ;;
     -y | --yes) assume_yes=1; shift ;;
+    --panel-only) bundle=0; shift ;;
+    --with-rtl-airband) bundle=1; shift ;;
     --uninstall) action=uninstall; shift ;;
     -h | --help) usage; exit 0 ;;
     *) die "unknown option: $1 (see --help)" ;;
@@ -140,7 +150,7 @@ fi
 
 # -------------------------------------------------------------------- install
 
-[ -x "$here/bin/rtl-airband-panel" ] && [ -x "$here/bin/rtl_airband" ] \
+[ -x "$here/bin/rtl-airband-panel" ] \
   || die "run this from the extracted release folder (bin/ not found next to install.sh)"
 "$here/bin/rtl-airband-panel" --version >/dev/null 2>&1 \
   || die "bin/rtl-airband-panel doesn't run on this machine; is this the release for $(uname -m)?"
@@ -178,9 +188,41 @@ if [ -n "$instance_accounts" ] && [ "$instance_accounts" != "$user" ]; then
   say "      and the Hardware page only reach instances running as '$user'"
 fi
 
+# The bundled rtl_airband, or only the panel? An upgrade keeps what the
+# existing install chose.
+airband_version() { "$1" -v 2>&1 | sed -n 's/^RTLSDR-Airband version //p' | head -1; }
+other_airband=""
+for candidate in "$PREFIX/bin/rtl_airband" $(command -v rtl_airband 2>/dev/null); do
+  [ -x "$candidate" ] || continue
+  case "$(readlink -f "$candidate")" in "$LIB_DIR/rtl_airband") continue ;; esac
+  other_airband="$candidate"
+  break
+done
+if [ -z "$bundle" ]; then
+  bundle=1
+  [ -x "$LIB_DIR/rtl-airband-panel" ] && [ ! -e "$LIB_DIR/rtl_airband" ] && bundle=0
+  if [ "$assume_yes" -eq 0 ] && [ -t 0 ]; then
+    step "Install the bundled rtl_airband too?"
+    say "This release includes rtl_airband $(airband_version "$here/bin/rtl_airband"), built from the jschmall/RTLSDR-Airband fork the"
+    say "panel is developed against. Apply live, the Hardware page and other fork-only settings need it."
+    [ -z "$other_airband" ] || say "Already on this machine: $other_airband ($(airband_version "$other_airband" || true)), which is left alone either way."
+    if [ "$bundle" -eq 1 ]; then printf 'Install it? [Y/n]: '; else printf 'Install it? [y/N]: '; fi
+    read -r answer || answer=""
+    case "$answer" in [Yy]*) bundle=1 ;; [Nn]*) bundle=0 ;; esac
+  fi
+fi
+if [ "$bundle" -eq 1 ]; then
+  [ -x "$here/bin/rtl_airband" ] || die "bin/rtl_airband is missing from this release folder; use --panel-only"
+fi
+
 panel_version="$("$here/bin/rtl-airband-panel" --version | awk '{print $2}')"
-airband_version="$("$here/bin/rtl_airband" -v 2>&1 | sed -n 's/^RTLSDR-Airband version //p')"
-say "Installing rtl-airband-panel $panel_version with rtl_airband $airband_version"
+if [ "$bundle" -eq 1 ]; then
+  say "Installing rtl-airband-panel $panel_version with rtl_airband $(airband_version "$here/bin/rtl_airband")"
+  default_airband_bin="$LIB_DIR/rtl_airband"
+else
+  say "Installing rtl-airband-panel $panel_version only (no bundled rtl_airband)"
+  default_airband_bin="${other_airband:-$PREFIX/bin/rtl_airband}"
+fi
 
 step "Service account '$user'"
 getent group plugdev >/dev/null 2>&1 || groupadd --system plugdev
@@ -197,12 +239,20 @@ mkdir -p "$LIB_DIR"
 # install(1) writes a new file and renames it over the old one, so running
 # instances keep their open copy of the old rtl_airband until they restart.
 install -m 0755 "$here/bin/rtl-airband-panel" "$LIB_DIR/rtl-airband-panel"
-install -m 0755 "$here/bin/rtl_airband" "$LIB_DIR/rtl_airband"
 ln -sf "$LIB_DIR/rtl-airband-panel" "$PREFIX/bin/rtl-airband-panel"
-if [ -e "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband" 2>/dev/null)" != "$LIB_DIR/rtl_airband" ]; then
-  say "left your existing $PREFIX/bin/rtl_airband alone; the bundled one is $LIB_DIR/rtl_airband"
+if [ "$bundle" -eq 0 ]; then
+  if [ -e "$LIB_DIR/rtl_airband" ]; then
+    say "panel only: left the previously bundled $LIB_DIR/rtl_airband as it was (not upgraded)"
+  else
+    say "panel only: no bundled rtl_airband installed"
+  fi
 else
-  ln -sf "$LIB_DIR/rtl_airband" "$PREFIX/bin/rtl_airband"
+  install -m 0755 "$here/bin/rtl_airband" "$LIB_DIR/rtl_airband"
+  if [ -e "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband" 2>/dev/null)" != "$LIB_DIR/rtl_airband" ]; then
+    say "left your existing $PREFIX/bin/rtl_airband alone; the bundled one is $LIB_DIR/rtl_airband"
+  else
+    ln -sf "$LIB_DIR/rtl_airband" "$PREFIX/bin/rtl_airband"
+  fi
 fi
 
 step "SDR dongle access (udev rule, DVB driver blacklist)"
@@ -232,6 +282,10 @@ if [ -f "$ENV_FILE" ]; then
   service_user="$(file_value RTL_PANEL_DEFAULT_SERVICE_USER "$ENV_FILE")"
   [ -z "$service_user" ] || [ "$service_user" = "$user" ] \
     || say "note: panel.env creates new instances as RTL_PANEL_DEFAULT_SERVICE_USER=$service_user; set it (and _GROUP) to $user to match the panel"
+  configured_bin="$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$ENV_FILE")"
+  [ "$bundle" -eq 0 ] || [ "${configured_bin:-$PREFIX/bin/rtl_airband}" = "$LIB_DIR/rtl_airband" ] \
+    || [ "$(readlink -f "${configured_bin:-$PREFIX/bin/rtl_airband}")" = "$LIB_DIR/rtl_airband" ] \
+    || say "note: new instances run ${configured_bin:-$PREFIX/bin/rtl_airband}; set RTL_PANEL_RTL_AIRBAND_BIN=$LIB_DIR/rtl_airband in panel.env to use the bundled one"
   configured_dir="$(file_value RTL_PANEL_INSTANCES_DIR "$ENV_FILE")"
   [ "$instances_dir" = "${configured_dir:-$ETC_DIR/instances}" ] \
     || say "note: panel.env still says RTL_PANEL_INSTANCES_DIR=${configured_dir:-(unset)}; edit it to use $instances_dir"
@@ -247,7 +301,7 @@ elif [ -n "$node_env" ]; then
     printf 'RTL_PANEL_INSTANCES_DIR=%s\n' "$instances_dir"
     [ -n "$(file_value RTL_PANEL_STATS_DB_PATH "$node_env")" ] || printf 'RTL_PANEL_STATS_DB_PATH=%s\n' "$STATE_DIR/stats.db"
     [ -n "$(file_value RTL_PANEL_SYSTEMD_MODE "$node_env")" ] || printf 'RTL_PANEL_SYSTEMD_MODE=sudo\n'
-    [ -n "$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$node_env")" ] || printf 'RTL_PANEL_RTL_AIRBAND_BIN=%s\n' "$LIB_DIR/rtl_airband"
+    [ -n "$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$node_env")" ] || printf 'RTL_PANEL_RTL_AIRBAND_BIN=%s\n' "$default_airband_bin"
     [ -n "$(file_value RTL_PANEL_DEFAULT_SERVICE_USER "$node_env")" ] || printf 'RTL_PANEL_DEFAULT_SERVICE_USER=%s\nRTL_PANEL_DEFAULT_SERVICE_GROUP=%s\n' "$user" "$user"
   } > "$ENV_FILE"
   umask 022
@@ -267,7 +321,7 @@ RTL_PANEL_INSTANCES_DIR=$instances_dir
 RTL_PANEL_STATS_DB_PATH=$STATE_DIR/stats.db
 RTL_PANEL_SYSTEMD_MODE=sudo
 RTL_PANEL_SUDO_UNIT_PREFIX=$unit_prefix
-RTL_PANEL_RTL_AIRBAND_BIN=$LIB_DIR/rtl_airband
+RTL_PANEL_RTL_AIRBAND_BIN=$default_airband_bin
 RTL_PANEL_DEFAULT_SERVICE_USER=$user
 RTL_PANEL_DEFAULT_SERVICE_GROUP=$user
 RTL_PANEL_HOST=$host
@@ -345,5 +399,18 @@ fi
 say ""
 say "Instance configs: $instances_dir"
 say "Settings:         $ENV_FILE  (restart the panel after editing: systemctl restart rtl-airband-panel)"
-say "New instances run $LIB_DIR/rtl_airband ($airband_version). Existing instances"
-say "keep running whatever their service already uses until you change that."
+airband_bin="$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$ENV_FILE")"
+airband_bin="${airband_bin:-$PREFIX/bin/rtl_airband}"
+if [ -x "$airband_bin" ]; then
+  say "New instances run $airband_bin ($(airband_version "$airband_bin" || true)). Existing instances"
+  say "keep running whatever their service already uses until you change that."
+else
+  say "New instances run $airband_bin, which isn't there yet: install rtl_airband (or set"
+  say "RTL_PANEL_RTL_AIRBAND_BIN in $ENV_FILE) before starting any."
+fi
+if [ "$bundle" -eq 0 ]; then
+  say ""
+  say "Panel only: an rtl_airband that isn't the jschmall/RTLSDR-Airband fork may not support"
+  say "every panel feature (Apply live, the Hardware page, fork-only settings). Run this"
+  say "installer with --with-rtl-airband any time to add the bundled one."
+fi

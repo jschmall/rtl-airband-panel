@@ -13,7 +13,8 @@ builds. It ships with — and is developed against — a pinned build of the
 jschmall/RTLSDR-Airband fork (github.com/jschmall/RTLSDR-Airband), which
 itself tracks upstream rtl-airband/RTLSDR-Airband via periodic merges.
 - New instances run the bundled `rtl_airband` binary (install.sh points
-  `RTL_PANEL_RTL_AIRBAND_BIN` at it); existing instances keep whatever
+  `RTL_PANEL_RTL_AIRBAND_BIN` at it, unless installed `--panel-only`, which
+  points it at the machine's own rtl_airband); existing instances keep whatever
   their unit's `ExecStart` runs. Never assume which build a unit runs:
   `rtl_airband -v` (`airband_supervisor::binary_version`) is how to find
   out. That check isn't surfaced in the panel yet.

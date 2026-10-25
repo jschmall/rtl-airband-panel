@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.3] - 2026-10-25
+
+### Added
+
+- **`install.sh` can install the panel only.**
+  - **Choosing:** in a terminal it asks whether to install the bundled
+    `rtl_airband` too, and shows any `rtl_airband` already on the machine
+    with its version. `--panel-only` and `--with-rtl-airband` answer up
+    front. A re-run keeps the existing install's choice.
+  - **What panel-only does:**
+    - it doesn't install or upgrade the bundled binary, and leaves a
+      previously bundled copy as it was;
+    - a new `panel.env` points `RTL_PANEL_RTL_AIRBAND_BIN` at the
+      machine's own `rtl_airband`;
+    - the installer warns that a build other than the jschmall fork may
+      not support every panel feature, and says so if no `rtl_airband` is
+      installed yet.
+  - **Switching to bundled later:** the installer notes when `panel.env`
+    still points new instances at another binary.
+  - **Releases:** the release folder no longer needs `bin/rtl_airband`
+    for a panel-only install.
+  - **"New instances run" line:** the summary now reports the binary
+    `panel.env` actually uses.
+
 ## [0.5.2] - 2026-10-25
 
 ### Added
