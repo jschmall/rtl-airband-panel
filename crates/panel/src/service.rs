@@ -58,6 +58,18 @@ pub struct InstanceSummary {
     /// Every distinct channel frequency (Hz, ascending) on non-disabled
     /// devices and channels. Rust panel only.
     pub frequencies: Vec<f64>,
+    /// Each non-disabled, non-scan device's usable capture window: where a
+    /// new channel fits without a frequency-out-of-window warning.
+    pub device_windows: Vec<DeviceWindow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceWindow {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serial: Option<String>,
+    pub low_hz: f64,
+    pub high_hz: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -149,6 +161,18 @@ fn unknown_status(unit: &str) -> UnitStatus {
         sub_state: "unknown".into(),
         active_enter_timestamp: None,
     }
+}
+
+fn device_windows(config: &RtlAirbandConfig) -> Vec<DeviceWindow> {
+    config
+        .devices
+        .iter()
+        .filter(|d| d.disable != Some(true))
+        .filter_map(|d| {
+            let (low_hz, high_hz) = airband_validate::usable_window_hz(d)?;
+            Some(DeviceWindow { serial: d.serial.clone(), low_hz, high_hz })
+        })
+        .collect()
 }
 
 fn frequencies(config: &RtlAirbandConfig) -> Vec<f64> {
@@ -323,9 +347,9 @@ impl InstanceService {
         let mut out = Vec::with_capacity(infos.len());
         for (info, unit) in infos.into_iter().zip(units) {
             let options = self.options_store.get(&info.name).await?;
-            let (search, freqs) = match self.configs.read(&info.name).await {
-                Ok(c) => (search_fields(&c.config), frequencies(&c.config)),
-                Err(_) => (Vec::new(), Vec::new()),
+            let (search, freqs, windows) = match self.configs.read(&info.name).await {
+                Ok(c) => (search_fields(&c.config), frequencies(&c.config), device_windows(&c.config)),
+                Err(_) => (Vec::new(), Vec::new(), Vec::new()),
             };
             out.push(InstanceSummary {
                 pending_restart: self.pending.has(&info.name).await?,
@@ -335,6 +359,7 @@ impl InstanceService {
                 status: statuses.get(&unit).cloned().unwrap_or_else(|| unknown_status(&unit)),
                 search_fields: search,
                 frequencies: freqs,
+                device_windows: windows,
                 name: info.name,
                 conf_path: info.conf_path,
                 unit,

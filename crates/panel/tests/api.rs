@@ -320,6 +320,8 @@ async fn instance_list_reports_active_frequencies() {
     let h = harness(&[]);
     let (_, _, list) = send(&h.router, get("/api/instances")).await;
     assert_eq!(list[0]["frequencies"], json!([151100000.0, 151200000.0]));
+    // 151 MHz at the default 2.56 Msps, 90% of the Nyquist half-width either side.
+    assert_eq!(list[0]["deviceWindows"], json!([{ "serial": "1", "lowHz": 149848000.0, "highHz": 152152000.0 }]));
 }
 
 #[tokio::test]

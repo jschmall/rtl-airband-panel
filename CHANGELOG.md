@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.4] - 2026-10-25
+
+### Changed
+
+- **Overview page reworked (#12).**
+  - The four summary tiles are now two: Instances with Running, and Failed
+    with Pending restart.
+  - Instance cards show each SDR's usable window under its frequencies
+    (e.g. "Window 154.370–155.630 MHz"): where a new channel fits without
+    an out-of-window warning. It's the same window the validator checks
+    against, sent as `deviceWindows` in `/api/instances`.
+  - Instance cards drop the Overruns and CPU counters. Overflows and
+    Failures sit on the right.
+
 ## [0.6.3] - 2026-10-25
 
 ### Added

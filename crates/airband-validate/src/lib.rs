@@ -10,6 +10,7 @@ mod view;
 
 use airband_config::RtlAirbandConfig;
 
+pub use checks::devices::usable_window_hz;
 pub use constants::*;
 pub use types::{Severity, ValidationIssue, ValidationResult};
 

@@ -29,6 +29,14 @@ export interface InstanceSummary {
   searchFields: string[];
   /** Distinct active channel frequencies, Hz ascending (Rust panel only). */
   frequencies?: number[];
+  /** Each enabled, non-scan device's usable capture window: where a new channel fits (Rust panel only). */
+  deviceWindows?: DeviceWindow[];
+}
+
+export interface DeviceWindow {
+  serial?: string;
+  lowHz: number;
+  highHz: number;
 }
 
 export interface InstanceOptions {
