@@ -49,6 +49,11 @@ fn harness(extra_args: &[&str]) -> Harness {
         "--stats-db-path".into(),
         dir.path().join("stats.db").display().to_string(),
     ];
+    // Deterministic: no real rtl_airband (unknown build, nothing locked)
+    // unless the test names one.
+    if !extra_args.contains(&"--rtl-airband-bin") {
+        args.extend(["--rtl-airband-bin".into(), "/nonexistent/rtl_airband".into()]);
+    }
     args.extend(extra_args.iter().map(|s| s.to_string()));
     let settings = Settings::parse_from(args);
     let app = panel::build(&settings, Arc::new(airband_supervisor::MockUnits::default())).unwrap();
@@ -468,4 +473,37 @@ async fn airband_endpoint_tells_the_fork_from_a_stock_build() {
     let h = harness(&["--rtl-airband-bin", "/nonexistent/rtl_airband"]);
     let (_, _, build) = send(&h.router, get("/api/instances/alpha/airband")).await;
     assert_eq!((build["kind"].as_str(), build["basis"].as_str()), (Some("unknown"), Some("not-runnable")));
+}
+
+#[tokio::test]
+async fn a_stock_build_soft_locks_fork_only_features() {
+    let bins = tempfile::tempdir().unwrap();
+    let stock = stub_binary(bins.path(), "stock", "RTLSDR-Airband version v6.2.0\\n");
+    let h = harness(&["--rtl-airband-bin", &stock]);
+    let (_, _, config) = send(&h.router, get("/api/instances/alpha")).await;
+
+    // Ignored settings are warnings, so the save goes through...
+    let (status, _, result) = send(&h.router, json_req("POST", "/api/instances/alpha/validate", &config)).await;
+    assert_eq!(status, StatusCode::OK, "{result}");
+    let codes: Vec<&str> = result["warnings"].as_array().unwrap().iter().filter_map(|w| w["path"].as_str()).collect();
+    assert!(codes.contains(&"$.control_socket_path") && codes.contains(&"$.devices[0].reserve_channels"), "{result}");
+
+    // ...but one stock rtl_airband won't start with is refused.
+    let mut edit = config.clone();
+    edit["devices"][0]["channels"][0]["outputs"] =
+        json!([{ "type": "mixer_remote", "dest_path": "/run/other.sock", "stream_id": 1 }]);
+    let (status, _, result) = send(&h.router, json_req("PUT", "/api/instances/alpha", &edit)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{result}");
+    assert!(result.to_string().contains("needs-fork-feature"), "{result}");
+
+    // Apply live saves but doesn't try the control socket stock ignores.
+    let (status, _, result) = send(&h.router, json_req("POST", "/api/instances/alpha/apply-live", &config)).await;
+    assert_eq!(status, StatusCode::OK, "{result}");
+    assert_eq!(result["liveApply"]["attempted"], false, "{result}");
+    assert_eq!(result["liveApply"]["reason"], "stock-rtl-airband", "{result}");
+
+    // JSON logging (-j) would stop a stock rtl_airband from starting.
+    let (status, _, result) =
+        send(&h.router, json_req("PATCH", "/api/instances/alpha/options", &json!({ "jsonLogging": true }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{result}");
 }

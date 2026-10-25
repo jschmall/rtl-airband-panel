@@ -4,7 +4,7 @@ import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
 import { api, ApiError, type AirbandBuild, type LiveApplyOutcome } from "../api/client.js";
 import { AirbandBanner } from "../components/AirbandBanner.js";
-import { buildLabel } from "../lib/airband-build.js";
+import { buildLabel, hasFeature } from "../lib/airband-build.js";
 import { ConfigEditor } from "../components/ConfigEditor.js";
 import { ValidationBanner } from "../components/ValidationBanner.js";
 import { GuardedLink } from "../components/GuardedLink.js";
@@ -156,10 +156,17 @@ export function InstanceEditPage() {
 
   const summary = instances?.find((i) => i.name === name);
   // Preview whatever isn't running yet: unsaved edits, or a saved-but-unapplied config.
-  const plan = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
+  const predicted = usePlanPreview(name, config, isDirty || summary?.pendingRestart === true);
+  // A build without the fork's control socket can't apply anything live.
+  const liveCapable = hasFeature(airband, "control_socket");
+  const plan =
+    predicted && !liveCapable && predicted.method === "live"
+      ? { ...predicted, method: "restart" as const, restart: [...predicted.restart, ...predicted.live], live: [], interrupts: [] }
+      : predicted;
   // The server's validator running in the browser: errors show up while
   // editing. Results from an actual save/check (incl. conflicts) take priority.
-  const live = useLiveValidation(config, isDirty);
+  const buildFeatures = airband && airband.kind !== "unknown" ? airband.features : null;
+  const live = useLiveValidation(config, isDirty, buildFeatures);
   const liveErrors = errors.length === 0 ? (live?.errors ?? []) : [];
 
   // Don't leave the flag set for the next page this component happens to render for.
@@ -501,7 +508,7 @@ export function InstanceEditPage() {
         >
           {pendingAction === "save" ? "Saving…" : "Save"}
         </button>
-        {savedConfig?.control_socket_path !== undefined && (
+        {savedConfig?.control_socket_path !== undefined && liveCapable && (
           <button
             type="button"
             disabled={pendingAction !== null}
@@ -582,6 +589,15 @@ function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome:
             </ul>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (outcome.reason === "stock-rtl-airband") {
+    return (
+      <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+        Saved {name}.conf. Changes will take effect after a restart — this instance runs a stock rtl_airband, which has no control socket to apply them
+        live.
       </div>
     );
   }

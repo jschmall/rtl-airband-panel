@@ -2,7 +2,7 @@
 //! JS glue and .wasm into frontend/src/generated/wasm.
 
 use airband_config::RtlAirbandConfig;
-use airband_validate::{Severity, ValidationIssue, ValidationResult, validate_config};
+use airband_validate::{Severity, ValidationIssue, ValidationResult, validate_config_for};
 use wasm_bindgen::prelude::*;
 
 /// Validates a config given as JSON (the same body the API accepts) and
@@ -11,8 +11,17 @@ use wasm_bindgen::prelude::*;
 /// error rather than throwing.
 #[wasm_bindgen]
 pub fn validate(config_json: &str) -> String {
+    validate_for(config_json, "null")
+}
+
+/// `validate`, also holding the config to an rtl_airband build's features
+/// (`features_json`: a JSON array of feature names, or `null` when the
+/// build is unknown), as the server does for an instance's own build.
+#[wasm_bindgen]
+pub fn validate_for(config_json: &str, features_json: &str) -> String {
+    let features: Option<Vec<String>> = serde_json::from_str(features_json).unwrap_or(None);
     let result = match parse(config_json) {
-        Ok(config) => validate_config(&config),
+        Ok(config) => validate_config_for(&config, features.as_deref()),
         Err(message) => ValidationResult {
             errors: vec![ValidationIssue {
                 severity: Severity::Error,
@@ -65,5 +74,16 @@ mod tests {
     fn shape_errors_are_reported_not_thrown() {
         let out: ValidationResult = serde_json::from_str(&validate("{\"devices\": 3}")).unwrap();
         assert_eq!(out.errors[0].code, "invalid-shape");
+    }
+
+    #[test]
+    fn validate_for_holds_the_config_to_a_build() {
+        let source =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/fork-features.conf")).unwrap();
+        let json = serde_json::to_string(&airband_config::parse_config_file(&source).unwrap()).unwrap();
+        let stock: ValidationResult = serde_json::from_str(&validate_for(&json, "[]")).unwrap();
+        assert!(stock.errors.iter().any(|e| e.code == "needs-fork-feature"));
+        let unknown: ValidationResult = serde_json::from_str(&validate_for(&json, "null")).unwrap();
+        assert_eq!(unknown, serde_json::from_str(&validate(&json)).unwrap());
     }
 }

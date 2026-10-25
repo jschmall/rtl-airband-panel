@@ -24,6 +24,35 @@ export function validate(config_json) {
         wasm.__wbindgen_export3(deferred2_0, deferred2_1, 1);
     }
 }
+
+/**
+ * `validate`, also holding the config to an rtl_airband build's features
+ * (`features_json`: a JSON array of feature names, or `null` when the
+ * build is unknown), as the server does for an instance's own build.
+ * @param {string} config_json
+ * @param {string} features_json
+ * @returns {string}
+ */
+export function validate_for(config_json, features_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(config_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(features_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.validate_for(retptr, ptr0, len0, ptr1, len1);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred3_0 = r0;
+        deferred3_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred3_0, deferred3_1, 1);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

@@ -5,6 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.5] - 2026-10-25
+
+### Added
+
+- **Fork-only settings are checked against the instance's rtl_airband.**
+  On an instance known to run a build without a fork feature (a stock
+  build, or a fork build without e.g. `rdio_scanner` compiled in),
+  validation flags each setting that build doesn't support. It does this
+  on save, in the browser while editing, and on "Check config".
+  - **Error, blocks saving:** a `mixer_remote` output, which a stock
+    rtl_airband won't start with.
+  - **Warnings, saying what's lost:**
+    - `control_socket_path`
+    - `stats_http_address` and `stats_http_port`
+    - `rdio_scanner_queue_depth` and an output's `rdio_scanner` uploads
+    - `reserve_channels` and `reserve_inputs`
+    - `enabled = false` on a channel or mixer, which a stock build runs
+      anyway
+    - a mixer's `remote_inputs`
+    - `post_write_script` and `min_rx_seconds`
+    - Icecast `send_tx_tags`
+    - UDP `bit_depth`
+  - **Unknown build:** nothing extra is checked.
+  - **API:** issue code `needs-fork-feature`, from the new
+    `airband_validate::validate_config_for`. The browser's wasm validator
+    gains `validate_for`.
+- **Apply live on a stock build:**
+  - The Apply live button is hidden.
+  - The change preview says "needs a restart" instead of "applies live".
+  - `POST .../apply-live` saves without trying the control socket, with
+    reason `stock-rtl-airband`.
+- **JSON logging on a stock build:** turning it on is refused, since a
+  stock rtl_airband doesn't accept `-j` and wouldn't start.
+
 ## [0.5.4] - 2026-10-25
 
 ### Added

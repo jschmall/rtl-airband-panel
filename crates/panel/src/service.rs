@@ -22,7 +22,7 @@ use airband_supervisor::{
     AirbandKind, Baseline, ChangePlan, ControlSocketClient, KeyedMutex, ReloadDiffResult, StatusResult, UnitTemplate,
     classify, legacy_fork_features, parse_exec_start, plan_change, render_unit_file,
 };
-use airband_validate::{ValidationIssue, ValidationResult, validate_config};
+use airband_validate::{ValidationIssue, ValidationResult, validate_config_for};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::mpsc;
@@ -273,15 +273,7 @@ impl InstanceService {
             _ => None,
         }
         .unwrap_or_else(|| self.opts.rtl_airband_bin.clone());
-        let info = self.binaries.info(&binary).await;
-        let c = classify(info.as_ref());
-        let mut build = AirbandBuild {
-            kind: c.kind,
-            version: info.and_then(|i| i.version),
-            features: c.features,
-            binary,
-            basis: c.basis.to_string(),
-        };
+        let mut build = self.classify_binary(binary).await;
         if build.kind != AirbandKind::Fork
             && let Ok(config) = self.configs.read(name).await
             && let Some(socket) = config.config.control_socket_path.clone()
@@ -302,6 +294,19 @@ impl InstanceService {
             }
         }
         Ok(build)
+    }
+
+    /// What `binary -v` says it is (no control-socket check).
+    async fn classify_binary(&self, binary: String) -> AirbandBuild {
+        let info = self.binaries.info(&binary).await;
+        let c = classify(info.as_ref());
+        AirbandBuild {
+            kind: c.kind,
+            version: info.and_then(|i| i.version),
+            features: c.features,
+            binary,
+            basis: c.basis.to_string(),
+        }
     }
 
     /// The process (re)started with whatever is on disk now.
@@ -388,7 +393,8 @@ impl InstanceService {
         self.require_exists(name).await?;
         let existing = self.read_config(name).await?;
         let config = decode_config(body, Some(&existing.config))?;
-        Ok(validate_config(&config))
+        let build = self.airband_build(name).await?;
+        Ok(validate_config_for(&config, build.validation_features()))
     }
 
     /// Predicts what applying `body` to the running process would do, without writing.
@@ -433,7 +439,8 @@ impl InstanceService {
             return Err(ApiError::Conflict(name.to_string()));
         }
         let config = decode_config(body, Some(&existing.config))?;
-        let result = validate_config(&config);
+        let build = self.airband_build(name).await?;
+        let result = validate_config_for(&config, build.validation_features());
         if !result.errors.is_empty() {
             return Err(ApiError::Validation(result.errors));
         }
@@ -482,6 +489,16 @@ impl InstanceService {
         let plan = self.plan_against_baseline(name, &previous_raw, &text).await?;
 
         let not_attempted = |reason, detail| LiveApplyOutcome::NotAttempted { attempted: false, reason, detail };
+        let build = self.airband_build(name).await?;
+        if build.kind == AirbandKind::Stock {
+            return Ok(ApplyLiveResult {
+                warnings,
+                status: self.status(&unit).await?,
+                version,
+                live_apply: not_attempted("stock-rtl-airband", build.version),
+                plan,
+            });
+        }
         let Some(socket) = config.control_socket_path.clone() else {
             return Ok(ApplyLiveResult {
                 warnings,
@@ -527,6 +544,15 @@ impl InstanceService {
     ) -> Result<OptionsResult, ApiError> {
         let _guard = self.mutex.lock(name).await;
         self.require_exists(name).await?;
+        if patch.json_logging == Some(true) {
+            let build = self.airband_build(name).await?;
+            if build.kind == AirbandKind::Stock || build.kind == AirbandKind::Fork && !build.has("json_log") {
+                return Err(ApiError::BadRequest(format!(
+                    "JSON logging needs the jschmall RTLSDR-Airband fork; {} doesn't accept -j and wouldn't start",
+                    build.binary
+                )));
+            }
+        }
         let merged = self.options_store.set(name, patch).await?;
         let unit = unit_name(name);
         self.units.install_unit_file(&unit, &render_unit_file(&self.unit_template(name, &merged))).await?;
@@ -600,7 +626,9 @@ impl InstanceService {
             return Err(ApiError::AlreadyExists(name.to_string()));
         }
         let config = decode_config(body, None)?;
-        let result = validate_config(&config);
+        // The new unit runs the panel's configured binary.
+        let build = self.classify_binary(self.opts.rtl_airband_bin.clone()).await;
+        let result = validate_config_for(&config, build.validation_features());
         if !result.errors.is_empty() {
             return Err(ApiError::Validation(result.errors));
         }
