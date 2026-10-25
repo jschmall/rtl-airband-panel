@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.2] - 2026-10-25
+
+### Added
+
+- **`install.sh` asks which account runs the panel.**
+  - **When it asks:** only when run in a terminal without `--user`.
+  - **What it shows:** the `rtl_airband` services already on the machine
+    and the accounts they run as.
+  - **Suggested default:** the existing install's account, else the
+    services' account (never root), else `rtl-airband-panel`. A new
+    account is created as before.
+  - **Mismatch warnings:**
+    - when the panel's account differs from the services' account, since
+      the control socket, and so Apply live and the Hardware page, only
+      answers its own account;
+    - when `panel.env`'s `RTL_PANEL_DEFAULT_SERVICE_USER` names a
+      different account.
+  - **Skipping the prompt:** the new `-y`/`--yes` option takes the
+    defaults without asking, for scripted installs.
+
 ## [0.5.1] - 2026-10-25
 
 ### Fixed

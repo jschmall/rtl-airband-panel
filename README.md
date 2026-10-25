@@ -98,7 +98,9 @@ The installer sets up:
 - the panel and the bundled `rtl_airband`, in
   `/usr/local/lib/rtl-airband-panel/` (linked from `/usr/local/bin`; an
   `rtl_airband` you already have there is left alone);
-- an `rtl-airband-panel` account that runs the panel and new instances;
+- the account that runs the panel and new instances: it asks which one,
+  suggesting the account your existing `rtl_airband` services run as
+  (the control socket only answers that account), or `rtl-airband-panel`;
 - access to SDR dongles without root (a udev rule, and a blacklist that
   stops the kernel's TV drivers from grabbing them; if they're already
   loaded, reboot once);
@@ -115,6 +117,8 @@ Then open <http://localhost:3000> on that machine. Useful options (see
 | `--listen-all` | Reachable from your whole network; generates a login password and prints it |
 | `--instances-dir DIR` | Where your instance configs live (default `/etc/rtl-airband-panel/instances`) |
 | `--unit-prefix rtl_` | Only let the panel manage services whose names start with `rtl_` |
+| `--user NAME` | The account to run as, without asking |
+| `--yes` | Don't ask anything; take the defaults (for scripts) |
 | `--no-start` | Install but don't start the panel yet |
 
 **Upgrading:** download the new release and run `sudo ./install.sh` again.

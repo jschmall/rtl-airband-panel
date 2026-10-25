@@ -17,12 +17,14 @@
 #   --instances-dir DIR  Where instance .conf files live
 #                        (default: /etc/rtl-airband-panel/instances)
 #   --user NAME          Account the panel (and new instances) run as
-#                        (default: rtl-airband-panel)
+#                        (default: rtl-airband-panel). Asked for when run
+#                        in a terminal without this option.
 #   --unit-prefix P      Only let the panel manage services named P*.service,
 #                        e.g. rtl_ (default: any validly named service)
 #   --listen-all         Listen on every network interface and generate a
 #                        login password (default: this machine only)
 #   --no-start           Install everything but don't (re)start the panel
+#   -y, --yes            Don't ask anything; take the defaults
 #   --uninstall          Remove the panel; keep configs, settings and stats
 #   -h, --help           Show this help
 set -eu
@@ -44,6 +46,7 @@ user=""
 unit_prefix=""
 unit_prefix_set=0
 listen_all=0
+assume_yes=0
 start=1
 action=install
 
@@ -64,6 +67,7 @@ while [ $# -gt 0 ]; do
     --unit-prefix) [ $# -ge 2 ] || die "--unit-prefix needs a value"; unit_prefix="$2"; unit_prefix_set=1; shift 2 ;;
     --listen-all) listen_all=1; shift ;;
     --no-start) start=0; shift ;;
+    -y | --yes) assume_yes=1; shift ;;
     --uninstall) action=uninstall; shift ;;
     -h | --help) usage; exit 0 ;;
     *) die "unknown option: $1 (see --help)" ;;
@@ -100,6 +104,8 @@ if [ -n "$settings_file" ]; then
   [ -n "$instances_dir" ] || instances_dir="$(file_value RTL_PANEL_INSTANCES_DIR "$settings_file")"
   [ "$unit_prefix_set" -eq 1 ] || unit_prefix="$(file_value RTL_PANEL_SUDO_UNIT_PREFIX "$settings_file")"
 fi
+user_given=0
+[ -z "$user" ] || user_given=1
 [ -n "$user" ] || user="${existing_user:-rtl-airband-panel}"
 [ -n "$instances_dir" ] || instances_dir="$ETC_DIR/instances"
 
@@ -138,6 +144,39 @@ fi
   || die "run this from the extracted release folder (bin/ not found next to install.sh)"
 "$here/bin/rtl-airband-panel" --version >/dev/null 2>&1 \
   || die "bin/rtl-airband-panel doesn't run on this machine; is this the release for $(uname -m)?"
+
+# Accounts the rtl_airband services already on this machine run as. The
+# control socket (Apply live, the Hardware page) only answers its own
+# account, so the panel should run as theirs.
+instance_users=""
+for unit in /etc/systemd/system/*.service; do
+  [ -f "$unit" ] && [ "$unit" != "$UNIT_FILE" ] || continue
+  grep -q '^[[:space:]]*ExecStart=.*rtl_airband' "$unit" || continue
+  u="$(file_value User "$unit")"
+  instance_users="$instance_users$(basename "$unit" .service) (${u:-root})
+"
+done
+instance_accounts="$(printf '%s' "$instance_users" | sed -n 's/.*(\(.*\))$/\1/p' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+
+if [ "$user_given" -eq 0 ] && [ "$assume_yes" -eq 0 ] && [ -t 0 ]; then
+  step "Which account should run the panel?"
+  say "The panel, and the instances it creates, run as this account. It needs to"
+  say "be the account your rtl_airband services run as, or Apply live and the"
+  say "Hardware page can't reach them. It's created if it doesn't exist."
+  if [ -n "$instance_users" ]; then
+    say "rtl_airband services on this machine:"
+    printf '%s' "$instance_users" | sed 's/^/  /'
+    case "$instance_accounts" in *" "* | root) ;; *) [ -n "$existing_user" ] || user="$instance_accounts" ;; esac
+  fi
+  printf 'Account [%s]: ' "$user"
+  read -r answer || answer=""
+  [ -z "$answer" ] || user="$answer"
+  case "$user" in "" | *[!a-z0-9_-]*) die "the account must be a lowercase name (got '$user')" ;; esac
+fi
+if [ -n "$instance_accounts" ] && [ "$instance_accounts" != "$user" ]; then
+  say "note: your rtl_airband services run as $instance_accounts, the panel as '$user'; Apply live"
+  say "      and the Hardware page only reach instances running as '$user'"
+fi
 
 panel_version="$("$here/bin/rtl-airband-panel" --version | awk '{print $2}')"
 airband_version="$("$here/bin/rtl_airband" -v 2>&1 | sed -n 's/^RTLSDR-Airband version //p')"
@@ -190,6 +229,9 @@ fi
 password=""
 if [ -f "$ENV_FILE" ]; then
   say "kept your existing settings"
+  service_user="$(file_value RTL_PANEL_DEFAULT_SERVICE_USER "$ENV_FILE")"
+  [ -z "$service_user" ] || [ "$service_user" = "$user" ] \
+    || say "note: panel.env creates new instances as RTL_PANEL_DEFAULT_SERVICE_USER=$service_user; set it (and _GROUP) to $user to match the panel"
   configured_dir="$(file_value RTL_PANEL_INSTANCES_DIR "$ENV_FILE")"
   [ "$instances_dir" = "${configured_dir:-$ETC_DIR/instances}" ] \
     || say "note: panel.env still says RTL_PANEL_INSTANCES_DIR=${configured_dir:-(unset)}; edit it to use $instances_dir"
