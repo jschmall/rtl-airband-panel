@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.0] - 2026-10-25
+
+### Changed
+
+- **Merged the `installer-options` branch into `master` (0.5.1 to 0.5.7).**
+  - **`install.sh` keeps an existing install's setup.** A re-run keeps the
+    account, instances folder, unit prefix, settings and a hand-edited
+    panel unit. A Node.js-era install carries over its account and `.env`.
+  - **`install.sh` asks which account runs the panel.** It suggests the
+    account your `rtl_airband` services run as.
+  - **`install.sh` can install the panel only** (`--panel-only`), with a
+    warning about non-fork builds.
+  - **Fork-only features are soft-locked on stock rtl_airband.**
+    - The panel identifies each instance's build as fork, stock or
+      unknown.
+    - On a stock build it warns about fork-only settings, blocks the one a
+      stock build won't start with, greys them out in the editor, hides
+      Apply live and refuses JSON logging.
+    - An unidentified build locks nothing.
+  - **Bundled RTLSDR-Airband fork v6.5.0,** whose `rtl_airband -v`
+    identifies it.
+- Closes the install.sh and soft-lock items (section B) of #9.
+
 ## [0.5.7] - 2026-10-25
 
 ### Changed
