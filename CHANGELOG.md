@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.5.7] - 2026-10-25
+
+### Changed
+
+- **Bundled RTLSDR-Airband bumped from fork v6.4.0 to v6.5.0**
+  (jschmall/RTLSDR-Airband#23). `rtl_airband -v` now prints a
+  `Features: fork ...` line, which the panel uses (since 0.5.4) to tell
+  the fork from a stock build. Instances running the bundled binary are
+  identified by that line rather than the fallbacks.
+  - **Config keys:** none new.
+  - **Build:** no CMake options or dependencies changed, and
+    `airband-static-drivers.patch` still applies.
+
 ## [0.5.6] - 2026-10-25
 
 ### Added
