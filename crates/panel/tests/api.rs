@@ -257,7 +257,7 @@ async fn unknown_settings_round_trip_through_the_api() {
 }
 
 #[tokio::test]
-async fn websocket_pushes_hello_health_and_changes() {
+async fn websocket_pushes_hello_health_stats_and_changes() {
     use futures::{SinkExt, StreamExt};
     use tokio_tungstenite::tungstenite::Message;
 
@@ -281,6 +281,9 @@ async fn websocket_pushes_hello_health_and_changes() {
     let health = next_json().await;
     assert_eq!(health["type"], "health");
     assert_eq!(health["data"]["alpha"]["unit"], "alpha.service");
+    let summary = next_json().await;
+    assert_eq!(summary["type"], "stats-summary", "counters arrive with the connect snapshot");
+    assert_eq!(summary["data"]["alpha"]["outputFailureTotal"], 0.0);
 
     let restart = Request::post("/api/instances/alpha/restart")
         .header(header::HOST, "localhost:3000")
@@ -448,12 +451,12 @@ async fn websocket_hardware_topic_is_opt_in() {
 
     let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://localhost:{}/api/ws", addr.port())).await.unwrap();
     let mut types = Vec::new();
-    while types.len() < 2 {
+    while types.len() < 3 {
         if let Some(Ok(Message::Text(t))) = ws.next().await {
             types.push(serde_json::from_str::<Value>(&t).unwrap()["type"].as_str().unwrap().to_string());
         }
     }
-    assert_eq!(types, ["hello", "health"]);
+    assert_eq!(types, ["hello", "health", "stats-summary"]);
 
     ws.send(Message::Text(r#"{"type":"subscribe","topic":"hardware"}"#.into())).await.unwrap();
     let frame = loop {

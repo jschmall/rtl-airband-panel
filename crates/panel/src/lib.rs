@@ -22,7 +22,7 @@ use crate::hardware::HardwareService;
 use crate::http::AppState;
 use crate::service::{InstanceService, ServiceOptions};
 use crate::settings::{Settings, SystemdMode};
-use crate::stats::{PollStatusTracker, PollerOptions, StatsService};
+use crate::stats::{PollerOptions, StatsService};
 use crate::stats_db::StatsDb;
 use crate::store::ConfigStore;
 
@@ -58,7 +58,7 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
     let (events, _) = broadcast::channel(256);
     let state = AppState {
         service,
-        stats: Arc::new(StatsService { db, poll_status: Arc::new(PollStatusTracker::default()) }),
+        stats: Arc::new(StatsService::new(db)),
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
         allowed_hosts: Arc::new(
@@ -115,6 +115,7 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
         shutdown_rx,
     ));
     let watcher = tokio::spawn(http::ws::health_watcher(app.state.clone(), Duration::from_secs(5)));
+    let stats_watcher = tokio::spawn(http::ws::stats_watcher(app.state.clone(), Duration::from_secs(5)));
     let hardware_watcher = tokio::spawn(http::ws::hardware_watcher(
         app.state.clone(),
         Duration::from_millis(settings.hardware_poll_interval_ms.max(250)),
@@ -138,6 +139,7 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let _ = shutdown_tx.send(true);
     let _ = poller.await;
     watcher.abort();
+    stats_watcher.abort();
     hardware_watcher.abort();
     Ok(())
 }
