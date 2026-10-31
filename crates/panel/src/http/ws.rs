@@ -1,6 +1,8 @@
 //! `/api/ws`: a push channel so clients can stop polling. The server sends
 //! `{"type":"hello"}` on connect, `{"type":"health","data":{...}}` whenever
-//! any unit's status changes (checked every few seconds), and
+//! any unit's status changes (checked every few seconds),
+//! `{"type":"stats-summary","data":{...}}` whenever any instance's
+//! Overview counters change, and
 //! `{"type":"instance-changed","name":...}` after any mutation. A client
 //! that sends `{"type":"subscribe","topic":"hardware"}` also gets
 //! `{"type":"hardware","data":HardwareSnapshot}` every poll interval until it
@@ -75,6 +77,12 @@ async fn client(mut socket: WebSocket, state: AppState) {
             return;
         }
     }
+    if let Some(summary) = stats_summary(&state).await {
+        let msg = json!({ "type": "stats-summary", "data": summary });
+        if socket.send(Message::Text(msg.to_string().into())).await.is_err() {
+            return;
+        }
+    }
     loop {
         tokio::select! {
             event = events.recv() => match event {
@@ -122,6 +130,33 @@ pub async fn health_watcher(state: AppState, interval: Duration) {
         let current = serde_json::to_value(&health).unwrap_or(Value::Null);
         if last.as_ref() != Some(&current) {
             let _ = state.events.send(json!({ "type": "health", "data": current }));
+            last = Some(current);
+        }
+    }
+}
+
+/// Every instance's Overview counters; normally served from the stats
+/// cache, but a cold cache reads SQLite, so it runs off the async workers.
+async fn stats_summary(state: &AppState) -> Option<Value> {
+    let names: Vec<String> = state.service.configs.list().await.ok()?.into_iter().map(|i| i.name).collect();
+    let stats = state.stats.clone();
+    let summary = tokio::task::spawn_blocking(move || stats.summaries(&names)).await.ok()?.ok()?;
+    serde_json::to_value(summary).ok()
+}
+
+/// Broadcasts the Overview counters whenever they change (after each stats poll).
+pub async fn stats_watcher(state: AppState, interval: Duration) {
+    let mut last: Option<Value> = None;
+    let mut ticker = tokio::time::interval(interval);
+    loop {
+        ticker.tick().await;
+        if state.events.receiver_count() == 0 {
+            last = None;
+            continue;
+        }
+        let Some(current) = stats_summary(&state).await else { continue };
+        if last.as_ref() != Some(&current) {
+            let _ = state.events.send(json!({ "type": "stats-summary", "data": current }));
             last = Some(current);
         }
     }

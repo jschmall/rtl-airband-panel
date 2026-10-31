@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { api, ApiError, type InstanceSummary, type UnitStatus } from "../api/client.js";
+import { api, ApiError, type InstanceStatsSummary, type InstanceSummary, type UnitStatus } from "../api/client.js";
 import { AUTO_REFRESH_MS, LIVE_SAFETY_REFRESH_MS } from "../lib/polling.js";
 
 /**
@@ -35,14 +35,11 @@ interface InstanceListContextValue {
    */
   pollBriefly: () => Promise<void>;
   /**
-   * Bumped once per background poll tick (not on route-triggered refreshes).
-   * Other components that need to refetch their own data on the same
-   * cadence -- e.g. OverviewPage's separate stats-summary endpoint
-   * -- can depend on this instead of running their own independent
-   * setInterval, so all background polling fires in lockstep on one shared
-   * clock rather than several timers drifting out of phase with each other.
+   * Each instance's Overview counters (overflows, output failures), keyed by
+   * name; null until the first arrives. Pushed over /api/ws whenever they
+   * change; fetched on the background poll only while the push channel is down.
    */
-  pollTick: number;
+  statsSummaries: Record<string, InstanceStatsSummary> | null;
   connection: Connection;
 }
 
@@ -71,7 +68,7 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   const [instances, setInstances] = useState<InstanceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pollTick, setPollTick] = useState(0);
+  const [statsSummaries, setStatsSummaries] = useState<Record<string, InstanceStatsSummary> | null>(null);
   const [wsLive, setWsLive] = useState(false);
   const [reachable, setReachable] = useState(true);
 
@@ -87,9 +84,19 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSummaries = useCallback(async () => {
+    try {
+      const next = await api.getInstanceStatsSummary();
+      setStatsSummaries((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    } catch {
+      // keep the last numbers on a transient failure
+    }
+  }, []);
+
   // Push channel: unit status changes arrive as "health" events (merged in
-  // place, no refetch), and any mutation from any client as
-  // "instance-changed" (refetch the list). Reconnects with backoff; against a
+  // place, no refetch), Overview counters as "stats-summary" (replaced
+  // whole), and any mutation from any client as "instance-changed" (refetch
+  // the list). Reconnects with backoff; against a
   // backend without /api/ws this just keeps failing quietly and the poll
   // below carries on at its normal cadence.
   useEffect(() => {
@@ -103,7 +110,7 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
       const scheme = window.location.protocol === "https:" ? "wss" : "ws";
       socket = new WebSocket(`${scheme}://${window.location.host}/api/ws`);
       socket.onmessage = (event) => {
-        let msg: { type?: string; data?: Record<string, UnitStatus>; name?: string };
+        let msg: { type?: string; data?: Record<string, unknown>; name?: string };
         try {
           msg = JSON.parse(String(event.data));
         } catch {
@@ -115,12 +122,14 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
           setReachable(true);
           void refresh();
         } else if (msg.type === "health" && msg.data) {
-          const statuses = msg.data;
+          const statuses = msg.data as Record<string, UnitStatus>;
           setInstances((prev) => {
             if (!prev) return prev;
             const next = prev.map((i) => (statuses[i.name] ? { ...i, status: statuses[i.name]! } : i));
             return sameInstanceList(prev, next) ? prev : next;
           });
+        } else if (msg.type === "stats-summary" && msg.data) {
+          setStatsSummaries(msg.data as Record<string, InstanceStatsSummary>);
         } else if (msg.type === "instance-changed") {
           void refresh();
         }
@@ -156,12 +165,18 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(
       () => {
         void refresh();
-        setPollTick((t) => t + 1);
+        if (!wsLive) void refreshSummaries();
       },
       wsLive ? LIVE_SAFETY_REFRESH_MS : AUTO_REFRESH_MS
     );
     return () => clearInterval(interval);
-  }, [refresh, wsLive]);
+  }, [refresh, refreshSummaries, wsLive]);
+
+  // Without the push channel (not connected yet, or a backend without one),
+  // fetch the counters now rather than a whole poll interval from now.
+  useEffect(() => {
+    if (!wsLive) void refreshSummaries();
+  }, [refreshSummaries, wsLive]);
 
   const pollBriefly = useCallback(async () => {
     for (let i = 0; i < 5; i++) {
@@ -183,8 +198,8 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
   const connection: Connection = !reachable ? "offline" : wsLive ? "live" : "polling";
 
   const value = useMemo(
-    () => ({ instances, filteredInstances, searchQuery, setSearchQuery, error, refresh, pollBriefly, pollTick, connection }),
-    [instances, filteredInstances, searchQuery, error, refresh, pollBriefly, pollTick, connection]
+    () => ({ instances, filteredInstances, searchQuery, setSearchQuery, error, refresh, pollBriefly, statsSummaries, connection }),
+    [instances, filteredInstances, searchQuery, error, refresh, pollBriefly, statsSummaries, connection]
   );
 
   return <InstanceListContext.Provider value={value}>{children}</InstanceListContext.Provider>;

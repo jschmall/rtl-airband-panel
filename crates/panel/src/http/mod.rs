@@ -367,6 +367,16 @@ async fn instance_names(s: &AppState) -> ApiResult<Vec<String>> {
     Ok(s.service.configs.list().await?.into_iter().map(|i| i.name).collect())
 }
 
+/// Runs a stats query (SQLite, behind one connection lock the poller and
+/// pruner also take) off the async workers.
+async fn stats_query<T: Send + 'static>(
+    s: &AppState,
+    f: impl FnOnce(&crate::stats::StatsService) -> ApiResult<T> + Send + 'static,
+) -> ApiResult<T> {
+    let stats = s.stats.clone();
+    tokio::task::spawn_blocking(move || f(&stats)).await.map_err(|e| ApiError::Internal(e.to_string()))?
+}
+
 async fn require_instance(s: &AppState, name: &str) -> ApiResult<()> {
     airband_supervisor::instance::validate_instance_name(name)?;
     if !s.service.configs.exists(name).await {
@@ -402,12 +412,13 @@ async fn hardware_history(
 }
 
 async fn stats_summary(State(s): State<AppState>) -> ApiResult<impl IntoResponse> {
-    Ok(Json(s.stats.summaries(&instance_names(&s).await?)?))
+    let names = instance_names(&s).await?;
+    Ok(Json(stats_query(&s, move |stats| stats.summaries(&names)).await?))
 }
 
 async fn stats_latest(State(s): State<AppState>, Path(name): Path<String>) -> ApiResult<impl IntoResponse> {
     require_instance(&s, &name).await?;
-    Ok(Json(s.stats.latest(&name)?))
+    Ok(Json(stats_query(&s, move |stats| stats.latest(&name).map(|l| l.to_vec())).await?))
 }
 
 async fn stats_poll_status(State(s): State<AppState>, Path(name): Path<String>) -> ApiResult<impl IntoResponse> {
@@ -442,10 +453,11 @@ async fn stats_history(
     let num = |v: Option<String>| v.and_then(|t| t.parse::<f64>().ok()).map(|n| n as i64);
     require_instance(&s, &name).await?;
     let query = HistoryQuery { metric, labels, since_ms: num(q.since_ms), until_ms: num(q.until_ms) };
-    Ok(Json(s.stats.history(&name, &query)?))
+    Ok(Json(stats_query(&s, move |stats| stats.history(&name, &query)).await?))
 }
 
 async fn metrics(State(s): State<AppState>) -> ApiResult<Response> {
-    let text = s.stats.metrics_text(&instance_names(&s).await?)?;
+    let names = instance_names(&s).await?;
+    let text = stats_query(&s, move |stats| stats.metrics_text(&names)).await?;
     Ok(([(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], text).into_response())
 }

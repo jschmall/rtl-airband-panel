@@ -192,8 +192,10 @@ impl StatsDb {
     /// Every series' value from the most recent poll of this instance.
     pub fn latest(&self, instance: &str) -> rusqlite::Result<Vec<LatestSample>> {
         let conn = self.conn.lock().unwrap();
+        // Per-series MAX through a correlated subquery so each one is a single
+        // idx_samples_series_ts seek; MAX over the join scans every sample.
         let max_ts: Option<i64> = conn.query_row(
-            "SELECT MAX(sa.ts) FROM samples sa JOIN series se ON se.id = sa.series_id WHERE se.instance = ?",
+            "SELECT MAX((SELECT MAX(ts) FROM samples WHERE series_id = se.id)) FROM series se WHERE se.instance = ?",
             params![instance],
             |r| r.get(0),
         )?;
@@ -331,6 +333,27 @@ mod tests {
         db.prune(7.0).unwrap();
         assert!(db.latest("a").unwrap().is_empty(), "samples from 1970 are older than 7 days");
         db.ping().unwrap();
+    }
+
+    #[test]
+    fn latest_is_the_instances_most_recent_poll() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = StatsDb::open(&dir.path().join("stats.db")).unwrap();
+        for ts in 1..=50 {
+            db.insert_batch("a", &[sample("cpu", &[], ts as f64), sample("noise", &[("freq", "1")], 0.5)], ts * 1000)
+                .unwrap();
+        }
+        // A series that stopped reporting isn't part of the latest poll.
+        db.insert_batch("a", &[sample("cpu", &[], 99.0)], 60_000).unwrap();
+        // Another instance's newer samples don't leak in.
+        db.insert_batch("b", &[sample("cpu", &[], 7.0)], 90_000).unwrap();
+
+        assert_eq!(
+            db.latest("a").unwrap(),
+            [LatestSample { metric: "cpu".into(), labels: BTreeMap::new(), value: 99.0 }]
+        );
+        assert_eq!(db.latest("b").unwrap().len(), 1);
+        assert!(db.latest("missing").unwrap().is_empty());
     }
 
     #[test]

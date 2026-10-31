@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { api, type InstanceStatsSummary, type InstanceSummary } from "../api/client.js";
+import type { InstanceStatsSummary, InstanceSummary } from "../api/client.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 import { formatDateTime, formatUptime } from "../lib/time-format.js";
 import { GuardedLink } from "../components/GuardedLink.js";
@@ -12,11 +11,14 @@ function frequencies(instance: InstanceSummary): number[] {
   return [...new Set(instance.searchFields.filter((f) => /^\d+\.\d+$/.test(f)).map(Number))].sort((a, b) => a - b);
 }
 
-function Counter({ label, value, title }: { label: string; value: number; title: string }) {
+/** `value` is undefined until the counters first arrive -- shown as a dash, not a reassuring 0. */
+function Counter({ label, value, title }: { label: string; value: number | undefined; title: string }) {
   return (
     <div title={title} className="text-right">
       <dt className="text-[10px] uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className={`text-sm tabular-nums ${value > 0 ? "font-semibold text-amber-300" : "text-slate-300"}`}>{value}</dd>
+      <dd className={`text-sm tabular-nums ${value ? "font-semibold text-amber-300" : value === undefined ? "text-slate-500" : "text-slate-300"}`}>
+        {value ?? "–"}
+      </dd>
     </div>
   );
 }
@@ -48,8 +50,8 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
           </p>
         </div>
         <dl className="flex flex-shrink-0 gap-4">
-          <Counter label="Overflows" value={summary?.bufferOverflowTotal ?? 0} title="Device buffer overflows (samples dropped before demodulation)" />
-          <Counter label="Failures" value={summary?.outputFailureTotal ?? 0} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
+          <Counter label="Overflows" value={summary?.bufferOverflowTotal} title="Device buffer overflows (samples dropped before demodulation)" />
+          <Counter label="Failures" value={summary?.outputFailureTotal} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
         </dl>
       </div>
 
@@ -115,19 +117,7 @@ function TallyPair({ left, right }: { left: Tally; right: Tally }) {
 
 /** Landing page: fleet totals, then one card per instance. */
 export function OverviewPage() {
-  const { instances, pollTick } = useInstanceList();
-  const [summaries, setSummaries] = useState<Record<string, InstanceStatsSummary>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getInstanceStatsSummary()
-      .then((s) => !cancelled && setSummaries(s))
-      .catch(() => undefined); // keep the last numbers on a transient failure
-    return () => {
-      cancelled = true;
-    };
-  }, [pollTick, instances]);
+  const { instances, statsSummaries } = useInstanceList();
 
   if (instances === null) return <p className="text-slate-400">Loading…</p>;
 
@@ -161,7 +151,7 @@ export function OverviewPage() {
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {instances.map((instance) => (
-          <InstanceCard key={instance.name} instance={instance} summary={summaries[instance.name]} />
+          <InstanceCard key={instance.name} instance={instance} summary={statsSummaries?.[instance.name]} />
         ))}
       </div>
     </div>

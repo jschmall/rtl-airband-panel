@@ -5,6 +5,33 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.14] - 2026-10-31
+
+### Fixed
+
+- **The Overview page loads in well under a second instead of 5+ seconds.**
+  Its Overflows/Failures counters came from a stats query that scanned
+  every stored sample of every instance (millions of rows at the default
+  7-day retention) on each load. The query now does one index lookup per
+  series: 22 s down to 5 ms for three instances on a seeded 7-day
+  database.
+- **The Overflows/Failures counters keep up.** They used to refresh only
+  once a minute while the live connection was up, and a slow or failed
+  request quietly left old numbers in place. They're now pushed over the
+  live connection (`/api/ws`, a new `stats-summary` event) within about 5 s
+  of each stats poll, and arrive together with the first page load.
+  Counters show "–" until the first numbers arrive, instead of a
+  misleading 0.
+
+### Changed
+
+- The panel keeps each instance's most recent stats poll in memory, so the
+  Overview counters, the instance Stats page's latest values and
+  `/metrics` don't query SQLite at all. Stats queries that do hit SQLite
+  (history charts, the first read after a restart) run off the web
+  server's request threads, so a long stats prune can no longer stall
+  other requests.
+
 ## [0.6.13] - 2026-10-25
 
 ### Changed
