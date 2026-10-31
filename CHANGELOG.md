@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.15] - 2026-10-31
+
+### Changed
+
+- **Merged the `overview-perf` branch into `master` (0.6.14).**
+  - **The Overview page loads in well under a second** instead of 5+
+    seconds, and its Overflows/Failures counters are pushed live within
+    about 5 s of each stats poll.
+
 ## [0.6.14] - 2026-10-31
 
 ### Fixed
