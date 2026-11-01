@@ -28,6 +28,10 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
   const freqs = frequencies(instance);
   const windows = instance.deviceWindows ?? [];
   const running = state === "active";
+  const since =
+    summary?.baselineSetAt !== undefined
+      ? `, since the last restart or live apply (${formatDateTime(new Date(summary.baselineSetAt).toISOString())})`
+      : ", since the process started";
   return (
     <GuardedLink
       to={`/instances/${encodeURIComponent(instance.name)}`}
@@ -49,10 +53,17 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
             )}
           </p>
         </div>
-        <dl className="flex flex-shrink-0 gap-4">
-          <Counter label="Overflows" value={summary?.bufferOverflowTotal} title="Device buffer overflows (samples dropped before demodulation)" />
-          <Counter label="Failures" value={summary?.outputFailureTotal} title="Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets" />
-        </dl>
+        <div className="flex-shrink-0 text-right">
+          <dl className="flex gap-4">
+            <Counter label="Overflows" value={summary?.bufferOverflowTotal} title={`Device buffer overflows (samples dropped before demodulation)${since}`} />
+            <Counter label="Failures" value={summary?.outputFailureTotal} title={`Output failures: icecast disconnects, write/encode/upload failures, dropped UDP packets${since}`} />
+          </dl>
+          {summary?.baselineSetAt !== undefined && (
+            <p className="mt-0.5 text-[10px] text-slate-500" title="Counted from the panel's last restart or live apply of this instance">
+              since {formatDateTime(new Date(summary.baselineSetAt).toISOString())}
+            </p>
+          )}
+        </div>
       </div>
 
       <p className="mt-2 text-sm text-slate-300">

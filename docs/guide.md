@@ -27,7 +27,10 @@ service of the same name, `<name>.service`. Pick any names you like.
 
 - **Overview** shows every instance as a card:
   - its status (running, starting, failed, stopped) and uptime;
-  - buffer overflows and output failures, in the top right;
+  - buffer overflows and output failures, in the top right. They count
+    from the last time the panel restarted the instance or applied a
+    change live ("since …" underneath); before that, from when the
+    process started;
   - the frequencies it listens on;
   - each SDR's **window**: the range around its center frequency where
     channels can go. A new channel inside the window fits on that dongle
@@ -180,6 +183,29 @@ kept for 7 days by default.
 Each instance's page has a live log viewer, in its **Logs** section. Turn
 on JSON logging there (fork only) for cleaner, structured log lines; this
 restarts the instance.
+
+## Errors
+
+The **Errors** page is a running record of what went wrong on every
+instance, newest first, kept for as long as stats history (7 days by
+default). It collects:
+
+- **Log errors and warnings** from each instance's systemd journal. With
+  JSON logging on, rtl_airband's own level is used. Without it, lines are
+  picked out by words like *error*, *failed* or *lost connection* and
+  tagged **keyword match**. The same line repeated within a minute is
+  shown once, with a repeat count.
+- **Counter increases**: Icecast disconnects, failed writes, encodes and
+  uploads, dropped UDP packets, buffer overflows and output overruns. Each
+  counter is listed at most once a minute, with the increases added up.
+- **systemd problems**: an instance's service failing, stopping, or
+  restarting without the panel asking (after a crash, or from
+  `systemctl`).
+
+Restarts and live applies are drawn as dividers across the list, so you
+can tell whether a problem started before or after a change. Filter by
+instance or show errors only. The **Errors** link in the left-hand menu
+counts new errors and warnings since you last opened the page.
 
 ## Themes and phones
 

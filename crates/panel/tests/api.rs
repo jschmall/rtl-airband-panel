@@ -34,6 +34,8 @@ struct Harness {
     _dir: tempfile::TempDir,
     router: axum::Router,
     socket: std::path::PathBuf,
+    stats: Arc<panel::stats::StatsService>,
+    events: Arc<panel::events::EventLog>,
 }
 
 fn harness(extra_args: &[&str]) -> Harness {
@@ -57,7 +59,7 @@ fn harness(extra_args: &[&str]) -> Harness {
     args.extend(extra_args.iter().map(|s| s.to_string()));
     let settings = Settings::parse_from(args);
     let app = panel::build(&settings, Arc::new(airband_supervisor::MockUnits::default())).unwrap();
-    Harness { _dir: dir, router: app.router, socket }
+    Harness { _dir: dir, router: app.router, socket, stats: app.state.stats, events: app.state.event_log }
 }
 
 async fn send(router: &axum::Router, req: Request<Body>) -> (StatusCode, axum::http::HeaderMap, Value) {
@@ -221,6 +223,71 @@ async fn live_apply_clears_pending_only_when_nothing_needs_a_restart() {
 }
 
 #[tokio::test]
+async fn restarts_and_live_applies_zero_the_overview_counters() {
+    let h = harness(&[]);
+    let poll = |disconnects: f64, cpu: f64| {
+        let sample = |metric: &str, labels: &[(&str, &str)], value| airband_supervisor::StatSample {
+            metric: metric.into(),
+            labels: labels.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            value,
+        };
+        // As the stats poller does.
+        let jumps = h.stats.record_poll(
+            "alpha",
+            &[
+                sample("icecast_disconnect_count", &[("freq", "151100000")], disconnects),
+                sample("process_cpu_seconds_total", &[], cpu),
+            ],
+        );
+        h.events.counter_poll("alpha", &jumps);
+    };
+    let failures = async || {
+        let (_, _, s) = send(&h.router, get("/api/instances/stats-summary")).await;
+        (s["alpha"]["outputFailureTotal"].as_f64().unwrap(), s["alpha"].get("baselineSetAt").is_some())
+    };
+    poll(4.0, 10.0);
+    assert_eq!(failures().await, (4.0, false));
+
+    // reload_diff unreachable: nothing reloaded, so the totals stand.
+    let (_, _, config) = send(&h.router, get("/api/instances/alpha")).await;
+    let mut edit = config.clone();
+    edit["devices"][0]["gain"] = json!(31);
+    let (_, _, r) = send(&h.router, json_req("POST", "/api/instances/alpha/apply-live", &edit)).await;
+    assert_eq!(r["liveApply"]["reason"], "unreachable", "{r}");
+    assert_eq!(failures().await, (4.0, false));
+
+    // A live apply that reached the process counts from zero again.
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await; // live-apply cooldown
+    let _sock = fake_socket(&h.socket, "{\"ok\":true,\"applied\":[\"gain\"],\"skipped_requires_restart\":[]}\n");
+    let (_, _, r) = send(&h.router, json_req("POST", "/api/instances/alpha/apply-live", &edit)).await;
+    assert_eq!(r["liveApply"]["attempted"], true, "{r}");
+    assert_eq!(failures().await, (0.0, true));
+    poll(5.0, 11.0);
+    assert_eq!(failures().await, (1.0, true));
+
+    // So does a full restart, and the new process's own counters take over.
+    let restart = Request::post("/api/instances/alpha/restart")
+        .header(header::HOST, "localhost:3000")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(send(&h.router, restart).await.0, StatusCode::OK);
+    assert_eq!(failures().await, (0.0, true));
+    poll(2.0, 0.5);
+    assert_eq!(failures().await, (2.0, true));
+
+    // The error log has each marker and the counter increase between them,
+    // in order. (The new process's +2 is held back: one counter event a minute.)
+    let (status, _, list) = send(&h.router, get("/api/events?instance=alpha")).await;
+    assert_eq!(status, StatusCode::OK);
+    let kinds: Vec<&str> =
+        list["events"].as_array().unwrap().iter().rev().map(|e| e["kind"].as_str().unwrap()).collect();
+    assert_eq!(kinds, ["live-apply", "counter", "restart"], "{list}");
+    let (_, _, page) = send(&h.router, get(&format!("/api/events?limit=1&before={}", list["events"][0]["id"]))).await;
+    assert_eq!(page["events"][0]["kind"], "counter", "the one before the restart");
+    assert_eq!(send(&h.router, get("/api/events?instance=..%2Fx")).await.0, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn reserve_channels_capacity_comes_from_the_start_baseline() {
     let h = harness(&[]);
     let _sock = fake_socket(&h.socket, "{\"ok\":true,\"applied\":[\"added\"],\"skipped_requires_restart\":[]}\n");
@@ -290,6 +357,9 @@ async fn websocket_pushes_hello_health_stats_and_changes() {
         .body(Body::empty())
         .unwrap();
     send(&h.router, restart).await;
+    let marker = next_json().await;
+    assert_eq!(marker["type"], "event", "the error log's restart marker");
+    assert_eq!(marker["data"]["kind"], "restart");
     let changed = next_json().await;
     assert_eq!(changed, json!({ "type": "instance-changed", "name": "alpha" }));
     let _ = ws.send(Message::Close(None)).await;

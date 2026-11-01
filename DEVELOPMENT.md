@@ -366,8 +366,39 @@ backend used:
   added or edited, its exact label set changes. If exactly one series at
   the same frequency stopped reporting, the new label set takes over that
   series instead of starting a new one.
-- **Pruning** deletes samples older than the retention window and
-  orphaned series, on its own interval, followed by an incremental vacuum.
+- **Pruning** deletes samples (and error-log events) older than the
+  retention window and orphaned series, on its own interval, followed by
+  an incremental vacuum.
+- **Overview counter zero points.** On every panel restart or live apply
+  (`RestartObserver` on `InstanceService`), `StatsService::mark_baseline`
+  saves the instance's latest poll in `summary_baselines`. The Overview
+  totals subtract it. A poll whose CPU time or any summed counter went
+  backwards means a new process: the saved values are cleared (`set_at`
+  stays, for the "since" hint). A series missing from the baseline is
+  matched by `(metric, freq)` when that's unambiguous, so a channel
+  relabelled in a live apply keeps its zero point.
+
+### Error log
+
+`crates/panel/src/events.rs`; rows in stats.db's `events` table.
+Producers:
+- **Restart markers**: `EventLog` is a `RestartObserver`, registered
+  before `StatsService`. Before writing a marker it flushes held-back
+  counter increases, so they sort before it.
+- **systemd**: `unit_watcher` compares `all_health()` every 5 s, always,
+  not only while a client is connected. The rules are in
+  `unit_change_events`. A start-time change within 30 s of a panel restart
+  isn't "unexpected".
+- **Counters**: `StatsService::record_poll` returns each summed counter's
+  increase over the previous cached poll. The poller keeps that cache
+  when a stats file is unchanged. `EventLog::counter_poll` writes at most
+  one event per (instance, metric) per minute.
+- **Journal**: `journal_watcher` keeps one `follow_logs(name, 0)` per
+  instance: the same sudoers-allowed `journalctl -f` argv as the log
+  viewer, so no sudoers change. Ended streams reopen with backoff (5 s up
+  to 5 min), and lines in the gap are missed. `airband_supervisor::classify_log_line`
+  trusts `-j` levels and keyword-matches the rest (`heuristic: true` in
+  the event's detail).
 
 ### Hardware page
 
@@ -435,7 +466,9 @@ and status codes; see `crates/panel/src/http/mod.rs`), plus:
   recorded readings from the last `windowMs`, default 5 minutes, at most a
   day);
 - `GET /api/instances/:name/airband` (an `AirbandBuild`, see
-  "Fork or stock rtl_airband" below).
+  "Fork or stock rtl_airband" below);
+- `GET /api/events?instance=&before=&limit=` (the error log, newest first,
+  `before` an event id to page back; see "Error log" above).
 
 Errors are `{ error }` with 400/404/409/422 (with `errors`)/502 (failed
 systemd command, with `exitCode` and `stderr`).
@@ -444,6 +477,9 @@ systemd command, with `exitCode` and `stderr`).
 - `health` snapshots whenever a unit's status changes (checked every 5 s
   while anyone is connected);
 - `instance-changed` after any mutation;
+- `stats-summary` (the Overview counters) whenever they change, and right
+  after a restart or live apply resets them;
+- `event` (one error-log entry) as each is recorded;
 - `hardware` (a `HardwareSnapshot`) every `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`,
   only to clients that sent `{"type":"subscribe","topic":"hardware"}`. A new
   subscriber gets a frame right away. While nobody is subscribed, the

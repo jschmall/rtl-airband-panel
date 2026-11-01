@@ -2,6 +2,7 @@
 
 pub mod airband;
 pub mod error;
+pub mod events;
 pub mod hardware;
 pub mod http;
 pub mod secrets;
@@ -56,9 +57,16 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
         db.clone(),
     ));
     let (events, _) = broadcast::channel(256);
+    let stats = Arc::new(StatsService::new(db.clone()));
+    let event_log = Arc::new(events::EventLog::new(db, events.clone()));
+    // Counter increases held back by the error log are written ahead of the
+    // restart marker, so it observes first.
+    service.observe(event_log.clone());
+    service.observe(stats.clone());
     let state = AppState {
         service,
-        stats: Arc::new(StatsService::new(db)),
+        stats,
+        event_log,
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
         allowed_hosts: Arc::new(
@@ -107,6 +115,7 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let poller = tokio::spawn(stats::run_poller(
         Arc::new(ConfigStore::new(&settings.instances_dir)),
         app.state.stats.clone(),
+        app.state.event_log.clone(),
         PollerOptions {
             interval: Duration::from_millis(settings.stats_poll_interval_ms.max(1000)),
             retention_days: settings.stats_retention_days,
@@ -116,6 +125,16 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     ));
     let watcher = tokio::spawn(http::ws::health_watcher(app.state.clone(), Duration::from_secs(5)));
     let stats_watcher = tokio::spawn(http::ws::stats_watcher(app.state.clone(), Duration::from_secs(5)));
+    let unit_watcher = tokio::spawn(events::unit_watcher(
+        app.state.service.clone(),
+        app.state.event_log.clone(),
+        Duration::from_secs(5),
+    ));
+    let journal_watcher = tokio::spawn(events::journal_watcher(
+        app.state.service.clone(),
+        app.state.event_log.clone(),
+        Duration::from_secs(15),
+    ));
     let hardware_watcher = tokio::spawn(http::ws::hardware_watcher(
         app.state.clone(),
         Duration::from_millis(settings.hardware_poll_interval_ms.max(250)),
@@ -140,6 +159,8 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let _ = poller.await;
     watcher.abort();
     stats_watcher.abort();
+    unit_watcher.abort();
+    journal_watcher.abort();
     hardware_watcher.abort();
     Ok(())
 }

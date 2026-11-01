@@ -5,6 +5,80 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.21] - 2026-11-01
+
+### Added
+
+- **Errors page (#16).** A new **Errors** section in the left-hand menu
+  lists every instance's log errors and warnings, failure-counter
+  increases and systemd problems, newest first and grouped by day.
+  - Restarts and live applies (the panel's, and ones it didn't make) are
+    drawn as dividers between them, so you can see what happened before
+    and after a change.
+  - Filter by instance, show errors only, or hide the markers. Older
+    entries load on demand.
+  - Lines whose level came from keyword matching (logs without `-j`) are
+    tagged, and folded repeats show a count.
+  - Entries arrive live over the websocket.
+  - The menu link shows how many errors and warnings arrived since you
+    last opened the page: red if any is an error, amber otherwise. This
+    is remembered per browser.
+
+### Fixed
+
+- **The stats poller kept its cache when a stats file hadn't changed.**
+  It treated an unchanged file like an instance with no stats at all and
+  dropped its cached poll. The next real change then had nothing to
+  compare with, so counter increases weren't logged, and the Overview read
+  its totals back from SQLite.
+- Counter events name a series outermost first ("device 0 channel 1
+  output 0").
+
+## [0.6.20] - 2026-11-01
+
+### Added
+
+- **Backend for the error log (#16).** The panel now keeps a lasting,
+  timestamped record of what went wrong with each instance, plus markers
+  where it was restarted. It lives in stats.db (`events` table), is pruned
+  with the stats retention, and is served by `GET /api/events`
+  (`?instance=`, `?before=<id>` to page back, `?limit=`; newest first). Each
+  new entry is pushed over `/api/ws` as `{"type":"event"}`. Sources:
+  - **Restart markers**: every restart and live apply done by the panel,
+    with the reason, or with the applied and still-needs-restart lists.
+  - **systemd**: a unit failing, stopping outside the panel, or
+    restarting without the panel asking (systemd's `Restart=` after a
+    crash, or `systemctl`).
+  - **Failure counters**: icecast disconnects, write/encode/upload
+    failures, dropped UDP packets, buffer overflows and output overruns,
+    whenever they go up. At most one entry per counter a minute; the
+    increases in between are added up.
+  - **Journal**: one `journalctl -f` per instance, using the call the
+    sudoers file already allows. Lines logged with `-j` keep rtl_airband's
+    own level. Plain-text lines are sorted by keywords and marked as such.
+    The same line repeated within a minute is counted, not stored again.
+
+## [0.6.19] - 2026-11-01
+
+### Changed
+
+- **The Overview's Overflows and Failures counters start again from zero
+  when the panel restarts an instance or live-applies a change to it.**
+  - Before, they showed rtl_airband's own running totals. A live apply
+    doesn't restart the process, so those totals never went down after a
+    fix, and a full restart showed the old totals until the next stats poll.
+  - At each restart or live apply, the panel saves the current counter
+    values as a zero point and shows only what came after it. Under the
+    counters, the card shows "since <time>".
+  - The zero point is kept in the stats database, so it survives a panel
+    restart.
+  - It is dropped automatically when the counters themselves reset (CPU
+    time or a counter goes backwards: a new process).
+  - A live apply that never reached the process (no control socket,
+    unreachable, cooldown) changes nothing.
+  - The stats-summary API and websocket message carry the new
+    `baselineSetAt` field.
+
 ## [0.6.18] - 2026-11-01
 
 ### Fixed

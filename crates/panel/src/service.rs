@@ -135,6 +135,34 @@ pub enum ImportOutcome {
     Failed { error: String },
 }
 
+/// How the panel just brought an instance's running process up to date.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RestartKind {
+    /// A full restart of the instance's unit; `reason` names what asked for it.
+    Restart { reason: RestartReason },
+    /// reload_diff applied the change in the running process.
+    LiveApply { applied: Vec<String>, skipped_requires_restart: Vec<String> },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RestartReason {
+    /// The instance's Restart button.
+    Manual,
+    /// "Restart all pending".
+    Pending,
+    /// Saving the config with restart.
+    ConfigSave,
+    /// Changing the unit's options (JSON logging, User/Group).
+    Options,
+}
+
+/// Told whenever the panel restarts or live-applies to an instance, after it
+/// succeeded (e.g. so the Overview totals count from that point).
+pub trait RestartObserver: Send + Sync {
+    fn restarted(&self, name: &str, kind: &RestartKind);
+}
+
 pub struct ServiceOptions {
     pub rtl_airband_bin: String,
     pub default_service_user: Option<String>,
@@ -152,6 +180,7 @@ pub struct InstanceService {
     mutex: KeyedMutex,
     last_live_apply: Mutex<HashMap<String, Instant>>,
     binaries: BinaryCache,
+    observers: std::sync::RwLock<Vec<Arc<dyn RestartObserver>>>,
 }
 
 fn unknown_status(unit: &str) -> UnitStatus {
@@ -262,6 +291,17 @@ impl InstanceService {
             mutex: KeyedMutex::default(),
             last_live_apply: Mutex::new(HashMap::new()),
             binaries: BinaryCache::default(),
+            observers: std::sync::RwLock::new(Vec::new()),
+        }
+    }
+
+    pub fn observe(&self, observer: Arc<dyn RestartObserver>) {
+        self.observers.write().unwrap().push(observer);
+    }
+
+    fn after_restart(&self, name: &str, kind: RestartKind) {
+        for o in self.observers.read().unwrap().iter() {
+            o.restarted(name, &kind);
         }
     }
 
@@ -495,6 +535,7 @@ impl InstanceService {
             self.units.restart(&unit).await?;
             self.pending.clear(name).await?;
             self.baselines.set_started(name, &text).await?;
+            self.after_restart(name, RestartKind::Restart { reason: RestartReason::ConfigSave });
             None
         } else {
             Some(self.plan_against_baseline(name, &previous_raw, &text).await?)
@@ -553,6 +594,13 @@ impl InstanceService {
                     self.pending.clear(name).await?;
                     self.baselines.set_applied(name, &text).await?;
                 }
+                self.after_restart(
+                    name,
+                    RestartKind::LiveApply {
+                        applied: applied.clone(),
+                        skipped_requires_restart: skipped_requires_restart.clone(),
+                    },
+                );
                 LiveApplyOutcome::Attempted { attempted: true, applied, skipped_requires_restart }
             }
             ReloadDiffResult::Unreachable { reason } => not_attempted("unreachable", Some(reason)),
@@ -587,17 +635,23 @@ impl InstanceService {
             self.units.restart(&unit).await?;
             self.pending.clear(name).await?;
             self.record_started(name).await?;
+            self.after_restart(name, RestartKind::Restart { reason: RestartReason::Options });
         }
         Ok(OptionsResult { status: self.status(&unit).await?, options: merged })
     }
 
     pub async fn restart_instance(&self, name: &str) -> Result<UnitStatus, ApiError> {
+        self.restart_for(name, RestartReason::Manual).await
+    }
+
+    async fn restart_for(&self, name: &str, reason: RestartReason) -> Result<UnitStatus, ApiError> {
         let _guard = self.mutex.lock(name).await;
         self.require_exists(name).await?;
         let unit = unit_name(name);
         self.units.restart(&unit).await?;
         self.pending.clear(name).await?;
         self.record_started(name).await?;
+        self.after_restart(name, RestartKind::Restart { reason });
         self.status(&unit).await
     }
 
@@ -607,7 +661,7 @@ impl InstanceService {
             if !summary.pending_restart {
                 continue;
             }
-            let outcome = match self.restart_instance(&summary.name).await {
+            let outcome = match self.restart_for(&summary.name, RestartReason::Pending).await {
                 Ok(status) => serde_json::json!({ "status": status }),
                 Err(e) => serde_json::json!({ "error": e.to_string() }),
             };

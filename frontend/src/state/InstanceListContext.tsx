@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useLocation } from "react-router-dom";
 import { api, ApiError, type InstanceStatsSummary, type InstanceSummary, type UnitStatus } from "../api/client.js";
 import { AUTO_REFRESH_MS, LIVE_SAFETY_REFRESH_MS } from "../lib/polling.js";
+import { errorLog } from "../lib/error-log.js";
+import type { ErrorLogEvent } from "../api/client.js";
 
 /**
  * How fresh the shared state is: "live" while the /api/ws push channel is
@@ -95,7 +97,7 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
 
   // Push channel: unit status changes arrive as "health" events (merged in
   // place, no refetch), Overview counters as "stats-summary" (replaced
-  // whole), and any mutation from any client as "instance-changed" (refetch
+  // whole), error-log entries as "event" (into lib/error-log), and any mutation from any client as "instance-changed" (refetch
   // the list). Reconnects with backoff; against a
   // backend without /api/ws this just keeps failing quietly and the poll
   // below carries on at its normal cadence.
@@ -121,6 +123,8 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
           setWsLive(true);
           setReachable(true);
           void refresh();
+          // Events pushed while disconnected were missed: fetch the newest page again.
+          if (errorLog.get().events !== null) void errorLog.reload();
         } else if (msg.type === "health" && msg.data) {
           const statuses = msg.data as Record<string, UnitStatus>;
           setInstances((prev) => {
@@ -130,6 +134,8 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
           });
         } else if (msg.type === "stats-summary" && msg.data) {
           setStatsSummaries(msg.data as Record<string, InstanceStatsSummary>);
+        } else if (msg.type === "event" && msg.data) {
+          errorLog.push(msg.data as unknown as ErrorLogEvent);
         } else if (msg.type === "instance-changed") {
           void refresh();
         }
@@ -165,7 +171,10 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(
       () => {
         void refresh();
-        if (!wsLive) void refreshSummaries();
+        if (!wsLive) {
+          void refreshSummaries();
+          if (errorLog.get().events !== null) void errorLog.reload();
+        }
       },
       wsLive ? LIVE_SAFETY_REFRESH_MS : AUTO_REFRESH_MS
     );
