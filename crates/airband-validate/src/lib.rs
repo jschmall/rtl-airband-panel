@@ -5,6 +5,7 @@
 
 mod checks;
 pub mod constants;
+pub mod hints;
 mod types;
 mod view;
 
