@@ -144,12 +144,16 @@ async fn stats_summary(state: &AppState) -> Option<Value> {
     serde_json::to_value(summary).ok()
 }
 
-/// Broadcasts the Overview counters whenever they change (after each stats poll).
+/// Broadcasts the Overview counters whenever they change (after each stats
+/// poll, or right away when a restart or live apply resets them).
 pub async fn stats_watcher(state: AppState, interval: Duration) {
     let mut last: Option<Value> = None;
     let mut ticker = tokio::time::interval(interval);
     loop {
-        ticker.tick().await;
+        tokio::select! {
+            _ = ticker.tick() => {}
+            _ = state.stats.summaries_changed.notified() => {}
+        }
         if state.events.receiver_count() == 0 {
             last = None;
             continue;

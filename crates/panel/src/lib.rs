@@ -56,9 +56,11 @@ pub fn build(settings: &Settings, units: Arc<dyn UnitManager>) -> Result<App, St
         db.clone(),
     ));
     let (events, _) = broadcast::channel(256);
+    let stats = Arc::new(StatsService::new(db));
+    service.observe(stats.clone());
     let state = AppState {
         service,
-        stats: Arc::new(StatsService::new(db)),
+        stats,
         auth: settings.password.clone().map(|p| Arc::new((settings.username.clone(), p))),
         bound_to_loopback: settings.host.is_loopback(),
         allowed_hosts: Arc::new(

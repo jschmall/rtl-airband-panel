@@ -137,6 +137,12 @@ export interface InstanceStatsSummary {
   outputFailureTotal: number;
   /** Undefined when the instance's build doesn't report process_cpu_seconds_total. */
   processCpuSeconds?: number;
+  /**
+   * Epoch ms of the panel's last restart or live apply of this instance: the
+   * three totals above count from then. Undefined: they run from the
+   * process's start (it was never restarted through the panel).
+   */
+  baselineSetAt?: number;
 }
 
 export interface HistoryParams {

@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.19] - 2026-11-01
+
+### Changed
+
+- **The Overview's Overflows and Failures counters start again from zero
+  when the panel restarts an instance or live-applies a change to it.**
+  - Before, they showed rtl_airband's own running totals. A live apply
+    doesn't restart the process, so those totals never went down after a
+    fix, and a full restart showed the old totals until the next stats poll.
+  - At each restart or live apply, the panel saves the current counter
+    values as a zero point and shows only what came after it. Under the
+    counters, the card shows "since <time>".
+  - The zero point is kept in the stats database, so it survives a panel
+    restart.
+  - It is dropped automatically when the counters themselves reset (CPU
+    time or a counter goes backwards: a new process).
+  - A live apply that never reached the process (no control socket,
+    unreachable, cooldown) changes nothing.
+  - The stats-summary API and websocket message carry the new
+    `baselineSetAt` field.
+
 ## [0.6.18] - 2026-11-01
 
 ### Fixed

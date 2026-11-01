@@ -40,6 +40,14 @@ pub struct HardwareSample {
     pub gain_db: Option<f64>,
 }
 
+/// The counter values an instance's Overview totals count up from, taken
+/// when it was last restarted or live-applied by the panel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SummaryBaseline {
+    pub set_at: i64,
+    pub samples: Vec<LatestSample>,
+}
+
 pub struct HistoryQuery {
     pub metric: String,
     pub labels: BTreeMap<String, String>,
@@ -99,7 +107,12 @@ impl StatsDb {
                freq_error_ppm REAL,
                gain_db REAL
              );
-             CREATE INDEX IF NOT EXISTS idx_hardware_samples_ts ON hardware_samples(ts);",
+             CREATE INDEX IF NOT EXISTS idx_hardware_samples_ts ON hardware_samples(ts);
+             CREATE TABLE IF NOT EXISTS summary_baselines (
+               instance TEXT PRIMARY KEY,
+               set_at INTEGER NOT NULL,
+               samples TEXT NOT NULL
+             );",
         )?;
         Ok(StatsDb { conn: Mutex::new(conn), series_ids: Mutex::new(HashMap::new()) })
     }
@@ -288,6 +301,35 @@ impl StatsDb {
         conn.execute_batch("PRAGMA incremental_vacuum;")
     }
 
+    /// Stores the Overview counters' zero point for an instance (see
+    /// `StatsService::mark_baseline`), replacing any earlier one.
+    pub fn set_baseline(&self, instance: &str, baseline: &SummaryBaseline) -> rusqlite::Result<()> {
+        let samples = serde_json::to_string(&baseline.samples).expect("samples serialize");
+        self.conn.lock().unwrap().execute(
+            "INSERT OR REPLACE INTO summary_baselines (instance, set_at, samples) VALUES (?, ?, ?)",
+            params![instance, baseline.set_at, samples],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_baseline(&self, instance: &str) -> rusqlite::Result<()> {
+        self.conn.lock().unwrap().execute("DELETE FROM summary_baselines WHERE instance = ?", params![instance])?;
+        Ok(())
+    }
+
+    pub fn baselines(&self) -> rusqlite::Result<HashMap<String, SummaryBaseline>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT instance, set_at, samples FROM summary_baselines")?;
+        let rows = stmt.query_map([], |r| {
+            let samples: String = r.get(2)?;
+            Ok((
+                r.get::<_, String>(0)?,
+                SummaryBaseline { set_at: r.get(1)?, samples: serde_json::from_str(&samples).unwrap_or_default() },
+            ))
+        })?;
+        rows.collect()
+    }
+
     pub fn ping(&self) -> rusqlite::Result<()> {
         self.conn.lock().unwrap().query_row("SELECT 1", [], |_| Ok(()))
     }
@@ -354,6 +396,26 @@ mod tests {
         );
         assert_eq!(db.latest("b").unwrap().len(), 1);
         assert!(db.latest("missing").unwrap().is_empty());
+    }
+
+    #[test]
+    fn baselines_survive_reopening() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("stats.db");
+        let b = SummaryBaseline {
+            set_at: 42,
+            samples: vec![LatestSample { metric: "cpu".into(), labels: BTreeMap::new(), value: 3.0 }],
+        };
+        {
+            let db = StatsDb::open(&path).unwrap();
+            db.set_baseline("a", &b).unwrap();
+            db.set_baseline("b", &b).unwrap();
+            db.clear_baseline("b").unwrap();
+        }
+        let db = StatsDb::open(&path).unwrap();
+        let all = db.baselines().unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all["a"], b);
     }
 
     #[test]

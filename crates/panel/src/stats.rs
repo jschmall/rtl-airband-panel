@@ -10,8 +10,8 @@ use serde::Serialize;
 use tokio::sync::watch;
 
 use crate::error::ApiError;
-use crate::stats_db::{HistoryPoint, HistoryQuery, LatestSample, StatsDb, now_ms};
-use crate::store::ConfigStore;
+use crate::stats_db::{HistoryPoint, HistoryQuery, LatestSample, StatsDb, SummaryBaseline, now_ms};
+use crate::store::{ConfigStore, canonical_labels};
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,6 +51,59 @@ pub struct InstanceStatsSummary {
     pub output_failure_total: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub process_cpu_seconds: Option<f64>,
+    /// When the counter totals above started counting from zero (the
+    /// panel's last restart or live apply of this instance), if they don't
+    /// simply run from the process's start.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline_set_at: Option<i64>,
+}
+
+const CPU_METRIC: &str = "process_cpu_seconds_total";
+
+/// Whether a metric is one of the counters the Overview totals add up.
+fn is_summed_counter(metric: &str) -> bool {
+    OUTPUT_FAILURE_METRICS.contains(&metric) || metric == "buffer_overflow_count" || metric == "output_overrun_count"
+}
+
+/// A baseline indexed for lookups: by exact series, and by (metric, freq) for
+/// a series whose other labels (e.g. a channel label) changed in a live apply.
+struct BaselineIndex {
+    exact: HashMap<(String, String), f64>,
+    by_freq: HashMap<(String, String), Option<f64>>,
+}
+
+impl BaselineIndex {
+    fn new(b: &SummaryBaseline) -> BaselineIndex {
+        let mut exact = HashMap::new();
+        let mut by_freq: HashMap<(String, String), Option<f64>> = HashMap::new();
+        for s in &b.samples {
+            exact.insert((s.metric.clone(), canonical_labels(&s.labels)), s.value);
+            if let Some(freq) = s.labels.get("freq") {
+                by_freq
+                    .entry((s.metric.clone(), freq.clone()))
+                    .and_modify(|v| *v = None) // ambiguous: several series share the freq
+                    .or_insert(Some(s.value));
+            }
+        }
+        BaselineIndex { exact, by_freq }
+    }
+
+    fn get(&self, metric: &str, labels: &BTreeMap<String, String>) -> Option<f64> {
+        if let Some(v) = self.exact.get(&(metric.to_string(), canonical_labels(labels))) {
+            return Some(*v);
+        }
+        let freq = labels.get("freq")?;
+        self.by_freq.get(&(metric.to_string(), freq.clone())).copied().flatten()
+    }
+
+    /// The counters went backwards, so the process restarted since the
+    /// baseline was taken and its counters already start from zero.
+    fn reset_by(&self, samples: &[LatestSample]) -> bool {
+        samples.iter().any(|s| {
+            (s.metric == CPU_METRIC || is_summed_counter(&s.metric))
+                && self.get(&s.metric, &s.labels).is_some_and(|base| s.value < base)
+        })
+    }
 }
 
 /// Summed into output_failure_total (excludes icecast_backlog_exceeded_count,
@@ -73,6 +126,12 @@ pub struct StatsService {
     /// summaries and the latest-values reads don't go to SQLite. A miss (e.g.
     /// right after startup) falls back to the database.
     latest: Mutex<HashMap<String, Arc<Vec<LatestSample>>>>,
+    /// Per instance, the counter values the Overview totals count up from
+    /// (see `mark_baseline`); mirrored in SQLite so they survive a panel restart.
+    baselines: Mutex<HashMap<String, SummaryBaseline>>,
+    /// Woken whenever a baseline changes, so the Overview is pushed new
+    /// totals right away instead of at the next tick.
+    pub summaries_changed: tokio::sync::Notify,
 }
 
 fn db_err(e: rusqlite::Error) -> ApiError {
@@ -81,7 +140,54 @@ fn db_err(e: rusqlite::Error) -> ApiError {
 
 impl StatsService {
     pub fn new(db: Arc<StatsDb>) -> StatsService {
-        StatsService { db, poll_status: Arc::new(PollStatusTracker::default()), latest: Mutex::new(HashMap::new()) }
+        let baselines = db.baselines().unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "couldn't load the Overview counter baselines; totals run from process start");
+            HashMap::new()
+        });
+        StatsService {
+            db,
+            poll_status: Arc::new(PollStatusTracker::default()),
+            latest: Mutex::new(HashMap::new()),
+            baselines: Mutex::new(baselines),
+            summaries_changed: tokio::sync::Notify::new(),
+        }
+    }
+
+    /// Restarts this instance's Overview totals from zero: called when the
+    /// panel restarts the instance or live-applies a change to it. The latest
+    /// poll becomes the zero point, until the counters themselves reset (the
+    /// new process's first poll after a restart), which drops it.
+    pub fn mark_baseline(&self, name: &str) -> Result<(), ApiError> {
+        let samples = self.latest(name)?;
+        let baseline = SummaryBaseline { set_at: now_ms(), samples: (*samples).clone() };
+        self.db.set_baseline(name, &baseline).map_err(db_err)?;
+        self.baselines.lock().unwrap().insert(name.to_string(), baseline);
+        self.summaries_changed.notify_one();
+        Ok(())
+    }
+
+    fn drop_baseline(&self, name: &str) {
+        self.baselines.lock().unwrap().remove(name);
+        if let Err(e) = self.db.clear_baseline(name) {
+            tracing::warn!(instance = %name, error = %e, "couldn't clear an Overview counter baseline");
+        }
+    }
+
+    /// After a full restart the counters start over, but the baseline
+    /// still holds the old process's (higher) values: drop it once a poll
+    /// shows the reset. The `set_at` is kept so the Overview still says
+    /// since when it counts.
+    fn check_reset(&self, name: &str, samples: &[LatestSample]) {
+        let mut baselines = self.baselines.lock().unwrap();
+        let Some(b) = baselines.get_mut(name) else { return };
+        if !b.samples.is_empty() && BaselineIndex::new(b).reset_by(samples) {
+            b.samples.clear();
+            let b = b.clone();
+            drop(baselines);
+            if let Err(e) = self.db.set_baseline(name, &b) {
+                tracing::warn!(instance = %name, error = %e, "couldn't update an Overview counter baseline");
+            }
+        }
     }
 
     /// Records a poll that was just stored, as `db.latest(name)` would now return it.
@@ -92,7 +198,8 @@ impl StatsService {
         let latest = samples
             .iter()
             .map(|s| LatestSample { metric: s.metric.clone(), labels: s.labels.clone(), value: s.value })
-            .collect();
+            .collect::<Vec<_>>();
+        self.check_reset(name, &latest);
         self.latest.lock().unwrap().insert(name.to_string(), Arc::new(latest));
     }
 
@@ -120,22 +227,37 @@ impl StatsService {
     pub fn summaries(&self, names: &[String]) -> Result<BTreeMap<String, InstanceStatsSummary>, ApiError> {
         // Drop instances that were deleted or renamed away.
         self.latest.lock().unwrap().retain(|k, _| names.contains(k));
+        let gone: Vec<String> = self.baselines.lock().unwrap().keys().filter(|k| !names.contains(k)).cloned().collect();
+        for name in gone {
+            self.drop_baseline(&name);
+        }
         let mut out = BTreeMap::new();
         for name in names {
+            let baseline = self.baselines.lock().unwrap().get(name).cloned();
+            let index = baseline.as_ref().map(BaselineIndex::new);
             let mut s = InstanceStatsSummary {
                 buffer_overflow_total: 0.0,
                 output_overrun_total: 0.0,
                 inputs_dropping_count: 0,
                 output_failure_total: 0.0,
                 process_cpu_seconds: None,
+                baseline_set_at: baseline.as_ref().map(|b| b.set_at),
             };
-            for sample in self.latest(name)?.iter() {
+            let latest = self.latest(name)?;
+            // A cold read (e.g. the panel's first summary after a restart)
+            // can predate the reset check; a reset baseline counts as none.
+            let index = index.filter(|i| !i.reset_by(&latest));
+            for sample in latest.iter() {
+                let since_baseline = || {
+                    let base = index.as_ref().and_then(|i| i.get(&sample.metric, &sample.labels)).unwrap_or(0.0);
+                    (sample.value - base).max(0.0)
+                };
                 match sample.metric.as_str() {
-                    m if OUTPUT_FAILURE_METRICS.contains(&m) => s.output_failure_total += sample.value,
-                    "buffer_overflow_count" => s.buffer_overflow_total += sample.value,
-                    "output_overrun_count" => s.output_overrun_total += sample.value,
+                    m if OUTPUT_FAILURE_METRICS.contains(&m) => s.output_failure_total += since_baseline(),
+                    "buffer_overflow_count" => s.buffer_overflow_total += since_baseline(),
+                    "output_overrun_count" => s.output_overrun_total += since_baseline(),
                     "input_overrun_count" if sample.value > 0.0 => s.inputs_dropping_count += 1,
-                    "process_cpu_seconds_total" => s.process_cpu_seconds = Some(sample.value),
+                    CPU_METRIC => s.process_cpu_seconds = Some(sample.value),
                     _ => {}
                 }
             }
@@ -161,6 +283,14 @@ impl StatsService {
             }
         }
         Ok(if lines.is_empty() { String::new() } else { format!("{}\n", lines.join("\n")) })
+    }
+}
+
+impl crate::service::RestartObserver for StatsService {
+    fn restarted(&self, name: &str, _kind: &crate::service::RestartKind) {
+        if let Err(e) = self.mark_baseline(name) {
+            tracing::warn!(instance = %name, error = %e, "couldn't reset the Overview counters");
+        }
     }
 }
 
@@ -273,5 +403,93 @@ mod tests {
         assert_eq!(out["a"].output_failure_total, 4.0);
         assert!(!out.contains_key("gone"));
         assert!(!stats.latest.lock().unwrap().contains_key("gone"));
+    }
+
+    fn cpu(value: f64) -> StatSample {
+        StatSample { metric: CPU_METRIC.into(), labels: BTreeMap::new(), value }
+    }
+
+    fn totals(stats: &StatsService) -> (f64, f64, Option<i64>) {
+        let s = &stats.summaries(&["a".into()]).unwrap()["a"];
+        (s.output_failure_total, s.buffer_overflow_total, s.baseline_set_at)
+    }
+
+    #[test]
+    fn a_baseline_zeroes_the_totals_and_later_failures_count_from_it() {
+        let (_dir, stats) = service();
+        stats.record_poll(
+            "a",
+            &[cpu(10.0), sample("icecast_disconnect_count", 5.0), sample("buffer_overflow_count", 2.0)],
+        );
+        assert_eq!(totals(&stats).0, 5.0);
+        assert_eq!(totals(&stats).2, None);
+
+        stats.mark_baseline("a").unwrap();
+        let (fail, over, since) = totals(&stats);
+        assert_eq!((fail, over), (0.0, 0.0));
+        assert!(since.is_some());
+
+        // Same process (CPU kept climbing): only the new failures count.
+        stats.record_poll(
+            "a",
+            &[cpu(12.0), sample("icecast_disconnect_count", 7.0), sample("buffer_overflow_count", 2.0)],
+        );
+        assert_eq!(totals(&stats).0, 2.0);
+    }
+
+    #[test]
+    fn a_restarted_process_drops_the_baseline() {
+        let (_dir, stats) = service();
+        stats.record_poll("a", &[cpu(100.0), sample("icecast_disconnect_count", 5.0)]);
+        stats.mark_baseline("a").unwrap();
+        // CPU time went backwards: a new process, whose counters already
+        // start at zero, so its 6 disconnects are all since the restart.
+        stats.record_poll("a", &[cpu(1.0), sample("icecast_disconnect_count", 6.0)]);
+        let (fail, _, since) = totals(&stats);
+        assert_eq!(fail, 6.0);
+        assert!(since.is_some(), "still says since when it counts");
+        // ...and it stays dropped.
+        stats.record_poll("a", &[cpu(2.0), sample("icecast_disconnect_count", 6.0)]);
+        assert_eq!(totals(&stats).0, 6.0);
+    }
+
+    #[test]
+    fn a_counter_going_backwards_also_means_a_reset() {
+        let (_dir, stats) = service();
+        stats.record_poll("a", &[sample("file_write_failure_count", 9.0)]);
+        stats.mark_baseline("a").unwrap();
+        stats.record_poll("a", &[sample("file_write_failure_count", 1.0)]);
+        assert_eq!(totals(&stats).0, 1.0);
+    }
+
+    #[test]
+    fn a_relabelled_channel_keeps_its_baseline_by_freq() {
+        let (_dir, stats) = service();
+        let labelled = |label: &str, v: f64| StatSample {
+            metric: "icecast_disconnect_count".into(),
+            labels: [("freq".to_string(), "1".to_string()), ("label".to_string(), label.to_string())].into(),
+            value: v,
+        };
+        stats.record_poll("a", &[cpu(5.0), labelled("Old", 4.0)]);
+        stats.mark_baseline("a").unwrap();
+        stats.record_poll("a", &[cpu(6.0), labelled("New", 5.0)]);
+        assert_eq!(totals(&stats).0, 1.0);
+    }
+
+    #[test]
+    fn baselines_persist_and_follow_removed_instances() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("stats.db");
+        {
+            let stats = StatsService::new(Arc::new(StatsDb::open(&path).unwrap()));
+            stats.db.insert_batch("a", &[cpu(1.0), sample("icecast_disconnect_count", 3.0)], now_ms()).unwrap();
+            stats.mark_baseline("a").unwrap();
+        }
+        // A new panel process reads the baseline back, and the cold (SQLite) read honors it.
+        let stats = StatsService::new(Arc::new(StatsDb::open(&path).unwrap()));
+        assert_eq!(totals(&stats).0, 0.0);
+        // A deleted instance's baseline goes with it.
+        stats.summaries(&[]).unwrap();
+        assert!(stats.db.baselines().unwrap().is_empty());
     }
 }
