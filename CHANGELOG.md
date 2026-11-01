@@ -5,6 +5,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.17] - 2026-11-01
+
+### Changed
+
+- **Merged the `license-gpl3` branch into `master` (0.6.16).**
+  - **The panel is now licensed GPL-3.0-only**, and release archives ship
+    the license text and third-party license notices.
+
 ## [0.6.16] - 2026-11-01
 
 ### Changed
