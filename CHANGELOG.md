@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.18] - 2026-11-01
+
+### Fixed
+
+- **A brief outage at downloads.xiph.org no longer fails the release
+  build.** The static build fetches the speex source (a libshout
+  dependency) from xiph.org, and a single reset connection there failed
+  the whole release run. The download now retries up to three rounds and
+  falls back to the OSUOSL mirror of the same release tree. The pinned
+  SHA-256 still has to match, so the build fails if every attempt fails.
+
 ## [0.6.17] - 2026-11-01
 
 ### Changed

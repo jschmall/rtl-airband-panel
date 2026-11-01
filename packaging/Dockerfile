@@ -30,8 +30,16 @@ WORKDIR /deps
 # speex (a libshout dependency) has no static package on Alpine.
 ARG SPEEX_VERSION=1.2.1
 ARG SPEEX_SHA256=4b44d4f2b38a370a2d98a78329fefc56a0cf93d1c1be70029217baae6628feea
-RUN wget -q https://downloads.xiph.org/releases/speex/speex-${SPEEX_VERSION}.tar.gz \
- && echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - \
+# downloads.xiph.org occasionally resets TLS connections, so retry and fall back to the
+# OSUOSL mirror of the same release tree. The checksum still guards whatever is fetched.
+RUN f=speex-${SPEEX_VERSION}.tar.gz \
+ && for attempt in 1 2 3; do \
+      for base in https://downloads.xiph.org/releases/speex https://ftp.osuosl.org/pub/xiph/releases/speex; do \
+        rm -f "$f"; wget -q "$base/$f" && echo "${SPEEX_SHA256}  $f" | sha256sum -c -s - && break 2; \
+        echo "speex download from $base failed (attempt $attempt)" >&2; \
+      done; sleep $((attempt * 5)); \
+    done \
+ && echo "${SPEEX_SHA256}  $f" | sha256sum -c - \
  && tar xzf speex-${SPEEX_VERSION}.tar.gz \
  && cd speex-${SPEEX_VERSION} \
  && ./configure --prefix=/usr --enable-static --disable-shared --disable-binaries \
