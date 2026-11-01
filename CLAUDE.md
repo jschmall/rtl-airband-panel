@@ -106,6 +106,8 @@ patterns, never copy code.
   a fresh topic branch.
 Confirm which branch new work targets before the first commit.
 
+**GitHub is a push mirror, not the working repo.** `origin` is the canonical repo; the GitHub copy is force-pushed from it on every push. Never push, merge a PR, or tag on GitHub: anything done there is overwritten at the next sync. To take a GitHub PR, fetch its branch, merge it into `origin`, and let the mirror carry it back. Tags pushed to `origin` reach GitHub through the mirror, which triggers the release workflow there.
+
 ## Priorities, in order
 1. Parser/serializer round-trip fidelity against real fixture files
    (crates/airband-config) — this is the highest-risk component; nothing
