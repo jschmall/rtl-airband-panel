@@ -1,0 +1,27 @@
+# cargo-about configuration for THIRD-PARTY-LICENSES in the release tarball
+# (packaging/Dockerfile, `licenses` stage). cargo-about is an external tool
+# installed in that stage only; it is not a dependency of the panel.
+#
+# Every license a shipped crate uses must be listed in `accepted`, or the
+# release build fails. Before accepting a new one, check it is compatible
+# with GPL-3.0-only (the panel's license).
+
+# The release targets (scripts/build-release.sh); licenses of crates only
+# pulled in for other platforms don't matter.
+targets = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"]
+ignore-dev-dependencies = true
+ignore-build-dependencies = false
+
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Zlib",
+    "Unlicense",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "0BSD",
+    "MPL-2.0",
+    "GPL-3.0-only",
+]

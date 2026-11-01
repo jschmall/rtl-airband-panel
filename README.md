@@ -1,7 +1,7 @@
 # rtl-airband-panel
 
 [![CI](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml/badge.svg)](https://github.com/jschmall/rtl-airband-panel/actions/workflows/ci.yml)
-[![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)](./LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 
 A web control panel for [RTLSDR-Airband](https://github.com/rtl-airband/RTLSDR-Airband).
 
@@ -210,4 +210,10 @@ at it (`RTL_PANEL_RTL_AIRBAND_BIN`).
 
 ## License
 
-[GPL-2.0](./LICENSE).
+The panel is licensed under [GPL-3.0-only](./LICENSE).
+
+The `rtl_airband` binary bundled in release tarballs is a separate program,
+[RTLSDR-Airband](https://github.com/jschmall/RTLSDR-Airband), under its own
+GPL-2.0 license. Each tarball includes its license (`LICENSE.rtl_airband`),
+where to get its source (`SOURCE.txt`), and the licenses of the panel's
+Rust dependencies (`THIRD-PARTY-LICENSES`).
