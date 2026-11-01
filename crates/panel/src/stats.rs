@@ -10,6 +10,7 @@ use serde::Serialize;
 use tokio::sync::watch;
 
 use crate::error::ApiError;
+use crate::events::{CounterJump, EventLog};
 use crate::stats_db::{HistoryPoint, HistoryQuery, LatestSample, StatsDb, SummaryBaseline, now_ms};
 use crate::store::{ConfigStore, canonical_labels};
 
@@ -190,17 +191,42 @@ impl StatsService {
         }
     }
 
-    /// Records a poll that was just stored, as `db.latest(name)` would now return it.
-    pub fn record_poll(&self, name: &str, samples: &[StatSample]) {
+    /// Records a poll that was just stored, as `db.latest(name)` would now
+    /// return it. Returns how much each Overview counter went up since the
+    /// previous cached poll (none for the first poll after the panel
+    /// starts, so old totals don't all count as new).
+    pub fn record_poll(&self, name: &str, samples: &[StatSample]) -> Vec<CounterJump> {
         if samples.is_empty() {
-            return; // nothing was stored, so the previous poll is still the latest
+            return Vec::new(); // nothing was stored, so the previous poll is still the latest
         }
         let latest = samples
             .iter()
             .map(|s| LatestSample { metric: s.metric.clone(), labels: s.labels.clone(), value: s.value })
             .collect::<Vec<_>>();
         self.check_reset(name, &latest);
-        self.latest.lock().unwrap().insert(name.to_string(), Arc::new(latest));
+        let previous = self.latest.lock().unwrap().insert(name.to_string(), Arc::new(latest.clone()));
+        let Some(previous) = previous else { return Vec::new() };
+        let before: HashMap<(&str, String), f64> =
+            previous.iter().map(|s| ((s.metric.as_str(), canonical_labels(&s.labels)), s.value)).collect();
+        let restarted = latest.iter().any(|s| {
+            s.metric == CPU_METRIC
+                && before.get(&(CPU_METRIC, canonical_labels(&s.labels))).is_some_and(|b| s.value < *b)
+        });
+        latest
+            .into_iter()
+            .filter(|s| is_summed_counter(&s.metric))
+            .filter_map(|s| {
+                let prev = before.get(&(s.metric.as_str(), canonical_labels(&s.labels))).copied();
+                // After a reset the new value is all new; a series that just
+                // appeared is new (or relabelled), so it isn't counted.
+                let delta = match prev {
+                    Some(p) if restarted || s.value < p => s.value,
+                    Some(p) => s.value - p,
+                    None => 0.0,
+                };
+                (delta > 0.0).then_some(CounterJump { metric: s.metric, labels: s.labels, delta })
+            })
+            .collect()
     }
 
     /// Forgets the cached poll, so reads go back to the database.
@@ -306,6 +332,7 @@ pub struct PollerOptions {
 pub async fn run_poller(
     configs: Arc<ConfigStore>,
     stats: Arc<StatsService>,
+    events: Arc<EventLog>,
     opts: PollerOptions,
     mut shutdown: watch::Receiver<bool>,
 ) {
@@ -335,7 +362,8 @@ pub async fn run_poller(
                     .await;
                     match insert {
                         Ok(Ok(samples)) => {
-                            stats.record_poll(&info.name, &samples);
+                            let jumps = stats.record_poll(&info.name, &samples);
+                            events.counter_poll(&info.name, &jumps);
                             stats.poll_status.record_success(&info.name, now_ms());
                         }
                         Ok(Err(e)) => stats.poll_status.record_error(&info.name, now_ms(), e.to_string()),
@@ -389,6 +417,21 @@ mod tests {
 
         let s = &stats.summaries(&["a".into()]).unwrap()["a"];
         assert_eq!((s.output_failure_total, s.buffer_overflow_total), (2.0, 3.0));
+    }
+
+    #[test]
+    fn polls_report_counter_increases() {
+        let (_dir, stats) = service();
+        assert!(stats.record_poll("a", &[cpu(1.0), sample("icecast_disconnect_count", 3.0)]).is_empty());
+        assert!(stats.record_poll("a", &[cpu(2.0), sample("icecast_disconnect_count", 3.0)]).is_empty());
+        let j = stats.record_poll("a", &[cpu(3.0), sample("icecast_disconnect_count", 5.0), sample("noise", 9.0)]);
+        assert_eq!(
+            j.iter().map(|j| (j.metric.as_str(), j.delta)).collect::<Vec<_>>(),
+            [("icecast_disconnect_count", 2.0)]
+        );
+        // A new process: its whole count is new.
+        let j = stats.record_poll("a", &[cpu(0.1), sample("icecast_disconnect_count", 1.0)]);
+        assert_eq!(j[0].delta, 1.0);
     }
 
     #[test]

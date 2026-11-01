@@ -37,6 +37,7 @@ use crate::store::InstanceOptionsPatch;
 pub struct AppState {
     pub service: Arc<InstanceService>,
     pub stats: Arc<StatsService>,
+    pub event_log: Arc<crate::events::EventLog>,
     pub auth: Option<Arc<(String, String)>>,
     pub bound_to_loopback: bool,
     /// Lowercased host names allowed besides loopback names (reverse proxies).
@@ -80,6 +81,7 @@ pub fn router(state: AppState) -> Router {
         .route("/instances/{name}/stats/latest", get(stats_latest))
         .route("/instances/{name}/stats/poll-status", get(stats_poll_status))
         .route("/instances/{name}/stats/history", get(stats_history))
+        .route("/events", get(list_events))
         .route("/hardware", get(hardware))
         .route("/hardware/history", get(hardware_history))
         .route("/ws", get(ws::upgrade))
@@ -196,6 +198,27 @@ async fn instance_health(State(s): State<AppState>, Path(name): Path<String>) ->
 
 async fn instance_airband(State(s): State<AppState>, Path(name): Path<String>) -> ApiResult<impl IntoResponse> {
     Ok(Json(s.service.airband_build(&name).await?))
+}
+
+#[derive(Deserialize)]
+struct EventsQuery {
+    instance: Option<String>,
+    /// Only events with ids below this (paging back through older ones).
+    before: Option<i64>,
+    limit: Option<u32>,
+}
+
+/// The error log, newest first (see crate::events).
+async fn list_events(State(s): State<AppState>, Query(q): Query<EventsQuery>) -> ApiResult<impl IntoResponse> {
+    if let Some(name) = &q.instance {
+        airband_supervisor::instance::validate_instance_name(name)?;
+    }
+    let limit = q.limit.unwrap_or(200).clamp(1, 1000);
+    let log = s.event_log.clone();
+    let events = tokio::task::spawn_blocking(move || log.list(q.instance.as_deref(), q.before, limit))
+        .await
+        .map_err(|e| ApiError::Internal(e.to_string()))??;
+    Ok(Json(json!({ "events": events })))
 }
 
 #[derive(Deserialize)]

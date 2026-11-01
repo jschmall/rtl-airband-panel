@@ -10,6 +10,7 @@ pub mod command;
 pub mod control_socket;
 pub mod instance;
 pub mod keyed_mutex;
+pub mod log_classify;
 pub mod plan;
 pub mod stats;
 pub mod systemd;
@@ -21,6 +22,7 @@ pub use control_socket::{
     StatusReport, StatusResult,
 };
 pub use keyed_mutex::KeyedMutex;
+pub use log_classify::{LogClass, LogSeverity, classify_log_line};
 pub use plan::{ApplyMethod, Baseline, ChangePlan, plan_change};
 pub use stats::{StatSample, StatsReader, StatsSource, parse_prometheus_text};
 pub use systemd::{ActiveState, LogLine, MockUnits, SudoSystemctl, UnitError, UnitManager, UnitStatus};

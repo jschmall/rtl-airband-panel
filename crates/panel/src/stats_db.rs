@@ -48,6 +48,18 @@ pub struct SummaryBaseline {
     pub samples: Vec<LatestSample>,
 }
 
+/// One error-log row as stored (see crate::events for the typed view).
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewEvent {
+    pub instance: String,
+    pub ts: i64,
+    pub kind: String,
+    pub severity: String,
+    pub message: String,
+    /// JSON text.
+    pub detail: Option<String>,
+}
+
 pub struct HistoryQuery {
     pub metric: String,
     pub labels: BTreeMap<String, String>,
@@ -108,6 +120,17 @@ impl StatsDb {
                gain_db REAL
              );
              CREATE INDEX IF NOT EXISTS idx_hardware_samples_ts ON hardware_samples(ts);
+             CREATE TABLE IF NOT EXISTS events (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               instance TEXT NOT NULL,
+               ts INTEGER NOT NULL,
+               kind TEXT NOT NULL,
+               severity TEXT NOT NULL,
+               message TEXT NOT NULL,
+               detail TEXT
+             );
+             CREATE INDEX IF NOT EXISTS idx_events_instance_id ON events(instance, id);
+             CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
              CREATE TABLE IF NOT EXISTS summary_baselines (
                instance TEXT PRIMARY KEY,
                set_at INTEGER NOT NULL,
@@ -293,6 +316,7 @@ impl StatsDb {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM samples WHERE ts < ?", params![cutoff])?;
         conn.execute("DELETE FROM hardware_samples WHERE ts < ?", params![cutoff])?;
+        conn.execute("DELETE FROM events WHERE ts < ?", params![cutoff])?;
         let orphaned =
             conn.execute("DELETE FROM series WHERE id NOT IN (SELECT DISTINCT series_id FROM samples)", [])?;
         if orphaned > 0 {
@@ -325,6 +349,46 @@ impl StatsDb {
             Ok((
                 r.get::<_, String>(0)?,
                 SummaryBaseline { set_at: r.get(1)?, samples: serde_json::from_str(&samples).unwrap_or_default() },
+            ))
+        })?;
+        rows.collect()
+    }
+
+    /// Appends one entry to the error log; returns its id.
+    pub fn insert_event(&self, e: &NewEvent) -> rusqlite::Result<i64> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO events (instance, ts, kind, severity, message, detail) VALUES (?, ?, ?, ?, ?, ?)",
+            params![e.instance, e.ts, e.kind, e.severity, e.message, e.detail],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    /// Newest first: up to `limit` events with ids below `before`, for one
+    /// instance or all of them.
+    pub fn list_events(
+        &self,
+        instance: Option<&str>,
+        before: Option<i64>,
+        limit: u32,
+    ) -> rusqlite::Result<Vec<(i64, NewEvent)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, instance, ts, kind, severity, message, detail FROM events
+              WHERE (?1 IS NULL OR instance = ?1) AND (?2 IS NULL OR id < ?2)
+              ORDER BY id DESC LIMIT ?3",
+        )?;
+        let rows = stmt.query_map(params![instance, before, limit], |r| {
+            Ok((
+                r.get(0)?,
+                NewEvent {
+                    instance: r.get(1)?,
+                    ts: r.get(2)?,
+                    kind: r.get(3)?,
+                    severity: r.get(4)?,
+                    message: r.get(5)?,
+                    detail: r.get(6)?,
+                },
             ))
         })?;
         rows.collect()

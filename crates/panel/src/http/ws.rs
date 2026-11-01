@@ -3,7 +3,9 @@
 //! any unit's status changes (checked every few seconds),
 //! `{"type":"stats-summary","data":{...}}` whenever any instance's
 //! Overview counters change, and
-//! `{"type":"instance-changed","name":...}` after any mutation. A client
+//! `{"type":"instance-changed","name":...}` after any mutation, and
+//! `{"type":"event","data":Event}` for each new error-log entry (see
+//! crate::events). A client
 //! that sends `{"type":"subscribe","topic":"hardware"}` also gets
 //! `{"type":"hardware","data":HardwareSnapshot}` every poll interval until it
 //! sends `{"type":"unsubscribe","topic":"hardware"}` or disconnects. A client
