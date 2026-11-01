@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.22] - 2026-11-01
+
+### Changed
+
+- **Merged the `error-log` branch into `master` (0.6.19–0.6.21).**
+  - **The Overview's Overflows and Failures counters start again from
+    zero** when the panel restarts an instance or live-applies a change
+    to it (#15).
+  - **New Errors page**: log errors, failure-counter increases and
+    systemd problems from every instance, timestamped, with restarts and
+    live applies marked between them (#16).
+  - **Fixed**: the stats poller no longer forgets its cached poll when a
+    stats file hasn't changed.
+
 ## [0.6.21] - 2026-11-01
 
 ### Added
