@@ -1,0 +1,33 @@
+Third-party licenses for rtl-airband-panel
+==========================================
+
+The rtl-airband-panel binary in this release is licensed under the GNU
+General Public License version 3 only (see LICENSE). This file lists every
+Rust crate compiled into it, grouped by the license each is used under,
+followed by that license's full text. The panel's own crates
+(rtl-airband-panel, airband-*) appear under GPL-3.0-only; all others are
+third-party.
+
+This file covers the panel only. rtl_airband, also in this release, is a
+separate program with its own license (LICENSE.rtl_airband) and source
+(SOURCE.txt).
+
+Overview
+--------
+{{#each overview}}
+{{{name}}} ({{{id}}}): {{count}} crate(s)
+{{/each}}
+
+{{#each licenses}}
+--------------------------------------------------------------------------
+{{{name}}} ({{{id}}})
+--------------------------------------------------------------------------
+
+Used by:
+{{#each used_by}}
+  - {{{crate.name}}} {{{crate.version}}}{{#if crate.repository}} ({{{crate.repository}}}){{/if}}
+{{/each}}
+
+{{{text}}}
+
+{{/each}}

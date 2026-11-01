@@ -10,3 +10,5 @@ frontend/dist
 !.cargo
 !crates
 !packaging/airband-static-drivers.patch
+!packaging/about.toml
+!packaging/about.hbs

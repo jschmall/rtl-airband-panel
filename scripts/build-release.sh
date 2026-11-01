@@ -5,8 +5,11 @@
 #
 # Output: dist/rtl-airband-panel-v<version>-linux-<arch>.tar.gz (+ .sha256)
 # containing static rtl-airband-panel and rtl_airband binaries, install.sh,
-# and the files it installs. Needs Docker with buildx; building for another
-# architecture also needs QEMU binfmt emulation (and is slow).
+# the files it installs, and the license files: LICENSE (the panel, GPL-3.0),
+# THIRD-PARTY-LICENSES (the panel's Rust dependencies), LICENSE.rtl_airband
+# (the bundled fork, GPL-2.0) and SOURCE.txt (where its source is).
+# Needs Docker with buildx; building for another architecture also needs
+# QEMU binfmt emulation (and is slow).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -61,6 +64,45 @@ install -m 0755 packaging/install.sh "$stage/install.sh"
 install -m 0644 deploy/rtl-airband-panel.service deploy/rtl-airband-panel.sudoers \
   packaging/60-rtl-airband-panel.rules packaging/rtl-airband-panel-blacklist.conf "$stage/deploy/"
 install -m 0644 README.md DEPLOYMENT.md LICENSE .env.example "$stage/"
+install -m 0644 "$build/bin/THIRD-PARTY-LICENSES" "$stage/"
+# The bundled rtl_airband is a separate GPL program: ship its license, the
+# one source change the build makes, and where to get the rest.
+install -m 0644 vendor/RTLSDR-Airband/LICENSE "$stage/LICENSE.rtl_airband"
+mkdir -p "$stage/source"
+install -m 0644 packaging/airband-static-drivers.patch "$stage/source/"
+cat > "$stage/SOURCE.txt" <<SOURCE
+Source code for the programs in this release
+============================================
+
+bin/rtl_airband
+---------------
+rtl_airband is RTLSDR-Airband, from the jschmall/RTLSDR-Airband fork. It
+is free software under the GNU General Public License (see
+LICENSE.rtl_airband). This binary was built from:
+
+  repository: https://github.com/jschmall/RTLSDR-Airband
+  tag:        $airband_tag
+  commit:     $airband_commit
+
+  git clone --branch $airband_tag https://github.com/jschmall/RTLSDR-Airband
+
+with one source change, included here as
+source/airband-static-drivers.patch (it lets the statically linked binary
+find its input drivers without dlsym()). The build recipe, including the
+pinned versions of the libraries it is statically linked with, is
+packaging/Dockerfile in the rtl-airband-panel source below.
+
+bin/rtl-airband-panel
+---------------------
+rtl-airband-panel is free software under the GNU General Public License
+version 3 (see LICENSE). Its Rust dependencies and their licenses are
+listed in THIRD-PARTY-LICENSES. Source for this version:
+
+  repository: https://github.com/jschmall/rtl-airband-panel
+  tag:        v$version
+
+  git clone --recurse-submodules --branch v$version https://github.com/jschmall/rtl-airband-panel
+SOURCE
 cat > "$stage/VERSIONS" <<VERSIONS
 rtl-airband-panel $version
 rtl_airband $airband_version ($airband_commit, github.com/jschmall/RTLSDR-Airband)
