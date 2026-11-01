@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { errorLog, unseenProblems, useErrorLog } from "../../lib/error-log.js";
 import { useInstanceList, type Connection } from "../../state/InstanceListContext.js";
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
@@ -36,6 +37,37 @@ function HardwareIcon() {
       <circle cx="5" cy="10" r="1.6" />
       <path d="M9 9h3M9 11h3" />
     </svg>
+  );
+}
+
+function ErrorsIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-current opacity-80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M8 1.5 15 14H1z" />
+      <path d="M8 6v3.5" />
+      <circle cx="8" cy="11.8" r="0.4" className="fill-current" />
+    </svg>
+  );
+}
+
+/** Errors and warnings logged since this browser last opened the Errors page. */
+function ErrorsBadge() {
+  const log = useErrorLog();
+  // Pushes keep it current while live; otherwise InstanceListContext's background poll reloads it.
+  useEffect(() => {
+    void errorLog.ensureLoaded();
+  }, []);
+  const { count, anyError } = unseenProblems(log);
+  if (count === 0) return null;
+  return (
+    <span
+      title={`${count} new error${count === 1 ? "" : "s"} or warning${count === 1 ? "" : "s"} since you last looked`}
+      className={`ml-auto rounded-full border px-1.5 text-[10px] font-semibold tabular-nums ${
+        anyError ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+      }`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
 
@@ -103,6 +135,11 @@ export function Rail() {
         <GuardedNavLink to="/hardware" className={navItemClass}>
           <HardwareIcon />
           Hardware
+        </GuardedNavLink>
+        <GuardedNavLink to="/errors" className={navItemClass}>
+          <ErrorsIcon />
+          Errors
+          <ErrorsBadge />
         </GuardedNavLink>
       </div>
 

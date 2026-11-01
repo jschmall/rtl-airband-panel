@@ -121,6 +121,27 @@ export interface HistoryPoint {
   value: number;
 }
 
+/** One entry in the error log (GET /api/events, websocket "event"). */
+export interface ErrorLogEvent {
+  id: number;
+  instance: string;
+  /** Epoch ms. */
+  ts: number;
+  /**
+   * "log" | "counter" | "unit-failed" | "unit-stopped" are problems;
+   * "restart" | "live-apply" | "unexpected-restart" are restart markers.
+   */
+  kind: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  /**
+   * Per kind. log: journalTimestamp, heuristic (level guessed from keywords),
+   * level, repeatedBefore. counter: metric, delta, series. restart: reason.
+   * live-apply: applied, skippedRequiresRestart.
+   */
+  detail?: Record<string, unknown>;
+}
+
 export interface InstanceStatsSummary {
   bufferOverflowTotal: number;
   outputOverrunTotal: number;
@@ -289,6 +310,16 @@ export const api = {
 
   /** Rolled-up buffer-overflow/output-overrun/dropping-input totals for every instance, keyed by name -- what the landing-page health dashboard polls. */
   getInstanceStatsSummary: (): Promise<Record<string, InstanceStatsSummary>> => request("/instances/stats-summary"),
+
+  /** The error log, newest first; `before` pages back by id. */
+  listEvents: async (params: { instance?: string; before?: number; limit?: number } = {}): Promise<ErrorLogEvent[]> => {
+    const query = new URLSearchParams();
+    if (params.instance) query.set("instance", params.instance);
+    if (params.before !== undefined) query.set("before", String(params.before));
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    const qs = query.toString();
+    return (await request<{ events: ErrorLogEvent[] }>(`/events${qs ? `?${qs}` : ""}`)).events;
+  },
 
   getStatsHistory: (name: string, params: HistoryParams): Promise<HistoryPoint[]> => {
     const query = new URLSearchParams({ metric: params.metric });

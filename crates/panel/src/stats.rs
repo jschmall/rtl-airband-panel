@@ -320,6 +320,14 @@ impl crate::service::RestartObserver for StatsService {
     }
 }
 
+/// One instance's poll: no stats configured, the stats file hasn't changed
+/// since the last read, or new samples.
+enum Poll {
+    NoSource,
+    Unchanged,
+    Samples(Vec<StatSample>),
+}
+
 pub struct PollerOptions {
     pub interval: Duration,
     pub retention_days: f64,
@@ -348,12 +356,17 @@ pub async fn run_poller(
         for info in infos {
             let result = async {
                 let config = configs.read(&info.name).await.map_err(|e| e.to_string())?;
-                let Some(source) = StatsSource::for_config(&config.config) else { return Ok(None) };
-                reader.read(&info.name, &source).await.map_err(|e| e.to_string())
+                let Some(source) = StatsSource::for_config(&config.config) else { return Ok(Poll::NoSource) };
+                match reader.read(&info.name, &source).await.map_err(|e| e.to_string())? {
+                    Some(samples) => Ok(Poll::Samples(samples)),
+                    None => Ok(Poll::Unchanged),
+                }
             }
             .await;
             match result {
-                Ok(Some(samples)) => {
+                // Keep the cached poll: the next changed one is compared with it.
+                Ok(Poll::Unchanged) => stats.poll_status.record_success(&info.name, now_ms()),
+                Ok(Poll::Samples(samples)) => {
                     let db = stats.db.clone();
                     let name = info.name.clone();
                     let insert = tokio::task::spawn_blocking(move || {
@@ -370,7 +383,7 @@ pub async fn run_poller(
                         Err(e) => stats.poll_status.record_error(&info.name, now_ms(), e.to_string()),
                     }
                 }
-                Ok(None) => {
+                Ok(Poll::NoSource) => {
                     stats.forget(&info.name);
                     stats.poll_status.record_success(&info.name, now_ms());
                 }

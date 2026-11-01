@@ -138,8 +138,15 @@ fn series_name(labels: &BTreeMap<String, String>) -> String {
     if let Some(label) = labels.get("label").filter(|l| !l.is_empty()) {
         parts.push(format!("({label})"));
     }
+    // Outermost first: device/mixer, then channel, then output.
+    const ORDER: [&str; 4] = ["device", "mixer", "channel", "output"];
+    for k in ORDER {
+        if let Some(v) = labels.get(k) {
+            parts.push(format!("{k} {v}"));
+        }
+    }
     for (k, v) in labels {
-        if k != "freq" && k != "label" {
+        if !ORDER.contains(&k.as_str()) && k != "freq" && k != "label" {
             parts.push(format!("{k} {v}"));
         }
     }

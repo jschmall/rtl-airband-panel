@@ -5,6 +5,35 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.21] - 2026-11-01
+
+### Added
+
+- **Errors page (#16).** A new **Errors** section in the left-hand menu
+  lists every instance's log errors and warnings, failure-counter
+  increases and systemd problems, newest first and grouped by day.
+  - Restarts and live applies (the panel's, and ones it didn't make) are
+    drawn as dividers between them, so you can see what happened before
+    and after a change.
+  - Filter by instance, show errors only, or hide the markers. Older
+    entries load on demand.
+  - Lines whose level came from keyword matching (logs without `-j`) are
+    tagged, and folded repeats show a count.
+  - Entries arrive live over the websocket.
+  - The menu link shows how many errors and warnings arrived since you
+    last opened the page: red if any is an error, amber otherwise. This
+    is remembered per browser.
+
+### Fixed
+
+- **The stats poller kept its cache when a stats file hadn't changed.**
+  It treated an unchanged file like an instance with no stats at all and
+  dropped its cached poll. The next real change then had nothing to
+  compare with, so counter increases weren't logged, and the Overview read
+  its totals back from SQLite.
+- Counter events name a series outermost first ("device 0 channel 1
+  output 0").
+
 ## [0.6.20] - 2026-11-01
 
 ### Added

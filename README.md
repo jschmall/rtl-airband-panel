@@ -36,6 +36,9 @@ restart only the one you changed.
   floor, frequency drift with a suggested `correction`, and gain advice.
 - **Watch logs and history.** A live log viewer per instance, charts of
   signal versus squelch per channel, and a Prometheus `/metrics` endpoint.
+- **Track problems over time.** An Errors page collects log errors,
+  failure counters and service crashes from every instance, timestamped,
+  with each restart and live apply marked so you can see what changed.
 - **Nothing is lost on save.** Every save keeps a backup of the previous
   file, settings the panel doesn't know are kept exactly as written, and
   passwords stay hidden unless you ask.
