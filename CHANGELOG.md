@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.33] - 2026-11-02
+
+### Changed
+
+- **Merged the `fork-v7.1` branch into `master` (0.6.25–0.6.32).**
+  - **The bundled `rtl_airband` is now fork v7.1.0** (was v6.5.0). That's
+    the fork on top of upstream v7.0.0. The bundled build no longer
+    supports Mirics dongles, because upstream removed the driver.
+  - **Automatic PPM correction (`auto_ppm`):**
+    - edited in the device editor (RTL-SDR only);
+    - validated the way the fork checks it at startup;
+    - the change preview says whether it applies live or needs a
+      restart;
+    - shown on the Hardware page, with **Save to config** to keep a
+      learned correction.
+  - **`split_tx_drop_shorter_than`** (upstream #580) on file and rawfile
+    outputs, with validation.
+  - **Drivers are checked against the instance's build:** a Mirics
+    device on fork v7.1.0+, or a SoapySDR device on the bundled build, is
+    flagged before rtl_airband refuses to start.
+  - Tested on a real RTL-SDR with the bundled build. The change preview
+    matched what rtl_airband reported for every auto_ppm change.
+
 ## [0.6.32] - 2026-11-02
 
 ### Fixed
