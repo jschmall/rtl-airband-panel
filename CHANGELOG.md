@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.28] - 2026-11-02
+
+### Added
+
+- **The change preview predicts auto_ppm edits** the way fork v7.1.0's
+  `reload_diff` handles them:
+  - Adding `auto_ppm` to a device that started without it needs a
+    restart, even as `auto_ppm = false`. After that restart, turning it
+    on or off (or removing the key, which means off) applies live.
+  - Turning it off live puts the configured correction back, and the
+    preview says so.
+  - Changing `auto_ppm_interval`, `auto_ppm_max_ppm` or
+    `auto_ppm_max_step` needs a restart.
+  - While auto_ppm is on, an unchanged `correction` is left to auto_ppm.
+    A changed one is applied live and becomes auto_ppm's new starting
+    point.
+- Tests for `split_tx_drop_shorter_than`: a global change needs a
+  restart, while a change on a channel's output re-creates that channel
+  live.
+
 ## [0.6.27] - 2026-11-02
 
 ### Added
