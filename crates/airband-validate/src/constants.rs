@@ -37,6 +37,18 @@ pub const SOFT_BW_THRESHOLD: f64 = 0.9;
 pub const DEFAULT_SPLIT_MIN_FILE_TIME: f64 = 1.0;
 pub const DEFAULT_SPLIT_MAX_FILE_TIME: f64 = 3600.0;
 pub const DEFAULT_SPLIT_MAX_IDLE_TIME: f64 = 0.5;
+/// 0 keeps every split recording (upstream #580, fork v6.7.0).
+pub const DEFAULT_SPLIT_TX_DROP_SHORTER_THAN: f64 = 0.0;
+
+/// auto_ppm parameter defaults and limits (fork v6.6.0, auto_ppm.h /
+/// auto_ppm_parse_params). All three are libconfig ints.
+pub const DEFAULT_AUTO_PPM_INTERVAL: f64 = 30.0;
+pub const AUTO_PPM_INTERVAL_RANGE: (f64, f64) = (5.0, 86_400.0);
+/// AUTO_PPM_HARD_LIMIT: the default and the ceiling of auto_ppm_max_ppm.
+pub const DEFAULT_AUTO_PPM_MAX_PPM: f64 = 100.0;
+pub const AUTO_PPM_MAX_PPM_RANGE: (f64, f64) = (1.0, 100.0);
+pub const DEFAULT_AUTO_PPM_MAX_STEP: f64 = 5.0;
+pub const AUTO_PPM_MAX_STEP_RANGE: (f64, f64) = (1.0, 100.0);
 
 /// The 51 standard CTCSS tones RTLSDR-Airband's detector watches for
 /// (ctcss.cpp, CTCSS::standard_tones). Used only to flag near-miss typos.
@@ -81,7 +93,14 @@ mod tests {
              export const RTLSDR_SAMPLE_RATE_DEAD_ZONE = {{ min: {}, max: {} }};\n\
              export const RTLSDR_COMMON_SAMPLE_RATES_HZ = [{}];\n\
              export const SOFT_BW_THRESHOLD = {};\n\
-             export const STANDARD_CTCSS_TONES: readonly number[] = [{}];\n",
+             export const STANDARD_CTCSS_TONES: readonly number[] = [{}];\n\
+             export const DEFAULT_SPLIT_TX_DROP_SHORTER_THAN = {};\n\
+             export const DEFAULT_AUTO_PPM_INTERVAL = {};\n\
+             export const AUTO_PPM_INTERVAL_RANGE = {{ min: {}, max: {} }};\n\
+             export const DEFAULT_AUTO_PPM_MAX_PPM = {};\n\
+             export const AUTO_PPM_MAX_PPM_RANGE = {{ min: {}, max: {} }};\n\
+             export const DEFAULT_AUTO_PPM_MAX_STEP = {};\n\
+             export const AUTO_PPM_MAX_STEP_RANGE = {{ min: {}, max: {} }};\n",
             js(DEFAULT_FFT_SIZE),
             js(MIN_FFT_SIZE),
             js(MAX_FFT_SIZE),
@@ -92,6 +111,16 @@ mod tests {
             list(&RTLSDR_COMMON_SAMPLE_RATES_HZ),
             js(SOFT_BW_THRESHOLD),
             list(&STANDARD_CTCSS_TONES),
+            js(DEFAULT_SPLIT_TX_DROP_SHORTER_THAN),
+            js(DEFAULT_AUTO_PPM_INTERVAL),
+            js(AUTO_PPM_INTERVAL_RANGE.0),
+            js(AUTO_PPM_INTERVAL_RANGE.1),
+            js(DEFAULT_AUTO_PPM_MAX_PPM),
+            js(AUTO_PPM_MAX_PPM_RANGE.0),
+            js(AUTO_PPM_MAX_PPM_RANGE.1),
+            js(DEFAULT_AUTO_PPM_MAX_STEP),
+            js(AUTO_PPM_MAX_STEP_RANGE.0),
+            js(AUTO_PPM_MAX_STEP_RANGE.1),
         );
         let path = std::path::Path::new(&dir).join("constants.ts");
         std::fs::create_dir_all(&dir).unwrap();

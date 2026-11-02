@@ -60,6 +60,11 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
         "These settings control how split_on_transmission cuts recordings into files: the shortest file, the longest file, and how long silence can last before a file is closed. When set on an output they override the global values, and any setting left out falls back to the global value (or the default). rtl_airband refuses to start if the combined values don't meet all three rules.",
     ),
     h(
+        "split-tx-drop-invalid",
+        "Set split_tx_drop_shorter_than to 0 (keep every recording) or to a number of seconds below split_max_file_time.",
+        "Split recordings of a transmission shorter than this are deleted instead of kept, which filters out key-ups and noise bursts. It's compared with the longest file length, so it has to be smaller than split_max_file_time (the output's own value, else the global one, else 3600). rtl_airband refuses to start otherwise.",
+    ),
+    h(
         "unknown-setting-preserved",
         "Nothing needs fixing unless the setting is a typo. Check its name against the RTLSDR-Airband docs.",
         "The panel only edits settings it models. Anything else is written back exactly as it was. If the name is misspelled, rtl_airband may ignore it or refuse to start. If it's a real setting the panel doesn't model yet, it keeps working, but you can only change it by editing the .conf file directly.",
@@ -72,13 +77,13 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
     // --- Devices ---
     h(
         "device-type-unsupported",
-        "Choose rtlsdr, mirisdr or soapysdr as the device type.",
-        "rtl_airband only has drivers for these three types and won't start with any other type. Most USB dongles are rtlsdr. Use soapysdr for anything else SoapySDR supports (Airspy, HackRF, SDRplay…). The bundled build has SoapySDR turned off, so a soapysdr device needs an rtl_airband you've built yourself.",
+        "Choose rtlsdr or soapysdr as the device type (mirisdr only works on older rtl_airband builds).",
+        "rtl_airband only has drivers for these types and won't start with any other type. Most USB dongles are rtlsdr. Use soapysdr for anything else SoapySDR supports (Airspy, HackRF, SDRplay…). The bundled build has SoapySDR turned off, so a soapysdr device needs an rtl_airband you've built yourself. mirisdr was removed in upstream v7.0.0 (fork v7.1.0), so it only works with an older build.",
     ),
     h(
         "device-gain-required",
         "Set a gain for this device (e.g. 25 dB), and adjust it later while watching signal levels.",
-        "rtl_airband needs a fixed gain for rtlsdr and mirisdr devices. Only soapysdr devices can leave it out (to use AGC). Start in the middle of the tuner's range and turn it down if strong nearby signals overload the dongle (noise rises across the whole band).",
+        "rtl_airband needs a fixed gain for rtlsdr (and mirisdr) devices. Only soapysdr devices can leave it out (to use AGC). Start in the middle of the tuner's range and turn it down if strong nearby signals overload the dongle (noise rises across the whole band).",
     ),
     h(
         "device-string-required",
@@ -113,7 +118,32 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
     h(
         "device-num-buffers-invalid",
         "Set Num buffers to 1 or more, or leave it blank for the default of 10.",
-        "mirisdr devices need at least one sample buffer to stream into.",
+        "mirisdr devices (on builds older than upstream v7.0.0, which still have that driver) need at least one sample buffer to stream into.",
+    ),
+    h(
+        "device-driver-not-built",
+        "Change the device type, or point this instance at an rtl_airband built with this driver.",
+        "A fork build lists the optional drivers it was compiled with on its -v Features line, and this one doesn't have the driver for this device's type, so rtl_airband won't start. The bundled build has rtlsdr only: SoapySDR is turned off, and upstream v7.0.0 (fork v7.1.0) removed mirisdr. Build rtl_airband yourself with the driver and set the instance's binary to it, or disable this device.",
+    ),
+    h(
+        "auto-ppm-settings-ignored",
+        "Turn on Automatic PPM correction (or add auto_ppm = false to set it up), or remove the auto_ppm_* settings.",
+        "rtl_airband only reads auto_ppm_interval, auto_ppm_max_ppm and auto_ppm_max_step when the device has an auto_ppm setting, so without one they do nothing.",
+    ),
+    h(
+        "auto-ppm-driver-unsupported",
+        "Remove auto_ppm from this device; only rtlsdr devices support it.",
+        "Automatic PPM correction needs a driver that can read back and change the correction while running, which only rtlsdr has. rtl_airband won't start with auto_ppm on any other device type, even when it's set to false.",
+    ),
+    h(
+        "auto-ppm-param-out-of-range",
+        "Use a whole number in range: interval 5-86400 seconds, max ppm 1-100, max step 1-100. Leave blank for the defaults (30, 100, 5).",
+        "The interval is how often auto_ppm re-measures, max ppm caps the correction it may ever set, and max step caps one adjustment. rtl_airband refuses to start with a value outside these limits.",
+    ),
+    h(
+        "auto-ppm-correction-outside-limit",
+        "Bring Correction within ±auto_ppm_max_ppm, or raise auto_ppm_max_ppm (up to 100).",
+        "With auto_ppm set (on or off), the configured correction is where auto_ppm starts, and it may never go past auto_ppm_max_ppm. rtl_airband refuses to start if the starting correction is already outside that limit.",
     ),
     h(
         "device-reserve-channels-negative",
@@ -250,7 +280,7 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
     h(
         "split-settings-ignored-without-split-on-transmission",
         "Turn on Split on transmission for this output, or remove its split_* settings.",
-        "split_*_time and split_include_transmission_start only control how per-transmission files are cut. Without split_on_transmission they do nothing, which usually means the setting was meant for another output.",
+        "split_*_time, split_tx_drop_shorter_than and split_include_transmission_start only control how per-transmission files are cut. Without split_on_transmission they do nothing, which usually means the setting was meant for another output.",
     ),
     h(
         "send-tx-tags-not-supported-on-scan-mode",

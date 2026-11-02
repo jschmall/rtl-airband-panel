@@ -5,6 +5,34 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.27] - 2026-11-02
+
+### Added
+
+- **Validation for the fork v7.1.0 settings**, matching the fork's own
+  startup checks:
+  - `split_tx_drop_shorter_than` must be at least 0 and below
+    `split_max_file_time`, globally and on each file/rawfile output
+    (using the output's own values, else the global ones). It's an error
+    on a mixer output and ignored without `split_on_transmission`
+    (warning), like the other `split_*` settings.
+  - `auto_ppm` only works on rtlsdr devices, even when set to false.
+    `auto_ppm_interval` must be 5–86400, `auto_ppm_max_ppm` and
+    `auto_ppm_max_step` 1–100, all whole numbers. With `auto_ppm` set,
+    `correction` must start within ±`auto_ppm_max_ppm`. The three
+    parameters do nothing without `auto_ppm` (warning).
+- **Device drivers are checked against the instance's rtl_airband.** A
+  fork build lists its optional drivers on its `-v` Features line. If a
+  device needs one the build doesn't have, that's now an error, because
+  rtl_airband won't start: a `mirisdr` device on fork v7.1.0+ (upstream
+  v7.0.0 removed the driver), or a `soapysdr` device on the bundled
+  build (SoapySDR off). Stock builds, unidentified builds and fork
+  releases older than the Features line are not checked.
+- On a fork build older than v6.6.0, `auto_ppm` gets the usual "needs
+  the fork" warning (it's ignored there).
+- Hints for the six new issue codes. The device-type hints now say that
+  mirisdr only works with builds older than upstream v7.0.0.
+
 ## [0.6.26] - 2026-11-02
 
 ### Added
