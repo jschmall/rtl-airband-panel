@@ -13,6 +13,8 @@
 //!   being silently dropped on save.
 //! - RTLSDR-Airband v5.5/v6.3 fields: `stats_update_interval`, the
 //!   `split_*_file_time` settings, and `split_include_transmission_start`.
+//! - Fork v6.6.0+ `auto_ppm*` device settings; upstream #580 (fork v6.7.0+)
+//!   `split_tx_drop_shorter_than`.
 
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -66,6 +68,10 @@ pub struct RtlAirbandConfig {
     pub split_max_idle_time: Option<f64>,
     /// Global default for file outputs. Defaults to false.
     pub split_include_transmission_start: Option<bool>,
+    /// Global default for file outputs: split recordings shorter than this
+    /// many seconds are deleted. 0 (the default) keeps them all; must be
+    /// below split_max_file_time.
+    pub split_tx_drop_shorter_than: Option<f64>,
     pub devices: Vec<Device>,
     pub mixers: Option<Vec<Mixer>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -103,6 +109,16 @@ pub struct Device {
     pub centerfreq: Option<f64>,
     pub sample_rate: Option<f64>,
     pub correction: Option<f64>,
+    /// Fork v6.6.0+, rtlsdr only: automatic PPM correction. The key being
+    /// present at all (even `false`) sets the device up for it at startup,
+    /// so a later toggle can be applied live; `correction` is the start.
+    pub auto_ppm: Option<bool>,
+    /// Seconds between auto_ppm evaluations, int 5..=86400 (default 30).
+    pub auto_ppm_interval: Option<f64>,
+    /// Largest |correction| auto_ppm may set, int 1..=100 (default 100).
+    pub auto_ppm_max_ppm: Option<f64>,
+    /// Largest change in one adjustment, int 1..=100 (default 5).
+    pub auto_ppm_max_step: Option<f64>,
     /// rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
     pub bandwidth: Option<f64>,
     pub mode: Option<DeviceMode>,
@@ -311,6 +327,7 @@ pub struct FileOutput {
     pub split_max_file_time: Option<f64>,
     pub split_max_idle_time: Option<f64>,
     pub split_include_transmission_start: Option<bool>,
+    pub split_tx_drop_shorter_than: Option<f64>,
     pub rdio_scanner: Option<RdioScannerConfig>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -361,6 +378,7 @@ pub struct RawFileOutput {
     pub split_max_file_time: Option<f64>,
     pub split_max_idle_time: Option<f64>,
     pub split_include_transmission_start: Option<bool>,
+    pub split_tx_drop_shorter_than: Option<f64>,
     pub disable: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<Vec<Setting>>", optional)]

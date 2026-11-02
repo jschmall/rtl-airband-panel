@@ -229,3 +229,49 @@ devices: ({{ type = "rtlsdr"; serial = "1"; gain = 29; centerfreq = {cf}; bandwi
     // Device bandwidth is literal Hz, never scaled.
     assert_eq!(a.devices[0].bandwidth, Some(350_000.0));
 }
+
+#[test]
+fn fork_v7_fields_round_trip() {
+    let source =
+        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/fork-v7.conf")).unwrap();
+    let (d1, text, d2) = round_trip(&source);
+    assert_eq!(d1, d2);
+    // Every key is modeled now, not carried along as an unknown setting.
+    let json = serde_json::to_string(&d1).unwrap();
+    assert!(!json.contains("unknown_settings"), "{json}");
+
+    assert_eq!(d1.split_tx_drop_shorter_than, Some(2.5));
+    let dev = &d1.devices[0];
+    assert_eq!(dev.auto_ppm, Some(true));
+    assert_eq!(
+        (dev.auto_ppm_interval, dev.auto_ppm_max_ppm, dev.auto_ppm_max_step),
+        (Some(30.0), Some(100.0), Some(5.0))
+    );
+    assert_eq!((d1.devices[1].auto_ppm, d1.devices[1].auto_ppm_interval), (Some(false), None));
+    let Channel::Multichannel(c) = &dev.channels[0] else { panic!() };
+    let Output::File(f) = &c.outputs[0] else { panic!() };
+    assert_eq!(f.split_tx_drop_shorter_than, Some(1.0));
+    let Output::RawFile(r) = &c.outputs[1] else { panic!() };
+    assert_eq!(r.split_tx_drop_shorter_than, Some(0.75));
+
+    // The fork reads the auto_ppm parameters as ints (a float literal fails
+    // its parse) and split_tx_drop_shorter_than as a double.
+    for line in ["auto_ppm = true;", "auto_ppm = false;", "auto_ppm_interval = 30;", "auto_ppm_max_ppm = 100;", "auto_ppm_max_step = 5;"] {
+        assert!(text.contains(line), "missing {line:?} in\n{text}");
+    }
+    assert!(text.contains("split_tx_drop_shorter_than = 2.5;"));
+    assert!(text.contains("split_tx_drop_shorter_than = 1.0;"));
+    assert!(text.contains("split_tx_drop_shorter_than = 0.75;"));
+    // A second write is byte-identical.
+    assert_eq!(serialize_config_file(&d2), text);
+}
+
+#[test]
+fn fork_v7_fields_survive_json() {
+    let source =
+        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/fork-v7.conf")).unwrap();
+    let d1 = parse_config_file(&source).unwrap();
+    let d2: RtlAirbandConfig = serde_json::from_str(&serde_json::to_string(&d1).unwrap()).unwrap();
+    assert_eq!(d1, d2);
+    assert_eq!(serialize_config_file(&d1), serialize_config_file(&d2));
+}

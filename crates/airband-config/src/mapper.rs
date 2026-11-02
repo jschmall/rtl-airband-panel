@@ -280,6 +280,7 @@ pub fn to_domain(ast: &ConfigFile) -> Result<RtlAirbandConfig> {
         split_max_file_time: r.optional_number("split_max_file_time")?,
         split_max_idle_time: r.optional_number("split_max_idle_time")?,
         split_include_transmission_start: r.optional_bool("split_include_transmission_start")?,
+        split_tx_drop_shorter_than: r.optional_number("split_tx_drop_shorter_than")?,
         devices,
         mixers: None,
         unknown_settings: Vec::new(),
@@ -323,6 +324,10 @@ fn to_device(g: &[Setting], path: String) -> Result<Device> {
         centerfreq: r.optional_hz("centerfreq")?,
         sample_rate: r.optional_hz("sample_rate")?,
         correction: r.optional_number("correction")?,
+        auto_ppm: r.optional_bool("auto_ppm")?,
+        auto_ppm_interval: r.optional_number("auto_ppm_interval")?,
+        auto_ppm_max_ppm: r.optional_number("auto_ppm_max_ppm")?,
+        auto_ppm_max_step: r.optional_number("auto_ppm_max_step")?,
         bandwidth: r.optional_number("bandwidth")?,
         mode: None,
         reserve_channels: None,
@@ -524,6 +529,7 @@ fn to_output(g: &[Setting], path: String) -> Result<Output> {
             out.split_max_file_time = r.optional_number("split_max_file_time")?;
             out.split_max_idle_time = r.optional_number("split_max_idle_time")?;
             out.split_include_transmission_start = r.optional_bool("split_include_transmission_start")?;
+            out.split_tx_drop_shorter_than = r.optional_number("split_tx_drop_shorter_than")?;
             Output::File(out)
         }
         "rawfile" => Output::RawFile(RawFileOutput {
@@ -539,6 +545,7 @@ fn to_output(g: &[Setting], path: String) -> Result<Output> {
             split_max_file_time: r.optional_number("split_max_file_time")?,
             split_max_idle_time: r.optional_number("split_max_idle_time")?,
             split_include_transmission_start: r.optional_bool("split_include_transmission_start")?,
+            split_tx_drop_shorter_than: r.optional_number("split_tx_drop_shorter_than")?,
             unknown_settings: Vec::new(),
         }),
         "icecast" => {
@@ -746,6 +753,7 @@ pub fn from_domain(config: &RtlAirbandConfig) -> ConfigFile {
         .opt_float("split_max_file_time", config.split_max_file_time)
         .opt_float("split_max_idle_time", config.split_max_idle_time)
         .opt_bool("split_include_transmission_start", config.split_include_transmission_start)
+        .opt_float("split_tx_drop_shorter_than", config.split_tx_drop_shorter_than)
         .unknown(&config.unknown_settings)
         .push("devices", list(config.devices.iter().map(device_from_domain).collect()));
     if let Some(mixers) = &config.mixers {
@@ -771,6 +779,10 @@ fn device_from_domain(d: &Device) -> Value {
     m.opt_int("centerfreq", d.centerfreq)
         .opt_int("sample_rate", d.sample_rate)
         .opt_int("correction", d.correction)
+        .opt_bool("auto_ppm", d.auto_ppm)
+        .opt_int("auto_ppm_interval", d.auto_ppm_interval)
+        .opt_int("auto_ppm_max_ppm", d.auto_ppm_max_ppm)
+        .opt_int("auto_ppm_max_step", d.auto_ppm_max_step)
         .opt_int("bandwidth", d.bandwidth);
     if let Some(mode) = d.mode {
         m.string("mode", mode.as_str());
@@ -897,6 +909,7 @@ fn output_from_domain(output: &Output) -> Value {
                 .opt_float("split_max_file_time", o.split_max_file_time)
                 .opt_float("split_max_idle_time", o.split_max_idle_time)
                 .opt_bool("split_include_transmission_start", o.split_include_transmission_start)
+                .opt_float("split_tx_drop_shorter_than", o.split_tx_drop_shorter_than)
                 .unknown(&o.unknown_settings);
         }
         Output::RawFile(o) => {
@@ -912,6 +925,7 @@ fn output_from_domain(output: &Output) -> Value {
                 .opt_float("split_max_file_time", o.split_max_file_time)
                 .opt_float("split_max_idle_time", o.split_max_idle_time)
                 .opt_bool("split_include_transmission_start", o.split_include_transmission_start)
+                .opt_float("split_tx_drop_shorter_than", o.split_tx_drop_shorter_than)
                 .unknown(&o.unknown_settings);
         }
         Output::Icecast(o) => {

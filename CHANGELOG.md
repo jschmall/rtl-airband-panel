@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.26] - 2026-11-02
+
+### Added
+
+- **The config model knows fork v7.1.0's new settings**, so they're
+  read, edited and written as real fields instead of being carried along
+  as unknown settings:
+  - `auto_ppm`, `auto_ppm_interval`, `auto_ppm_max_ppm` and
+    `auto_ppm_max_step` on devices (fork v6.6.0). The three parameters
+    are written as ints, which the fork requires.
+  - `split_tx_drop_shorter_than`, globally and on file and rawfile
+    outputs (upstream #580), written as a float like the other
+    `split_*` settings.
+  - Round-trip tests over a new fixture,
+    `crates/airband-config/tests/data/fork-v7.conf` (kept out of
+    `fixtures/`, whose files all have frozen parity goldens).
+
 ## [0.6.25] - 2026-11-02
 
 ### Changed
