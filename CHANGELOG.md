@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.32] - 2026-11-02
+
+### Fixed
+
+- After Save to config, the editor's "Not saved yet" notice now goes away
+  once the change is saved or applied live. Before, it stayed next to the
+  "Applied live" message. Found while testing auto_ppm on a real RTL-SDR
+  (NESDR SMArt v5) with the bundled fork v7.1.0 build:
+  - auto_ppm converged from −10 ppm to 0 against NOAA 162.550 MHz.
+  - Turning it on and off, Save to config, and a parameter change all
+    behaved as the change preview predicted. The fork's `reload_diff`
+    reported the same thing each time.
+
 ## [0.6.31] - 2026-11-02
 
 ### Changed

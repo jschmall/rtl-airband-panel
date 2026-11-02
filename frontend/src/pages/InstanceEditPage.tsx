@@ -478,7 +478,7 @@ export function InstanceEditPage() {
         onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })}
         onDismissWarnings={() => setWarningsDismissed(true)}
       />
-      {prefillMessage && !savedMessage && (
+      {prefillMessage && isDirty && (
         <div className="rounded border border-sky-500/40 bg-sky-500/10 p-3 text-sm text-sky-200">{prefillMessage}</div>
       )}
       {savedMessage && (

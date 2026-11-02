@@ -130,7 +130,11 @@ describe("InstanceEditPage correction prefill (Hardware page's Save to config)",
   function open(query: string) {
     // The ?device jump scrolls the device into view; jsdom has no layout.
     Element.prototype.scrollIntoView = vi.fn();
-    const config: RtlAirbandConfig = { ...defaultConfig(), stats_filepath: "/tmp/stats.txt" };
+    const config: RtlAirbandConfig = {
+      ...defaultConfig(),
+      stats_filepath: "/tmp/stats.txt",
+      control_socket_path: "/run/rtl-airband/tower.sock",
+    };
     config.devices[0] = { ...config.devices[0]!, correction: 1 };
     api.listInstances.mockResolvedValue([summary()]);
     api.getConfig.mockResolvedValue({ config, version: "v1" });
@@ -143,6 +147,15 @@ describe("InstanceEditPage correction prefill (Hardware page's Save to config)",
     open("device=0&correction=-4");
     expect(await screen.findByText(/Correction for device 0 set to -4 ppm \(was 1\)/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Correction \(ppm/)).toHaveValue(-4);
+  });
+
+  it("drops the notice once the change is applied", async () => {
+    open("device=0&correction=-4");
+    expect(await screen.findByText(/set to -4 ppm/)).toBeInTheDocument();
+    api.applyConfigLive.mockResolvedValue(applyResult({ attempted: true, applied: ["device[0]: correction -> -4"], skippedRequiresRestart: [] }));
+    await clickApplyLive();
+    expect(await screen.findByText(`Applied live to ${NAME}.service — nothing left pending.`)).toBeInTheDocument();
+    expect(screen.queryByText(/set to -4 ppm/)).not.toBeInTheDocument();
   });
 
   it("ignores a non-integer value", async () => {
