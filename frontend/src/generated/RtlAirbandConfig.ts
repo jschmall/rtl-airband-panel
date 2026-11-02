@@ -23,4 +23,10 @@ split_max_idle_time?: number,
 /**
  * Global default for file outputs. Defaults to false.
  */
-split_include_transmission_start?: boolean, devices: Array<Device>, mixers?: Array<Mixer>, unknown_settings?: Array<Setting>, };
+split_include_transmission_start?: boolean, 
+/**
+ * Global default for file outputs: split recordings shorter than this
+ * many seconds are deleted. 0 (the default) keeps them all; must be
+ * below split_max_file_time.
+ */
+split_tx_drop_shorter_than?: number, devices: Array<Device>, mixers?: Array<Mixer>, unknown_settings?: Array<Setting>, };

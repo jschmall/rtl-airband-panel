@@ -33,6 +33,10 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
     summary: "Make split_min_file_time at least 1, split_max_file_time larger than split_min_file_time, and split_max_idle_time larger than 0.",
     detail: "These settings control how split_on_transmission cuts recordings into files: the shortest file, the longest file, and how long silence can last before a file is closed. When set on an output they override the global values, and any setting left out falls back to the global value (or the default). rtl_airband refuses to start if the combined values don't meet all three rules.",
   },
+  "split-tx-drop-invalid": {
+    summary: "Set split_tx_drop_shorter_than to 0 (keep every recording) or to a number of seconds below split_max_file_time.",
+    detail: "Split recordings of a transmission shorter than this are deleted instead of kept, which filters out key-ups and noise bursts. It's compared with the longest file length, so it has to be smaller than split_max_file_time (the output's own value, else the global one, else 3600). rtl_airband refuses to start otherwise.",
+  },
   "unknown-setting-preserved": {
     summary: "Nothing needs fixing unless the setting is a typo. Check its name against the RTLSDR-Airband docs.",
     detail: "The panel only edits settings it models. Anything else is written back exactly as it was. If the name is misspelled, rtl_airband may ignore it or refuse to start. If it's a real setting the panel doesn't model yet, it keeps working, but you can only change it by editing the .conf file directly.",
@@ -42,12 +46,12 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
     detail: "This instance's rtl_airband build doesn't have the feature this setting needs, so the setting is ignored (for a mixer_remote output, rtl_airband won't start at all). New instances use the bundled fork build automatically. An existing instance keeps whatever binary its systemd unit's ExecStart runs.",
   },
   "device-type-unsupported": {
-    summary: "Choose rtlsdr, mirisdr or soapysdr as the device type.",
-    detail: "rtl_airband only has drivers for these three types and won't start with any other type. Most USB dongles are rtlsdr. Use soapysdr for anything else SoapySDR supports (Airspy, HackRF, SDRplay…). The bundled build has SoapySDR turned off, so a soapysdr device needs an rtl_airband you've built yourself.",
+    summary: "Choose rtlsdr or soapysdr as the device type (mirisdr only works on older rtl_airband builds).",
+    detail: "rtl_airband only has drivers for these types and won't start with any other type. Most USB dongles are rtlsdr. Use soapysdr for anything else SoapySDR supports (Airspy, HackRF, SDRplay…). The bundled build has SoapySDR turned off, so a soapysdr device needs an rtl_airband you've built yourself. mirisdr was removed in upstream v7.0.0 (fork v7.1.0), so it only works with an older build.",
   },
   "device-gain-required": {
     summary: "Set a gain for this device (e.g. 25 dB), and adjust it later while watching signal levels.",
-    detail: "rtl_airband needs a fixed gain for rtlsdr and mirisdr devices. Only soapysdr devices can leave it out (to use AGC). Start in the middle of the tuner's range and turn it down if strong nearby signals overload the dongle (noise rises across the whole band).",
+    detail: "rtl_airband needs a fixed gain for rtlsdr (and mirisdr) devices. Only soapysdr devices can leave it out (to use AGC). Start in the middle of the tuner's range and turn it down if strong nearby signals overload the dongle (noise rises across the whole band).",
   },
   "device-string-required": {
     summary: "Enter a Device string such as driver=rtlsdr,serial=00000001 or driver=airspy.",
@@ -75,7 +79,27 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
   },
   "device-num-buffers-invalid": {
     summary: "Set Num buffers to 1 or more, or leave it blank for the default of 10.",
-    detail: "mirisdr devices need at least one sample buffer to stream into.",
+    detail: "mirisdr devices (on builds older than upstream v7.0.0, which still have that driver) need at least one sample buffer to stream into.",
+  },
+  "device-driver-not-built": {
+    summary: "Change the device type, or point this instance at an rtl_airband built with this driver.",
+    detail: "A fork build lists the optional drivers it was compiled with on its -v Features line, and this one doesn't have the driver for this device's type, so rtl_airband won't start. The bundled build has rtlsdr only: SoapySDR is turned off, and upstream v7.0.0 (fork v7.1.0) removed mirisdr. Build rtl_airband yourself with the driver and set the instance's binary to it, or disable this device.",
+  },
+  "auto-ppm-settings-ignored": {
+    summary: "Turn on Automatic PPM correction (or add auto_ppm = false to set it up), or remove the auto_ppm_* settings.",
+    detail: "rtl_airband only reads auto_ppm_interval, auto_ppm_max_ppm and auto_ppm_max_step when the device has an auto_ppm setting, so without one they do nothing.",
+  },
+  "auto-ppm-driver-unsupported": {
+    summary: "Remove auto_ppm from this device; only rtlsdr devices support it.",
+    detail: "Automatic PPM correction needs a driver that can read back and change the correction while running, which only rtlsdr has. rtl_airband won't start with auto_ppm on any other device type, even when it's set to false.",
+  },
+  "auto-ppm-param-out-of-range": {
+    summary: "Use a whole number in range: interval 5-86400 seconds, max ppm 1-100, max step 1-100. Leave blank for the defaults (30, 100, 5).",
+    detail: "The interval is how often auto_ppm re-measures, max ppm caps the correction it may ever set, and max step caps one adjustment. rtl_airband refuses to start with a value outside these limits.",
+  },
+  "auto-ppm-correction-outside-limit": {
+    summary: "Bring Correction within ±auto_ppm_max_ppm, or raise auto_ppm_max_ppm (up to 100).",
+    detail: "With auto_ppm set (on or off), the configured correction is where auto_ppm starts, and it may never go past auto_ppm_max_ppm. rtl_airband refuses to start if the starting correction is already outside that limit.",
   },
   "device-reserve-channels-negative": {
     summary: "Set Reserve channels to 0 or more, or leave it blank.",
@@ -183,7 +207,7 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
   },
   "split-settings-ignored-without-split-on-transmission": {
     summary: "Turn on Split on transmission for this output, or remove its split_* settings.",
-    detail: "split_*_time and split_include_transmission_start only control how per-transmission files are cut. Without split_on_transmission they do nothing, which usually means the setting was meant for another output.",
+    detail: "split_*_time, split_tx_drop_shorter_than and split_include_transmission_start only control how per-transmission files are cut. Without split_on_transmission they do nothing, which usually means the setting was meant for another output.",
   },
   "send-tx-tags-not-supported-on-scan-mode": {
     summary: "Turn off Send tx tags on this output and turn on Send scan freq tags instead.",

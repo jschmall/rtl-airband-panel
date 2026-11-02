@@ -1,6 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import type { SdrHealth } from "../../api/client.js";
 import {
+  autoPpmSummary,
   correctionAdvice,
   formatCount,
   formatDb,
@@ -10,8 +11,10 @@ import {
   formatSpan,
   gainAdvice,
   gainText,
+  saveCorrectionHref,
   sdrEditorHref,
   sdrTitle,
+  unsavedAutoCorrection,
   type Advice,
   type HistoryPoint,
 } from "../../lib/hardware-format.js";
@@ -101,6 +104,45 @@ interface SdrCardProps {
   history: HistoryPoint[];
 }
 
+/** auto_ppm's state and the learned correction, with a link to keep it. */
+function AutoPpmRow({ instance, sdr }: { instance: string; sdr: SdrHealth }) {
+  const a = sdr.autoPpm;
+  const summary = autoPpmSummary(sdr);
+  if (!a || !summary) return null;
+  const unsaved = unsavedAutoCorrection(sdr);
+  const age = a.lastAdjustAgeS === null ? null : a.lastAdjustAgeS < 120 ? `${a.lastAdjustAgeS} s ago` : `${Math.round(a.lastAdjustAgeS / 60)} min ago`;
+  return (
+    <div className="mb-3 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="text-slate-400">
+          <Tooltip content={HARDWARE_TOOLTIPS.autoPpm} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
+            Auto PPM
+          </Tooltip>
+        </span>
+        <span className="tabular-nums text-slate-200">
+          live {sdr.correction ?? "?"} ppm · config {sdr.configCorrection ?? 0} ppm
+        </span>
+        {a.enabled && (
+          <span className="tabular-nums text-slate-400">
+            {a.contributing}/{a.eligible} channel{a.eligible === 1 ? "" : "s"} voting · {a.adjustments} adjustment{a.adjustments === 1 ? "" : "s"}
+            {age ? ` (last ${age})` : ""} · every {a.intervalS} s, max ±{a.maxPpm} ppm
+          </span>
+        )}
+        {unsaved !== null && (
+          <GuardedLink
+            to={saveCorrectionHref(instance, sdr, unsaved)}
+            className="ml-auto rounded border border-sky-500/50 px-2 py-0.5 font-medium text-sky-300 hover:bg-sky-500/10"
+            title="Opens the editor with this correction filled in, to review and save. auto_ppm starts from the config's correction after every restart."
+          >
+            Save {unsaved} ppm to config…
+          </GuardedLink>
+        )}
+      </div>
+      <AdviceLine advice={summary} />
+    </div>
+  );
+}
+
 function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
   const [showChannels, setShowChannels] = useState(false);
   const series = (pick: (p: HistoryPoint) => number | null) => history.map((p) => ({ ts: p.ts, value: pick(p) }));
@@ -138,6 +180,8 @@ function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
           <Setting label="Correction" tooltip={HARDWARE_TOOLTIPS.freqError} value={`${sdr.correction} ${sdr.correctionUnit}`} />
         )}
       </dl>
+
+      {live && <AutoPpmRow instance={instance} sdr={sdr} />}
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Tile

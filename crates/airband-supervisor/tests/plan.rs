@@ -298,3 +298,96 @@ fn dest_port_int_and_string_are_the_same_setting() {
         ["mixer 'm': outputs changed"]
     );
 }
+
+// --- auto_ppm (fork v6.6.0) ---
+
+fn plan_started(started: &str, applied: &str, next: &str) -> ChangePlan {
+    let (s, a, n) = (parse_config(started).unwrap(), parse_config(applied).unwrap(), parse_config(next).unwrap());
+    plan_change(&Baseline { started: &s, applied: &a }, &n)
+}
+
+fn ppm_conf(dev_extra: &str) -> String {
+    conf(HEAD, &[device(dev_extra, &base_channels())], "")
+}
+
+#[test]
+fn adding_auto_ppm_needs_a_restart_even_when_off() {
+    let a = ppm_conf("correction = 3;");
+    let p = plan(&a, &ppm_conf("correction = 3; auto_ppm = false;"));
+    assert_eq!(
+        p.restart,
+        ["device[0]: auto_ppm added; the device started without it (after a restart it can be turned on live)"]
+    );
+    let p = plan(&a, &ppm_conf("correction = 3; auto_ppm = true;"));
+    assert_eq!(p.restart, ["device[0]: auto_ppm turned on, but the device started without it"]);
+    // Parameters alone do nothing without the key.
+    assert_eq!(plan(&a, &ppm_conf("correction = 3; auto_ppm_interval = 60;")).method(), ApplyMethod::NoChange);
+}
+
+#[test]
+fn toggling_auto_ppm_is_live_once_the_device_started_with_it() {
+    let off = ppm_conf("correction = 3; auto_ppm = false;");
+    let on = ppm_conf("correction = 3; auto_ppm = true;");
+    let p = plan(&off, &on);
+    assert_eq!(
+        (p.method(), p.live.as_slice()),
+        (ApplyMethod::Live, ["device[0]: auto_ppm -> true".to_string()].as_slice())
+    );
+
+    // Turning it off puts the configured correction back.
+    let p = plan(&on, &off);
+    assert_eq!(p.live, ["device[0]: auto_ppm -> false", "device[0]: correction -> 3 (back to the configured value)"]);
+    // Removing the key means off.
+    let p = plan(&on, &ppm_conf("correction = 3;"));
+    assert_eq!(p.method(), ApplyMethod::Live, "{p:?}");
+    assert_eq!(p.live[0], "device[0]: auto_ppm -> false");
+
+    // Started with it off, live-applied on since: started decides, applied is the current state.
+    let p = plan_started(&off, &on, &off);
+    assert_eq!(p.live[0], "device[0]: auto_ppm -> false");
+}
+
+#[test]
+fn auto_ppm_parameters_need_a_restart() {
+    let a = ppm_conf("correction = 3; auto_ppm = true;");
+    for extra in ["auto_ppm_interval = 60;", "auto_ppm_max_ppm = 50;", "auto_ppm_max_step = 2;"] {
+        let p = plan(&a, &ppm_conf(&format!("correction = 3; auto_ppm = true; {extra}")));
+        assert_eq!(p.restart, ["device[0]: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step changed"], "{extra}");
+    }
+    // Spelling out a default is no change.
+    let p = plan(&a, &ppm_conf("correction = 3; auto_ppm = true; auto_ppm_interval = 30; auto_ppm_max_ppm = 100;"));
+    assert_eq!(p.method(), ApplyMethod::NoChange, "{p:?}");
+}
+
+#[test]
+fn correction_while_auto_ppm_is_on() {
+    let a = ppm_conf("correction = 3; auto_ppm = true;");
+    // Unchanged: left to auto_ppm.
+    assert_eq!(plan(&a, &a).method(), ApplyMethod::NoChange);
+    // Changed (e.g. "Save to config" writing the learned value): applied, and it becomes the new base.
+    let p = plan(&a, &ppm_conf("correction = -7; auto_ppm = true;"));
+    assert_eq!(
+        (p.method(), p.live.as_slice()),
+        (ApplyMethod::Live, ["device[0]: correction -> -7".to_string()].as_slice())
+    );
+}
+
+// --- split_tx_drop_shorter_than (upstream #580) ---
+
+#[test]
+fn split_tx_drop_follows_the_usual_global_and_channel_rules() {
+    let a = conf(HEAD, &[device("", &base_channels())], "");
+    let p = plan(&a, &a.replace("localtime = true;", "localtime = true; split_tx_drop_shorter_than = 2.0;"));
+    assert_eq!(p.restart, ["split_tx_drop_shorter_than changed"]);
+
+    let file = |extra: &str| {
+        let out = format!(
+            r#"{{ type = "file"; directory = "/tmp"; filename_template = "f"; split_on_transmission = true; {extra} }}"#
+        );
+        let ch = format!(r#"{{ freq = 151100000; outputs: ( {out} ); }}"#);
+        conf(HEAD, &[device("", &[ch, chan(151200000, "")])], "")
+    };
+    let p = plan(&file(""), &file("split_tx_drop_shorter_than = 1.5;"));
+    assert_eq!(p.method(), ApplyMethod::Live, "{p:?}");
+    assert!(!p.interrupts.is_empty(), "the channel is re-created: {p:?}");
+}

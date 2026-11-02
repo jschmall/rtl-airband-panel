@@ -5,6 +5,178 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.32] - 2026-11-02
+
+### Fixed
+
+- After Save to config, the editor's "Not saved yet" notice now goes away
+  once the change is saved or applied live. Before, it stayed next to the
+  "Applied live" message. Found while testing auto_ppm on a real RTL-SDR
+  (NESDR SMArt v5) with the bundled fork v7.1.0 build:
+  - auto_ppm converged from −10 ppm to 0 against NOAA 162.550 MHz.
+  - Turning it on and off, Save to config, and a parameter change all
+    behaved as the change preview predicted. The fork's `reload_diff`
+    reported the same thing each time.
+
+## [0.6.31] - 2026-11-02
+
+### Changed
+
+- **Docs for fork v7.1.0.**
+  - README: the bundled build supports RTL-SDR only (no Mirics) and has
+    automatic PPM correction.
+  - User guide: a new "Automatic PPM correction" section (turning it on,
+    Off-but-ready, Save to config, what happens when it trips, squelch
+    for continuous transmitters), and the live-apply lists updated.
+  - DEVELOPMENT.md: the auto_ppm live-apply rules, the Hardware API's
+    auto_ppm fields, the driver gate, the `auto_ppm` feature name, the
+    upstream v6.3.x tag clash, and the bundled build without libmirisdr.
+
+## [0.6.30] - 2026-11-02
+
+### Added
+
+- **Automatic PPM correction in the device editor** (rtlsdr only, fork
+  v6.6.0+). It has three states: *Not set*, *On*, and *Off, ready to
+  turn on live*, which keeps `auto_ppm = false` so it can later be
+  turned on without a restart. The interval, max ppm and max step fields
+  show while it's set, with their defaults as labels. On a build without
+  auto_ppm the field is marked "needs the fork". Switching the device
+  to another type clears all four settings.
+- **Auto PPM on the Hardware page.** A device running auto_ppm shows its
+  live correction next to the saved one, how many channels are voting,
+  how many adjustments it has made and when it last made one, and its
+  limits. A tripped auto_ppm shows why it stopped. While it's active,
+  the Frequency error tile reports auto_ppm's residual instead of
+  suggesting a correction.
+- **Save to config.** When auto_ppm has moved the correction away from
+  the saved value, a "Save N ppm to config…" button opens the editor
+  with that device's correction set to N in the unsaved draft. The
+  change preview shows it as a live correction change; review it, then
+  Save or Apply live. (auto_ppm starts again from the saved correction
+  after every restart.)
+- **"Drop recordings shorter than"** (`split_tx_drop_shorter_than`) on
+  file and rawfile outputs, next to Min RX seconds.
+
+### Changed
+
+- The screenshot tooling's fake control sockets report auto_ppm status
+  for devices that set it, and `FAKE_AUTO_PPM_TRIPPED` shows chosen
+  instances' auto_ppm as tripped. The fake `-v` binary reports fork
+  v7.1.0.
+
+## [0.6.29] - 2026-11-02
+
+### Added
+
+- **The panel reads auto_ppm's live state.** On fork v6.6.0+, each device's
+  control-socket `status` reply carries an `auto_ppm` object: whether it's
+  on or has tripped (and why), the last measured residual, how many
+  channels voted, the adjustment count, and its limits. The Hardware
+  API passes it through as `SdrHealth.autoPpm`, alongside the config's
+  `correction` (`configCorrection`) and `auto_ppm` key
+  (`autoPpmConfigured`), so the UI can show when the live correction
+  has moved away from the saved one.
+- Tooltips for the new stats metrics `device_ppm_correction`,
+  `device_auto_ppm_residual_ppm`, `device_auto_ppm_adjustment_count` and
+  `channel_split_tx_dropped_counter`.
+
+### Changed
+
+- **No suggested correction while auto_ppm is adjusting.** The
+  suggestion uses a carrier-offset average that still holds samples from
+  before auto_ppm's last step, so it would contradict auto_ppm. It comes
+  back if auto_ppm trips.
+- Without `-j` JSON logging, auto_ppm's trip ("auto_ppm disabled: …") is
+  logged as an error on the Errors page, and its max_ppm clamp warning
+  as a warning. Before, the clamp warning matched no keyword and was
+  dropped.
+
+## [0.6.28] - 2026-11-02
+
+### Added
+
+- **The change preview predicts auto_ppm edits** the way fork v7.1.0's
+  `reload_diff` handles them:
+  - Adding `auto_ppm` to a device that started without it needs a
+    restart, even as `auto_ppm = false`. After that restart, turning it
+    on or off (or removing the key, which means off) applies live.
+  - Turning it off live puts the configured correction back, and the
+    preview says so.
+  - Changing `auto_ppm_interval`, `auto_ppm_max_ppm` or
+    `auto_ppm_max_step` needs a restart.
+  - While auto_ppm is on, an unchanged `correction` is left to auto_ppm.
+    A changed one is applied live and becomes auto_ppm's new starting
+    point.
+- Tests for `split_tx_drop_shorter_than`: a global change needs a
+  restart, while a change on a channel's output re-creates that channel
+  live.
+
+## [0.6.27] - 2026-11-02
+
+### Added
+
+- **Validation for the fork v7.1.0 settings**, matching the fork's own
+  startup checks:
+  - `split_tx_drop_shorter_than` must be at least 0 and below
+    `split_max_file_time`, globally and on each file/rawfile output
+    (using the output's own values, else the global ones). It's an error
+    on a mixer output and ignored without `split_on_transmission`
+    (warning), like the other `split_*` settings.
+  - `auto_ppm` only works on rtlsdr devices, even when set to false.
+    `auto_ppm_interval` must be 5–86400, `auto_ppm_max_ppm` and
+    `auto_ppm_max_step` 1–100, all whole numbers. With `auto_ppm` set,
+    `correction` must start within ±`auto_ppm_max_ppm`. The three
+    parameters do nothing without `auto_ppm` (warning).
+- **Device drivers are checked against the instance's rtl_airband.** A
+  fork build lists its optional drivers on its `-v` Features line. If a
+  device needs one the build doesn't have, that's now an error, because
+  rtl_airband won't start: a `mirisdr` device on fork v7.1.0+ (upstream
+  v7.0.0 removed the driver), or a `soapysdr` device on the bundled
+  build (SoapySDR off). Stock builds, unidentified builds and fork
+  releases older than the Features line are not checked.
+- On a fork build older than v6.6.0, `auto_ppm` gets the usual "needs
+  the fork" warning (it's ignored there).
+- Hints for the six new issue codes. The device-type hints now say that
+  mirisdr only works with builds older than upstream v7.0.0.
+
+## [0.6.26] - 2026-11-02
+
+### Added
+
+- **The config model knows fork v7.1.0's new settings**, so they're
+  read, edited and written as real fields instead of being carried along
+  as unknown settings:
+  - `auto_ppm`, `auto_ppm_interval`, `auto_ppm_max_ppm` and
+    `auto_ppm_max_step` on devices (fork v6.6.0). The three parameters
+    are written as ints, which the fork requires.
+  - `split_tx_drop_shorter_than`, globally and on file and rawfile
+    outputs (upstream #580), written as a float like the other
+    `split_*` settings.
+  - Round-trip tests over a new fixture,
+    `crates/airband-config/tests/data/fork-v7.conf` (kept out of
+    `fixtures/`, whose files all have frozen parity goldens).
+
+## [0.6.25] - 2026-11-02
+
+### Changed
+
+- **Bundled rtl_airband updated from fork v6.5.0 to v7.1.0.** v7.1.0 is
+  the fork's delta on top of upstream v7.0.0. It brings:
+  - automatic PPM correction (`auto_ppm`, fork v6.6.0);
+  - `split_tx_drop_shorter_than`, which drops split recordings shorter
+    than a given length (upstream #580, fork v6.7.0);
+  - **no MiriSDR support**: upstream v7.0.0 (#582) removed the mirisdr
+    driver, so the bundled build can no longer use Mirics dongles. Build
+    an older rtl_airband yourself and point `RTL_PANEL_RTL_AIRBAND_BIN`
+    at it if you still need one.
+  Until the panel models them, the new settings are kept verbatim as
+  unknown settings.
+- The release build no longer compiles libmirisdr-4, and the
+  static-drivers patch drops its mirisdr entry.
+- install.sh's udev rules no longer cover Mirics MSi2500 / SDRplay RSP1
+  dongles.
+
 ## [0.6.24] - 2026-11-02
 
 ### Changed

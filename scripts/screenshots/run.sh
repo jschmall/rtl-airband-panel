@@ -45,8 +45,8 @@ python3 scripts/screenshots/prepare-db.py "$data/stats.db" "$tmp/stats.db"
 # What `rtl_airband -v` prints on the fork, so the editor shows a fork build.
 cat > "$tmp/bin/rtl_airband" <<'EOF'
 #!/bin/sh
-echo "RTLSDR-Airband version v6.5.0"
-echo "Features: fork control_socket stats_http rdio_scanner mixer_remote json_log reserve send_tx_tags post_write_script nfm"
+echo "RTLSDR-Airband version v7.1.0"
+echo "Features: fork control_socket stats_http rdio_scanner mixer_remote json_log reserve send_tx_tags post_write_script auto_ppm nfm"
 EOF
 chmod +x "$tmp/bin/rtl_airband"
 

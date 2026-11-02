@@ -125,3 +125,42 @@ describe("InstanceEditPage Apply live result", () => {
     expect(await screen.findByText(`Couldn't apply live (${detail}). The config was saved to disk`, { exact: false })).toBeInTheDocument();
   });
 });
+
+describe("InstanceEditPage correction prefill (Hardware page's Save to config)", () => {
+  function open(query: string) {
+    // The ?device jump scrolls the device into view; jsdom has no layout.
+    Element.prototype.scrollIntoView = vi.fn();
+    const config: RtlAirbandConfig = {
+      ...defaultConfig(),
+      stats_filepath: "/tmp/stats.txt",
+      control_socket_path: "/run/rtl-airband/tower.sock",
+    };
+    config.devices[0] = { ...config.devices[0]!, correction: 1 };
+    api.listInstances.mockResolvedValue([summary()]);
+    api.getConfig.mockResolvedValue({ config, version: "v1" });
+    api.getAirband.mockResolvedValue(FORK);
+    api.planChange.mockResolvedValue(null);
+    renderPage("/instances/:name", `/instances/${NAME}?${query}`, <InstanceEditPage />);
+  }
+
+  it("puts the correction into the draft, unsaved, and says so", async () => {
+    open("device=0&correction=-4");
+    expect(await screen.findByText(/Correction for device 0 set to -4 ppm \(was 1\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Correction \(ppm/)).toHaveValue(-4);
+  });
+
+  it("drops the notice once the change is applied", async () => {
+    open("device=0&correction=-4");
+    expect(await screen.findByText(/set to -4 ppm/)).toBeInTheDocument();
+    api.applyConfigLive.mockResolvedValue(applyResult({ attempted: true, applied: ["device[0]: correction -> -4"], skippedRequiresRestart: [] }));
+    await clickApplyLive();
+    expect(await screen.findByText(`Applied live to ${NAME}.service — nothing left pending.`)).toBeInTheDocument();
+    expect(screen.queryByText(/set to -4 ppm/)).not.toBeInTheDocument();
+  });
+
+  it("ignores a non-integer value", async () => {
+    open("device=0&correction=abc");
+    expect(await screen.findByLabelText(/^Correction \(ppm/)).toHaveValue(1);
+    expect(screen.queryByText(/from the Hardware page/)).not.toBeInTheDocument();
+  });
+});

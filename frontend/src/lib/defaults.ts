@@ -87,10 +87,23 @@ export function channelsForMode(existing: Channel[], mode: "multichannel" | "sca
 }
 
 /** Fields that only apply to a subset of device types; kept out of a device object once its type no longer uses them. */
-const TYPE_SPECIFIC_FIELDS = ["serial", "index", "buffers", "num_buffers", "device_string", "channel", "antenna", "bandwidth"] as const;
+const TYPE_SPECIFIC_FIELDS = [
+  "serial",
+  "index",
+  "buffers",
+  "num_buffers",
+  "device_string",
+  "channel",
+  "antenna",
+  "bandwidth",
+  "auto_ppm",
+  "auto_ppm_interval",
+  "auto_ppm_max_ppm",
+  "auto_ppm_max_step",
+] as const;
 
 const FIELDS_BY_TYPE: Record<string, readonly (typeof TYPE_SPECIFIC_FIELDS)[number][]> = {
-  rtlsdr: ["serial", "index", "buffers", "bandwidth"],
+  rtlsdr: ["serial", "index", "buffers", "bandwidth", "auto_ppm", "auto_ppm_interval", "auto_ppm_max_ppm", "auto_ppm_max_step"],
   mirisdr: ["serial", "index", "num_buffers"],
   soapysdr: ["device_string", "channel", "antenna"],
 };

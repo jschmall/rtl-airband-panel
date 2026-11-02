@@ -61,7 +61,8 @@ pub struct DeviceStatus {
     /// dB. None when the driver can't express it as one number (AGC, or
     /// SoapySDR per-element gains) or doesn't report it.
     pub gain: Option<f64>,
-    /// ppm (Hz for mirisdr, whose library has no ppm correction).
+    /// ppm (Hz for mirisdr, whose library has no ppm correction; builds
+    /// older than upstream v7.0.0 only).
     pub correction: Option<f64>,
     /// Tuner bandwidth in Hz, 0 = driver default.
     pub bandwidth: Option<i64>,
@@ -74,6 +75,43 @@ pub struct DeviceStatus {
     pub retune_failures: u64,
     pub output_overruns: u64,
     pub channels: Vec<ChannelStatus>,
+    /// Fork v6.6.0+: present (non-null) only for a device configured with
+    /// an `auto_ppm` key; absent from older builds.
+    #[serde(default)]
+    pub auto_ppm: Option<AutoPpmStatus>,
+}
+
+/// A device's automatic PPM correction state (fork v6.6.0+,
+/// auto_ppm_status_json). The measurement fields describe the last
+/// evaluation and are null/0 before the first one.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct AutoPpmStatus {
+    /// Turned on in config (or by reload_diff).
+    pub enabled: bool,
+    /// Enabled and not tripped.
+    pub active: bool,
+    /// Why the divergence guard turned it off; it stays off until a
+    /// reload_diff or restart.
+    pub disabled_reason: Option<String>,
+    /// Remaining error the last evaluation measured, ppm.
+    pub residual_ppm: Option<f64>,
+    /// Frequencies with enough measurements to vote.
+    pub eligible: u32,
+    /// Voters within the outlier window of the median.
+    pub contributing: u32,
+    pub rejected: u32,
+    /// The last step was cut short by auto_ppm_max_ppm.
+    pub clamped: bool,
+    /// Why the last evaluation did or didn't adjust.
+    pub reason: Option<String>,
+    pub adjustments: u64,
+    pub last_adjust_age_s: Option<f64>,
+    /// The configured correction auto_ppm started from (and reverts to).
+    pub base_correction: i64,
+    pub max_ppm: i64,
+    pub max_step: i64,
+    /// auto_ppm_interval, seconds.
+    pub interval: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -97,6 +135,13 @@ pub struct FreqStatus {
     /// Smoothed carrier offset from `freq`, measured while squelch was open.
     pub freq_offset_hz: Option<f64>,
     pub freq_offset_updates: u64,
+    /// Fork v6.6.0+: the offset measured since the last tuning change
+    /// (what auto_ppm votes with), unlike freq_offset_hz, which keeps
+    /// older samples.
+    #[serde(default)]
+    pub ppm_offset_hz: Option<f64>,
+    #[serde(default)]
+    pub ppm_offset_updates: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]

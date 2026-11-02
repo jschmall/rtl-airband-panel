@@ -114,6 +114,11 @@ export interface Advice {
  * next to the current value; it clears once the remaining error is small.
  */
 export function correctionAdvice(sdr: SdrHealth): Advice | null {
+  if (sdr.autoPpm?.active) {
+    return sdr.autoPpm.residualPpm === null
+      ? { tone: "pending", text: "auto_ppm active, measuring…" }
+      : { tone: "ok", text: `auto_ppm active (residual ${formatSigned(sdr.autoPpm.residualPpm, "ppm", 2)})` };
+  }
   if (sdr.correctionUnit !== "ppm" || sdr.freqErrorPpm === null) return null;
   const current = sdr.correction ?? 0;
   if (sdr.suggestedCorrection === null || sdr.suggestedCorrection === current) {
@@ -221,6 +226,30 @@ export const HISTORY_WINDOW_MS = 5 * 60_000;
 /** The instance editor, opened at this SDR's device section (see InstanceEditPage's `device` parameter). */
 export function sdrEditorHref(instance: string, sdr: SdrHealth): string {
   return `${instanceEditorHref(instance)}?device=${sdr.configIndex}`;
+}
+
+/**
+ * The live correction to offer saving, when auto_ppm has moved it away from
+ * the config's value (whole ppm, as rtlsdr takes it); null otherwise.
+ */
+export function unsavedAutoCorrection(sdr: SdrHealth): number | null {
+  if (!sdr.autoPpm || sdr.correction === null || sdr.correctionUnit !== "ppm") return null;
+  const live = Math.round(sdr.correction);
+  return live === (sdr.configCorrection ?? 0) ? null : live;
+}
+
+/** The editor, with `correction` put into that device's (unsaved) draft. */
+export function saveCorrectionHref(instance: string, sdr: SdrHealth, correction: number): string {
+  return `${sdrEditorHref(instance, sdr)}&correction=${correction}`;
+}
+
+/** auto_ppm's state in a few words, with a tone for the badge. */
+export function autoPpmSummary(sdr: SdrHealth): Advice | null {
+  const a = sdr.autoPpm;
+  if (!a) return null;
+  if (!a.enabled) return { tone: "pending", text: "auto_ppm off" };
+  if (!a.active) return { tone: "warn", text: `auto_ppm stopped: ${a.disabledReason ?? "tripped"}. Fix the cause, then restart the instance to re-arm it.` };
+  return { tone: "ok", text: a.reason ? `auto_ppm on · ${a.reason}` : "auto_ppm on" };
 }
 
 export function instanceEditorHref(instance: string): string {

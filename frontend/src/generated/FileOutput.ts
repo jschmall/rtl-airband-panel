@@ -8,4 +8,4 @@ export type FileOutput = { directory: string, filename_template: string, continu
  * each falls back to the global setting of the same name, and only
  * takes effect with `split_on_transmission`.
  */
-split_min_file_time?: number, split_max_file_time?: number, split_max_idle_time?: number, split_include_transmission_start?: boolean, rdio_scanner?: RdioScannerConfig, disable?: boolean, unknown_settings?: Array<Setting>, };
+split_min_file_time?: number, split_max_file_time?: number, split_max_idle_time?: number, split_include_transmission_start?: boolean, split_tx_drop_shorter_than?: number, rdio_scanner?: RdioScannerConfig, disable?: boolean, unknown_settings?: Array<Setting>, };

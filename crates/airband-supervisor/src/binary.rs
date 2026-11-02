@@ -60,12 +60,16 @@ pub enum AirbandKind {
     Unknown,
 }
 
-/// Fork releases from before `-v` printed a Features line. Upstream has
-/// no tags in this range yet; every later fork release prints the line.
+/// Fork releases from before `-v` printed a Features line; every later fork
+/// release prints it. Upstream has since tagged its own v6.3.0 and v6.3.1
+/// (different code), so a bare v6.3.x version is ambiguous; it is still
+/// read as the fork, which only loosens locks.
 pub const LEGACY_FORK_TAGS: &[&str] = &["v6.3.0", "v6.3.1", "v6.4.0"];
 
 /// What a fork build without a Features line supports (v6.4.0 adds
-/// `device_status`, its control-socket `status` command).
+/// `device_status`, its control-socket `status` command). Those builds
+/// can't say which optional drivers were compiled in, so both are assumed
+/// and no device type is locked.
 pub const LEGACY_FORK_FEATURES: &[&str] = &[
     "fork",
     "control_socket",
@@ -76,6 +80,8 @@ pub const LEGACY_FORK_FEATURES: &[&str] = &[
     "json_log",
     "post_write_script",
     "rdio_scanner",
+    "soapysdr",
+    "mirisdr",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -187,6 +193,8 @@ mod tests {
         let c = classify(Some(&info(Some("v6.3.1-4-g1234abc-dirty"), None)));
         assert_eq!(c.kind, AirbandKind::Fork);
         assert!(!c.features.contains(&"device_status".to_string()));
+        // Drivers unknown: assumed present, so no device type is refused.
+        assert!(c.features.contains(&"mirisdr".to_string()) && c.features.contains(&"soapysdr".to_string()));
     }
 
     #[test]

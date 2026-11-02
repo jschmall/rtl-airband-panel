@@ -1,6 +1,14 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output, ScanChannel } from "../types/config.js";
-import { RTLSDR_COMMON_SAMPLE_RATES_HZ } from "../generated/constants.js";
+import {
+  AUTO_PPM_INTERVAL_RANGE,
+  AUTO_PPM_MAX_PPM_RANGE,
+  AUTO_PPM_MAX_STEP_RANGE,
+  DEFAULT_AUTO_PPM_INTERVAL,
+  DEFAULT_AUTO_PPM_MAX_PPM,
+  DEFAULT_AUTO_PPM_MAX_STEP,
+  RTLSDR_COMMON_SAMPLE_RATES_HZ,
+} from "../generated/constants.js";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -72,6 +80,70 @@ interface DeviceEditorProps {
 }
 
 const DEVICE_TYPES = ["rtlsdr", "mirisdr", "soapysdr"] as const;
+
+/** auto_ppm's three states: the key absent, or present as true/false. */
+function autoPpmChoice(device: Device): "unset" | "on" | "off" {
+  return device.auto_ppm === undefined ? "unset" : device.auto_ppm ? "on" : "off";
+}
+
+/**
+ * Automatic PPM correction (fork v6.6.0+, rtlsdr only). "Off, ready" keeps
+ * the key as false: the fork only sets a device up for auto_ppm when the key
+ * is there at startup, so it can then be turned on live. The parameters only
+ * show while the key is present, since rtl_airband ignores them otherwise.
+ */
+function AutoPpmFields({ device, onChange }: { device: Device; onChange: (d: Device) => void }) {
+  const choice = autoPpmChoice(device);
+  const hasValue = choice !== "unset";
+  const param = (
+    key: "auto_ppm_interval" | "auto_ppm_max_ppm" | "auto_ppm_max_step",
+    label: string,
+    tooltip: string,
+    range: { min: number; max: number },
+  ) => (
+    <Field label={label} tooltip={tooltip} requires="auto_ppm" hasValue={hasValue}>
+      <input
+        type="number"
+        min={range.min}
+        max={range.max}
+        step="1"
+        className={inputClass}
+        value={device[key] ?? ""}
+        onChange={(e) => onChange({ ...device, [key]: numberOrUndefined(e.target.value) })}
+      />
+    </Field>
+  );
+  return (
+    <>
+      <Field label="Automatic PPM correction" tooltip={DEVICE_TOOLTIPS.autoPpm} requires="auto_ppm" hasValue={hasValue}>
+        <select
+          className={inputClass}
+          value={choice}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "unset") {
+              const { auto_ppm: _a, auto_ppm_interval: _i, auto_ppm_max_ppm: _m, auto_ppm_max_step: _s, ...rest } = device;
+              onChange(rest);
+            } else {
+              onChange({ ...device, auto_ppm: v === "on" });
+            }
+          }}
+        >
+          <option value="unset">Not set (off)</option>
+          <option value="on">On</option>
+          <option value="off">Off, ready to turn on live</option>
+        </select>
+      </Field>
+      {hasValue && (
+        <>
+          {param("auto_ppm_interval", `Auto PPM interval, s (blank = ${DEFAULT_AUTO_PPM_INTERVAL})`, DEVICE_TOOLTIPS.autoPpmInterval, AUTO_PPM_INTERVAL_RANGE)}
+          {param("auto_ppm_max_ppm", `Auto PPM max ppm (blank = ${DEFAULT_AUTO_PPM_MAX_PPM})`, DEVICE_TOOLTIPS.autoPpmMaxPpm, AUTO_PPM_MAX_PPM_RANGE)}
+          {param("auto_ppm_max_step", `Auto PPM max step, ppm (blank = ${DEFAULT_AUTO_PPM_MAX_STEP})`, DEVICE_TOOLTIPS.autoPpmMaxStep, AUTO_PPM_MAX_STEP_RANGE)}
+        </>
+      )}
+    </>
+  );
+}
 
 function gainToText(gain: number | string | undefined): string {
   return gain === undefined ? "" : String(gain);
@@ -394,6 +466,7 @@ export const DeviceEditor = memo(function DeviceEditor({
             onChange={(e) => emitChange({ ...device, correction: numberOrUndefined(e.target.value) })}
           />
         </Field>
+        {isRtl && <AutoPpmFields device={device} onChange={emitChange} />}
         {isRtl && (
           <Field label="Tuner bandwidth, Hz (optional, blank/0 = automatic)" tooltip={DEVICE_TOOLTIPS.tunerBandwidth}>
             <input

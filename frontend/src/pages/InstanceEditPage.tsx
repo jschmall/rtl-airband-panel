@@ -56,8 +56,14 @@ export function InstanceEditPage() {
   // `?device=n` (the Hardware page's SDR links) opens and scrolls to that
   // device once its config is loaded, through the same jump as a validation
   // issue. Once per instance and device, so later edits don't re-jump.
-  const deviceParam = useSearchParams()[0].get("device");
+  // `&correction=N` (the Hardware page's "Save to config", for a correction
+  // auto_ppm learned) also puts N into that device's draft, unsaved, so it
+  // goes through the usual change preview and Save / Apply live.
+  const [searchParams] = useSearchParams();
+  const deviceParam = searchParams.get("device");
+  const correctionParam = searchParams.get("correction");
   const jumpedTo = useRef<string | null>(null);
+  const [prefillMessage, setPrefillMessage] = useState<string | null>(null);
   const [jsonLoggingPending, setJsonLoggingPending] = useState(false);
   const [serviceAccountPending, setServiceAccountPending] = useState(false);
   const [airband, setAirband] = useState<AirbandBuild | null>(null);
@@ -77,7 +83,15 @@ export function InstanceEditPage() {
     if (jumpedTo.current === key || !Number.isInteger(index) || !config.devices[index]) return;
     jumpedTo.current = key;
     setJumpTarget({ path: `$.devices[${index}]`, nonce: Date.now() });
-  }, [config, name, deviceParam]);
+    const correction = correctionParam === null ? NaN : Number(correctionParam);
+    const device = config.devices[index]!;
+    if (Number.isInteger(correction) && device.correction !== correction) {
+      setConfig({ ...config, devices: config.devices.map((d, i) => (i === index ? { ...d, correction } : d)) });
+      setPrefillMessage(
+        `Correction for device ${index} set to ${correction} ppm (was ${device.correction ?? 0}) from the Hardware page. Not saved yet: review the change, then Save or Apply live.`
+      );
+    }
+  }, [config, name, deviceParam, correctionParam]);
 
   // Validation state (errors/warnings/etc.) is a result of an action taken
   // against one specific instance -- it must not carry over when the user
@@ -89,6 +103,7 @@ export function InstanceEditPage() {
     setSavedMessage(null);
     setLiveApplyResult(null);
     setPendingAction(null);
+    setPrefillMessage(null);
   }, [name]);
 
   const loadConfig = useCallback(() => {
@@ -463,6 +478,9 @@ export function InstanceEditPage() {
         onJumpTo={(path) => setJumpTarget({ path, nonce: Date.now() })}
         onDismissWarnings={() => setWarningsDismissed(true)}
       />
+      {prefillMessage && isDirty && (
+        <div className="rounded border border-sky-500/40 bg-sky-500/10 p-3 text-sm text-sky-200">{prefillMessage}</div>
+      )}
       {savedMessage && (
         <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">{savedMessage}</div>
       )}

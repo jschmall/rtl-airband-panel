@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use airband_config::domain::{Channel, Device, NumberOrString, RtlAirbandConfig};
-use airband_supervisor::control_socket::{DeviceStatus, StatusReport, StatusResult};
+use airband_supervisor::control_socket::{AutoPpmStatus, DeviceStatus, StatusReport, StatusResult};
 use airband_supervisor::{ActiveState, ControlSocketClient};
 use serde::Serialize;
 use ts_rs::TS;
@@ -144,9 +144,17 @@ pub struct SdrHealth {
     /// The configured gain when it isn't a single number (e.g. SoapySDR
     /// per-element "LNA=20,VGA=10").
     pub gain_text: Option<String>,
+    /// The applied correction when live (auto_ppm may have moved it), else
+    /// the configured one.
     pub correction: Option<f64>,
-    /// "ppm", or "Hz" for mirisdr.
+    /// The config file's `correction`, to compare against a live value.
+    pub config_correction: Option<f64>,
+    /// "ppm", or "Hz" for mirisdr (builds older than upstream v7.0.0).
     pub correction_unit: String,
+    /// The config's `auto_ppm` key: None when absent (fork v6.6.0+).
+    pub auto_ppm_configured: Option<bool>,
+    /// auto_ppm's live state, when the device runs with the key.
+    pub auto_ppm: Option<AutoPpmHealth>,
     /// Strongest ADC sample over the last ~1 s, dB relative to full scale.
     pub peak_dbfs: Option<f64>,
     /// How far below clipping the peak sits (-peak_dbfs, never negative).
@@ -169,6 +177,56 @@ pub struct SdrHealth {
     pub output_overruns: Option<f64>,
     pub retune_failures: Option<f64>,
     pub channels: Vec<ChannelHealth>,
+}
+
+/// A device's automatic PPM correction, from the control socket's
+/// `status` (fork v6.6.0+).
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoPpmHealth {
+    pub enabled: bool,
+    /// Enabled and not tripped by the divergence guard.
+    pub active: bool,
+    /// Why the divergence guard turned it off (until a reload or restart).
+    pub disabled_reason: Option<String>,
+    /// Error left after the last evaluation, ppm.
+    pub residual_ppm: Option<f64>,
+    pub eligible: u32,
+    pub contributing: u32,
+    pub rejected: u32,
+    pub clamped: bool,
+    /// Why the last evaluation did or didn't adjust.
+    pub reason: Option<String>,
+    pub adjustments: f64,
+    pub last_adjust_age_s: Option<f64>,
+    /// The configured correction it started from and reverts to.
+    pub base_correction: f64,
+    pub max_ppm: f64,
+    pub max_step: f64,
+    pub interval_s: f64,
+}
+
+impl From<&AutoPpmStatus> for AutoPpmHealth {
+    fn from(s: &AutoPpmStatus) -> Self {
+        AutoPpmHealth {
+            enabled: s.enabled,
+            active: s.active,
+            disabled_reason: s.disabled_reason.clone(),
+            residual_ppm: s.residual_ppm,
+            eligible: s.eligible,
+            contributing: s.contributing,
+            rejected: s.rejected,
+            clamped: s.clamped,
+            reason: s.reason.clone(),
+            adjustments: s.adjustments as f64,
+            last_adjust_age_s: s.last_adjust_age_s,
+            base_correction: s.base_correction as f64,
+            max_ppm: s.max_ppm as f64,
+            max_step: s.max_step as f64,
+            interval_s: s.interval as f64,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
@@ -297,7 +355,10 @@ fn config_sdr(index: u32, config_index: u32, device: &Device) -> SdrHealth {
         gain_db,
         gain_text,
         correction: device.correction,
+        config_correction: device.correction,
         correction_unit: if device.device_type == "mirisdr" { "Hz" } else { "ppm" }.into(),
+        auto_ppm_configured: device.auto_ppm,
+        auto_ppm: None,
         peak_dbfs: None,
         headroom_db: None,
         clipped_samples: None,
@@ -330,6 +391,7 @@ fn apply_status(sdr: &mut SdrHealth, status: &DeviceStatus, now: Instant, prev: 
     if status.correction.is_some() {
         sdr.correction = status.correction;
     }
+    sdr.auto_ppm = status.auto_ppm.as_ref().map(AutoPpmHealth::from);
     sdr.peak_dbfs = status.peak_dbfs;
     sdr.headroom_db = status.peak_dbfs.map(|p| (-p).max(0.0));
     sdr.clipped_samples = Some(status.clipped_samples as f64);
@@ -372,9 +434,12 @@ fn apply_status(sdr: &mut SdrHealth, status: &DeviceStatus, now: Instant, prev: 
     // A carrier received high means the tuner's oscillator runs slow: a
     // correction that raises the tuned frequency by the same ppm cancels it.
     // The suggestion is absolute: applying part of it shrinks the error by
-    // the same amount, so it stays put until the error is gone.
+    // the same amount, so it stays put until the error is gone. None while
+    // auto_ppm is adjusting: freq_offset_hz still holds samples from before
+    // its last step, so the suggestion would fight it.
+    let auto_ppm_active = sdr.auto_ppm.as_ref().is_some_and(|a| a.active);
     sdr.suggested_correction = match (sdr.correction_unit.as_str(), sdr.freq_error_ppm) {
-        ("ppm", Some(err)) if err.abs() >= CORRECTION_OK_PPM => {
+        ("ppm", Some(err)) if !auto_ppm_active && err.abs() >= CORRECTION_OK_PPM => {
             Some((sdr.correction.unwrap_or(0.0) - err).round() + 0.0)
         }
         _ => None,
@@ -536,6 +601,8 @@ mod tests {
             signal_dbfs: noise.map(|n| n + 3.0),
             freq_offset_hz: offset,
             freq_offset_updates: offset.map_or(0, |_| 4),
+            ppm_offset_hz: None,
+            ppm_offset_updates: 0,
         }
     }
 
@@ -557,6 +624,7 @@ mod tests {
             retune_failures: 0,
             output_overruns: 0,
             channels,
+            auto_ppm: None,
         }
     }
 
@@ -685,6 +753,59 @@ devices: ( { type = "rtlsdr"; index = 0; gain = 20; mode = "scan";
         assert_eq!(chans[1].label.as_deref(), Some("B"));
         assert_eq!(sdrs[0].noise_floor_dbfs, Some(-20.0), "only the tuned frequency counts toward the floor");
         assert_eq!(sdrs[0].freq_error_ppm, None);
+    }
+
+    fn auto_ppm(active: bool) -> AutoPpmStatus {
+        AutoPpmStatus {
+            enabled: true,
+            active,
+            disabled_reason: (!active).then(|| "error grew after 2 consecutive adjustments".into()),
+            residual_ppm: active.then_some(0.4),
+            eligible: 2,
+            contributing: 2,
+            rejected: 0,
+            clamped: false,
+            reason: Some("within deadband".into()),
+            adjustments: 3,
+            last_adjust_age_s: Some(40.0),
+            base_correction: 1,
+            max_ppm: 100,
+            max_step: 5,
+            interval: 30,
+        }
+    }
+
+    #[test]
+    fn auto_ppm_is_carried_and_silences_the_suggestion_while_active() {
+        let cfg = config(&TWO_DEVICES.replace("correction = 1;", "correction = 1; auto_ppm = true;"));
+        // Carriers read +5 ppm high, which would normally suggest a correction.
+        let mut dev = device(0, vec![channel(0, vec![freq(120_100_000, Some(-40.0), Some(600.5))])]);
+        dev.correction = Some(4.0); // auto_ppm has moved it from the configured 1
+        dev.auto_ppm = Some(auto_ppm(true));
+        let report = StatusReport { version: "v7.1.0".into(), devices: vec![dev.clone()] };
+        let sdr = &derive_devices(&cfg, Some(&report), Instant::now(), &mut HashMap::new())[0];
+        assert_eq!(
+            (sdr.correction, sdr.config_correction, sdr.auto_ppm_configured),
+            (Some(4.0), Some(1.0), Some(true))
+        );
+        let ap = sdr.auto_ppm.as_ref().unwrap();
+        assert_eq!((ap.active, ap.residual_ppm, ap.adjustments, ap.interval_s), (true, Some(0.4), 3.0, 30.0));
+        assert_eq!(sdr.suggested_correction, None, "auto_ppm is handling it");
+
+        // Tripped: back to the configured value, and the suggestion returns.
+        dev.correction = Some(1.0);
+        dev.auto_ppm = Some(auto_ppm(false));
+        let report = StatusReport { version: "v7.1.0".into(), devices: vec![dev] };
+        let sdr = &derive_devices(&cfg, Some(&report), Instant::now(), &mut HashMap::new())[0];
+        assert!(sdr.auto_ppm.as_ref().unwrap().disabled_reason.is_some());
+        assert_eq!(sdr.suggested_correction, Some(-4.0));
+    }
+
+    #[test]
+    fn config_view_reports_the_auto_ppm_key() {
+        let sdrs = derive_devices(&config(TWO_DEVICES), None, Instant::now(), &mut HashMap::new());
+        assert_eq!((sdrs[0].auto_ppm_configured, sdrs[0].auto_ppm.as_ref()), (None, None));
+        assert_eq!(sdrs[0].config_correction, Some(1.0));
     }
 
     #[test]

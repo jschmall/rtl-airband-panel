@@ -3,10 +3,11 @@
 //! needs a restart of that instance's unit.
 //!
 //! Mirrors `compute_and_apply_diff()` in the RTLSDR-Airband fork
-//! (src/live_reconfig.cpp, v6.3.0), and closes its blind spot: reload_diff
+//! (src/live_reconfig.cpp, v7.1.0), and closes its blind spot: reload_diff
 //! only looks at device/mixer counts, device type/mode, each device's channel
 //! list (by signature) and `enabled` flags, device centerfreq / sample_rate /
-//! gain / bandwidth / correction, and mixer name / remote_inputs / enabled.
+//! gain / bandwidth / correction / auto_ppm, and mixer name / remote_inputs /
+//! enabled.
 //! A change anywhere else (any global setting, a mixer's own outputs or
 //! filters, a device's serial/buffers/reserve_channels, ...) is neither applied
 //! nor reported by reload_diff, so it is classified here as restart-required.
@@ -16,8 +17,9 @@
 //! order (`freq = 151.78` and `freq = 151780000` are different channels to it).
 //!
 //! It also covers what reload_diff drops without reporting it: per-driver
-//! setters that return ENOTSUP (mirisdr has no live gain/bandwidth/
-//! correction, soapysdr no live correction), and float `bandwidth` /
+//! setters that return ENOTSUP (mirisdr, on builds older than upstream
+//! v7.0.0 that still have it, has no live gain/bandwidth/correction;
+//! soapysdr no live correction), and float `bandwidth` /
 //! `correction` values, which reload_diff reads with the frequency rule
 //! (float = MHz) and would apply a million times too large.
 //!
@@ -102,8 +104,21 @@ pub fn plan_change(baseline: &Baseline, next: &ConfigFile) -> ChangePlan {
 
 // -------------------------------------------------------------------- devices
 
-const DEVICE_LIVE_KEYS: [&str; 9] =
-    ["type", "mode", "channels", "centerfreq", "sample_rate", "gain", "bandwidth", "correction", "disable"];
+const DEVICE_LIVE_KEYS: [&str; 13] = [
+    "type",
+    "mode",
+    "channels",
+    "centerfreq",
+    "sample_rate",
+    "gain",
+    "bandwidth",
+    "correction",
+    "disable",
+    "auto_ppm",
+    "auto_ppm_interval",
+    "auto_ppm_max_ppm",
+    "auto_ppm_max_step",
+];
 const DEFAULT_SAMPLE_RATE: i64 = 2_560_000;
 
 fn plan_devices(plan: &mut ChangePlan, started: &ConfigFile, applied: &ConfigFile, next: &ConfigFile) {
@@ -168,6 +183,7 @@ fn plan_devices(plan: &mut ChangePlan, started: &ConfigFile, applied: &ConfigFil
         for key in ["gain", "bandwidth", "correction"] {
             plan_reapplied(plan, &label, driver, a, n, key);
         }
+        plan_auto_ppm(plan, &label, started_devices.get(i).copied(), a, n);
 
         for key in changed_keys(a, n, &DEVICE_LIVE_KEYS) {
             plan.restart.push(format!("{label}: {key} changed"));
@@ -225,6 +241,50 @@ fn plan_reapplied(plan: &mut ChangePlan, label: &str, driver: &str, a: &[Setting
         },
     };
     plan.live.push(format!("{label}: {key} -> {shown}"));
+}
+
+/// auto_ppm defaults (fork auto_ppm.h, AutoPpmParams).
+const AUTO_PPM_PARAMS: [(&str, f64); 3] =
+    [("auto_ppm_interval", 30.0), ("auto_ppm_max_ppm", 100.0), ("auto_ppm_max_step", 5.0)];
+
+/// auto_ppm (fork v6.6.0). The fork sets a device up for it at startup only
+/// if the `auto_ppm` key is there (true or false); after that, turning it on
+/// or off (removing the key means off) is live, and its parameters are fixed
+/// until a restart. Correction changes stay with `plan_reapplied`: a changed
+/// value is applied and becomes auto_ppm's new base, an unchanged one is
+/// left to auto_ppm while it stays on. Turning it off puts the configured
+/// correction back, dropping what auto_ppm learned.
+fn plan_auto_ppm(plan: &mut ChangePlan, label: &str, started: Option<&[Setting]>, a: &[Setting], n: &[Setting]) {
+    let started_with_it = started.is_some_and(|s| find(s, "auto_ppm").is_some());
+    let (was_on, now_on) = (bool_or(a, "auto_ppm", false), bool_or(n, "auto_ppm", false));
+    let added = find(a, "auto_ppm").is_none() && find(n, "auto_ppm").is_some();
+
+    if !started_with_it {
+        if now_on {
+            plan.restart.push(format!("{label}: auto_ppm turned on, but the device started without it"));
+        } else if added {
+            plan.restart.push(format!(
+                "{label}: auto_ppm added; the device started without it (after a restart it can be turned on live)"
+            ));
+        }
+        // Without it the parameters do nothing until a restart sets auto_ppm up.
+        return;
+    }
+    let started = started.unwrap_or_default();
+    let params_changed =
+        AUTO_PPM_PARAMS.iter().any(|(key, default)| number_or(started, key, *default) != number_or(n, key, *default));
+    if params_changed {
+        plan.restart.push(format!("{label}: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step changed"));
+    }
+    if was_on != now_on {
+        plan.live.push(format!("{label}: auto_ppm -> {now_on}"));
+        if !now_on
+            && opt_value_eq(find(a, "correction").map(|s| &s.value), find(n, "correction").map(|s| &s.value))
+            && let Some(c) = find(n, "correction").and_then(|s| anynum_to_int(&s.value))
+        {
+            plan.live.push(format!("{label}: correction -> {c} (back to the configured value)"));
+        }
+    }
 }
 
 fn plan_channels(

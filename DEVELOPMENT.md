@@ -179,9 +179,10 @@ with the dependency layers already cached.
 `packaging/Dockerfile` does the work in stages:
 
 - **`airband-deps`**: Alpine with static libraries for everything
-  rtl_airband links. speex, rtl-sdr-blog's librtlsdr and libmirisdr-4 have
-  no static Alpine packages, so they're built from source at pinned
-  versions.
+  rtl_airband links. speex and rtl-sdr-blog's librtlsdr have no static
+  Alpine packages, so they're built from source at pinned versions.
+  (libmirisdr-4 was too, until fork v7.1.0 took upstream v7.0.0's removal
+  of the mirisdr driver.)
 - **`airband`**: builds the submodule (exported with `git archive`, so the
   fork's version script reports the tag), runs its unit tests, and checks
   the binary has no dynamic dependencies. The fork's CMake isn't changed;
@@ -208,8 +209,8 @@ with the dependency layers already cached.
 names the fork tag and commit the bundled `rtl_airband` was built from. The
 static-drivers patch is included as `source/airband-static-drivers.patch`.
 
-Bundled rtl_airband has NFM, rdio-scanner, RTL-SDR and Mirics support;
-PulseAudio and SoapySDR are off (they need a sound server or runtime
+Bundled rtl_airband has NFM, rdio-scanner and RTL-SDR support (no Mirics:
+upstream v7.0.0 removed the driver); PulseAudio and SoapySDR are off (they need a sound server or runtime
 plugins, neither of which fits a static binary).
 
 ### Publishing
@@ -317,14 +318,23 @@ predicts the outcome before anything is written, by mirroring the fork's
 - `centerfreq` and `sample_rate` are compared as the fork parses them
   (float MHz truncated, not rounded, to Hz). `gain`, `bandwidth` and
   `correction` are re-applied whenever present.
+- `auto_ppm` (fork v6.6.0, `plan_auto_ppm`): the fork sets a device up for
+  it only if the key is present at startup, true or false. Adding the key
+  to a device that started without it needs a restart (even as false);
+  after that, an on/off change is live (removing the key means off), and
+  turning it off re-applies the configured correction. A change to
+  `auto_ppm_interval`/`_max_ppm`/`_max_step` (compared with defaults
+  filled in, against the *started* config) needs a restart. While it's
+  on, an unchanged `correction` is left to auto_ppm; a changed one is
+  applied and becomes its new base.
 
 It also classifies as restart-required what `reload_diff` drops without
 reporting:
 
 - **Changes outside its scope:** every global setting, a mixer's outputs
   and filters, device serial/buffers/`reserve_channels`, and so on.
-- **Setters a driver doesn't implement** (ENOTSUP): mirisdr has no live
-  gain, bandwidth or correction; soapysdr has no live correction and
+- **Setters a driver doesn't implement** (ENOTSUP): mirisdr (builds older
+  than upstream v7.0.0 only) has no live gain, bandwidth or correction; soapysdr has no live correction and
   refuses live sample-rate changes.
 - **Non-integer `correction`/`bandwidth`,** which `reload_diff` reads with
   the frequency rule and would apply a million times too large.
@@ -417,7 +427,15 @@ Derived figures:
 - **Frequency error** is the median ppm (`freq_offset_hz / freq`) over
   frequencies that have had a transmission.
 - **Suggested correction** is `correction - error`, rounded. It's only
-  given for ppm drivers; mirisdr's correction is in Hz.
+  given for ppm drivers (mirisdr's correction is in Hz), and not while
+  auto_ppm is active: `freq_offset_hz` keeps samples from before its last
+  step, so the suggestion would fight it.
+- **auto_ppm** (fork v6.6.0+): the status reply's per-device `auto_ppm`
+  object (null without the key) becomes `SdrHealth.autoPpm`, next to
+  `configCorrection` and `autoPpmConfigured` from the config. The UI's
+  "Save to config" link opens the editor with `?device=n&correction=N`,
+  which puts N into the unsaved draft, so it goes through the normal
+  change preview and save.
 - **Counter rates** come from the previous snapshot, kept per instance and
   device. A counter that goes backwards (restart) gives no rate.
 
@@ -503,7 +521,9 @@ jschmall fork. `crates/panel/src/airband.rs` and
   `RTL_PANEL_RTL_AIRBAND_BIN`.
 - **Fork:** `-v` prints a `Features: fork ...` line (fork v6.5.0+), or the
   version is a fork release that predates that line (`LEGACY_FORK_TAGS`:
-  v6.3.0, v6.3.1, v6.4.0).
+  v6.3.0, v6.3.1, v6.4.0). Upstream has since tagged its own v6.3.0 and
+  v6.3.1, so a bare v6.3.x from a stock build is read as the fork too;
+  that only loosens locks.
 - **Fork, by control socket:** for any other result, an instance whose
   control socket answers `status` (only the fork has one).
 - **Stock:** a plain release version without the line. Upstream uses
@@ -516,7 +536,11 @@ What depends on it:
   Some(features))` (and the wasm `validate_for`) adds `needs-fork-feature`
   issues:
   - an error for a `mixer_remote` output, which stock won't start with;
-  - warnings for settings stock ignores.
+  - warnings for settings stock ignores;
+  - on a fork build, `device-driver-not-built` errors for a device whose
+    optional driver isn't on the Features line (`mirisdr` on v7.1.0+,
+    `soapysdr` on the bundled build). Legacy fork releases can't say, so
+    `legacy_fork_features` assumes both drivers.
 - **Saving:** saves and checks use the instance's build; creating an
   instance uses the configured binary.
 - **Apply live:** on a stock build, apply-live skips the socket (reason
@@ -529,8 +553,9 @@ What depends on it:
 
 Feature names are the fork's: `control_socket`, `device_status`,
 `reserve`, `mixer_remote`, `send_tx_tags`, `stats_http`, `json_log`,
-`post_write_script`, plus build components (`rdio_scanner`, `soapysdr`,
-`mirisdr`, `pulseaudio`, `nfm`). `fork` itself covers small fork-only
+`post_write_script`, `auto_ppm` (v6.6.0), plus build components
+(`rdio_scanner`, `soapysdr`, `pulseaudio`, `nfm`; `mirisdr` until upstream
+v7.0.0 removed the driver). `fork` itself covers small fork-only
 settings such as UDP `bit_depth`.
 
 ### Security

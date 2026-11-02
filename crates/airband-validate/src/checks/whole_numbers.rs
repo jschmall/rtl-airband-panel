@@ -5,7 +5,8 @@
 //! reads through parse_anynum2int(), takes the float as MHz. Settings the
 //! fork also accepts as floats (gain, soapysdr correction, ampfactor,
 //! balance, ctcss, notch, notch_q, squelch_snr_threshold, min_rx_seconds,
-//! the split_* times, stats_update_interval) aren't checked.
+//! the split_* times and split_tx_drop_shorter_than, stats_update_interval)
+//! aren't checked.
 
 use airband_config::domain::{Channel, NumberOrList, Output, RtlAirbandConfig};
 
@@ -68,10 +69,14 @@ pub fn whole_numbers(config: &RtlAirbandConfig, issues: &mut Issues) {
         check(issues, &path, "index", device.index);
         check_hz(issues, &path, "centerfreq", device.centerfreq);
         check_hz(issues, &path, "sample_rate", device.sample_rate);
-        // soapysdr takes a fractional ppm correction; rtlsdr and mirisdr don't.
+        // soapysdr takes a fractional ppm correction; rtlsdr (and mirisdr, on
+        // builds older than upstream v7.0.0 that still have it) don't.
         if device.device_type != "soapysdr" {
             check(issues, &path, "correction", device.correction);
         }
+        check(issues, &path, "auto_ppm_interval", device.auto_ppm_interval);
+        check(issues, &path, "auto_ppm_max_ppm", device.auto_ppm_max_ppm);
+        check(issues, &path, "auto_ppm_max_step", device.auto_ppm_max_step);
         check(issues, &path, "bandwidth", device.bandwidth);
         check(issues, &path, "reserve_channels", device.reserve_channels);
         check(issues, &path, "tau", device.tau);

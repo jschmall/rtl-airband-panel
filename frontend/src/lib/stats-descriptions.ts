@@ -38,6 +38,14 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   rdio_scanner_upload_failure_count: "Number of rdio_scanner uploads that failed after exhausting max_retries. Process-wide, same reason as rdio_scanner_queue_drop_count.",
   centerfreq_retune_failure_count:
     "Number of times a live centerfreq retune (from the panel's Apply, or the fork's automatic frequency-hopping scan) failed at the hardware level. Does not mean the device stopped running -- only that this specific retune attempt didn't take effect. Expected to stay at 0 on healthy hardware; a climbing value points at a flaky tuner or i2c bus.",
+  device_ppm_correction:
+    "The frequency correction (ppm) this device is running with right now. Only reported for devices with auto_ppm set, where it can drift from the configured correction as auto_ppm adjusts it.",
+  device_auto_ppm_residual_ppm:
+    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under 0.75 ppm. Missing until enough transmissions have been measured.",
+  device_auto_ppm_adjustment_count:
+    "How many times auto_ppm has changed this device's correction since the process started. A few after startup is normal; a steady climb means the dongle is still drifting (warming up, or temperature swings).",
+  channel_split_tx_dropped_counter:
+    "Recordings deleted because the whole transmission was shorter than split_tx_drop_shorter_than. This is the setting working as intended, not a failure.",
 };
 
 export function deviceMetricTooltip(metric: string): string | undefined {
@@ -56,6 +64,8 @@ export const HARDWARE_TOOLTIPS = {
     "How far received carriers sit from their configured frequencies, in parts per million: the median across this SDR's channels that have had a transmission. All channels on one SDR share its oscillator, so a consistent error here is that oscillator's drift. The suggested correction is the value to set, not an amount to add: it stays the same as you approach it (a partial change shrinks the error by the same amount) and turns into \"Correction OK\" once less than 0.75 ppm remains. Restart the instance after changing it, then give it a few transmissions to settle; a single off-frequency transmitter can't move the median.",
   dropped:
     "Times the SDR's sample buffer overflowed because rtl_airband couldn't keep up, losing samples. Any steady climb means the host is short on CPU or USB bandwidth.",
+  autoPpm:
+    "Automatic PPM correction (fork v6.6.0+). rtl_airband measures how far received carriers sit off-frequency while squelch is open, and moves the correction toward the median error in small steps. 'Live' is the correction the dongle runs with now; 'config' is the saved value it restarts from, since nothing is saved automatically. Save to config opens the editor with the live value filled in. If the error grows after two steps in a row, auto_ppm reverts to the config value and stops until the instance restarts (or a live apply that changes this device).",
   clipped:
     "Samples where the ADC hit its full-scale limit. Occasional clipping on a strong nearby transmitter can be fine; a steady rate means the gain is too high.",
 } as const;

@@ -6,6 +6,24 @@ import type { Setting } from "./Setting";
 
 export type Device = { type: string, serial?: string, index?: number, gain?: NumberOrString, centerfreq?: number, sample_rate?: number, correction?: number, 
 /**
+ * Fork v6.6.0+, rtlsdr only: automatic PPM correction. The key being
+ * present at all (even `false`) sets the device up for it at startup,
+ * so a later toggle can be applied live; `correction` is the start.
+ */
+auto_ppm?: boolean, 
+/**
+ * Seconds between auto_ppm evaluations, int 5..=86400 (default 30).
+ */
+auto_ppm_interval?: number, 
+/**
+ * Largest |correction| auto_ppm may set, int 1..=100 (default 100).
+ */
+auto_ppm_max_ppm?: number, 
+/**
+ * Largest change in one adjustment, int 1..=100 (default 5).
+ */
+auto_ppm_max_step?: number, 
+/**
  * rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
  */
 bandwidth?: number, mode?: DeviceMode, reserve_channels?: number, disable?: boolean, tau?: number, buffers?: number, num_buffers?: number, device_string?: string, channel?: number, antenna?: string, channels: Array<Channel>, unknown_settings?: Array<Setting>, };

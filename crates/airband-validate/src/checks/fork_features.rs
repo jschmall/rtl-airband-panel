@@ -3,6 +3,12 @@
 //! with its feature list). A stock rtl_airband ignores most of them, which
 //! is a warning; the one it refuses to start with (a `mixer_remote` output,
 //! which its prefix match reads as a `mixer` output) is an error.
+//!
+//! A fork build's Features line also lists the optional drivers compiled in
+//! (`soapysdr`, and `mirisdr` until upstream v7.0.0 removed that driver), so
+//! on a fork build a device whose driver isn't listed is an error: rtl_airband
+//! won't start with it. Stock builds don't say, so their drivers aren't
+//! checked.
 
 use airband_config::domain::{Channel, Output, RtlAirbandConfig};
 
@@ -19,6 +25,18 @@ struct Gate<'a> {
 impl Gate<'_> {
     fn missing(&self, feature: &str) -> bool {
         !self.features.iter().any(|f| f == feature)
+    }
+
+    /// Warns, with a custom first sentence, that the setting at `path` is
+    /// ignored without `feature`.
+    fn ignored_needs(&mut self, feature: &str, needs: &str, path: String, consequence: &str) {
+        if self.missing(feature) {
+            self.issues.warning(
+                CODE,
+                path,
+                format!("{needs} This instance's rtl_airband ignores it, so {consequence}."),
+            );
+        }
     }
 
     /// Warns that the setting at `path` (which the UI labels) is ignored
@@ -52,7 +70,35 @@ pub fn check(config: &RtlAirbandConfig, features: &[String], issues: &mut Issues
         g.ignored("rdio_scanner", "$.rdio_scanner_queue_depth".into(), "nothing is uploaded");
     }
 
+    let is_fork_build = !g.missing("fork");
     for (di, device) in config.devices.iter().enumerate() {
+        if is_fork_build && device.disable != Some(true) {
+            let ty = device.device_type.as_str();
+            let missing_driver = match ty {
+                "mirisdr" if g.missing("mirisdr") => Some(
+                    "built without the mirisdr driver (upstream v7.0.0 and fork v7.1.0 removed it), so it won't start with this device. Use an older rtl_airband build for Mirics dongles",
+                ),
+                "soapysdr" if g.missing("soapysdr") => Some(
+                    "built without SoapySDR (the bundled build has it turned off), so it won't start with this device. Build rtl_airband with SoapySDR for this device",
+                ),
+                _ => None,
+            };
+            if let Some(why) = missing_driver {
+                g.issues.error(
+                    "device-driver-not-built",
+                    format!("$.devices[{di}]"),
+                    format!("This instance's rtl_airband was {why}."),
+                );
+            }
+        }
+        if device.auto_ppm.is_some() {
+            g.ignored_needs(
+                "auto_ppm",
+                "Needs jschmall RTLSDR-Airband fork v6.6.0 or newer.",
+                format!("$.devices[{di}].auto_ppm"),
+                "correction stays where it's set",
+            );
+        }
         if device.reserve_channels.is_some() {
             g.ignored(
                 "reserve",

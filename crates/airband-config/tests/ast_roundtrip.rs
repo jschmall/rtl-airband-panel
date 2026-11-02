@@ -5,11 +5,14 @@ use std::path::PathBuf;
 use airband_config::{parse_config, serialize_config};
 
 fn fixture(name: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures").join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(name);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("reading {}: {e}", path.display()))
 }
 
-const FIXTURES: &[&str] = &["151719.conf", "fork-features.conf"];
+/// Relative to this crate. tests/data holds fixtures newer than the frozen
+/// parity goldens, which cover every file in fixtures/.
+const FIXTURES: &[&str] =
+    &["../../fixtures/151719.conf", "../../fixtures/fork-features.conf", "tests/data/fork-v7.conf"];
 
 #[test]
 fn parses_fixtures() {

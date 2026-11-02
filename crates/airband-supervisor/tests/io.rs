@@ -202,3 +202,35 @@ async fn mock_units_track_state() {
     let mut follow = units.follow_logs(unit, 1).await.unwrap();
     assert_eq!(follow.recv().await.unwrap().message, "c");
 }
+
+#[tokio::test]
+async fn status_parses_auto_ppm_from_fork_v7() {
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("ctl.sock");
+    let _server = fake_socket(&sock, include_str!("fixtures/status-v7.1.0.json"));
+    let StatusResult::Ok(report) = ControlSocketClient::default().status(&sock).await else { panic!("not Ok") };
+
+    let active = report.devices[0].auto_ppm.as_ref().expect("auto_ppm object");
+    assert!(active.enabled && active.active);
+    assert_eq!((active.residual_ppm, active.adjustments, active.last_adjust_age_s), (Some(0.03), 2, Some(95.0)));
+    assert_eq!((active.base_correction, active.max_ppm, active.max_step, active.interval), (0, 100, 5, 30));
+    let f = &report.devices[0].channels[0].freqs[0];
+    assert_eq!((f.ppm_offset_hz, f.ppm_offset_updates), (Some(3.1), 22));
+
+    let tripped = report.devices[1].auto_ppm.as_ref().unwrap();
+    assert!(tripped.enabled && !tripped.active);
+    assert!(tripped.disabled_reason.as_deref().unwrap().contains("error grew"));
+    assert_eq!(tripped.residual_ppm, None);
+
+    assert_eq!(report.devices[2].auto_ppm, None, "null when the device has no auto_ppm key");
+}
+
+#[tokio::test]
+async fn status_before_auto_ppm_has_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("ctl.sock");
+    let _server = fake_socket(&sock, include_str!("fixtures/status-v6.4.0.json"));
+    let StatusResult::Ok(report) = ControlSocketClient::default().status(&sock).await else { panic!("not Ok") };
+    assert!(report.devices.iter().all(|d| d.auto_ppm.is_none()));
+    assert_eq!(report.devices[0].channels[0].freqs[0].ppm_offset_hz, None);
+}
