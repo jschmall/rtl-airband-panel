@@ -256,7 +256,13 @@ fn fork_v7_fields_round_trip() {
 
     // The fork reads the auto_ppm parameters as ints (a float literal fails
     // its parse) and split_tx_drop_shorter_than as a double.
-    for line in ["auto_ppm = true;", "auto_ppm = false;", "auto_ppm_interval = 30;", "auto_ppm_max_ppm = 100;", "auto_ppm_max_step = 5;"] {
+    for line in [
+        "auto_ppm = true;",
+        "auto_ppm = false;",
+        "auto_ppm_interval = 30;",
+        "auto_ppm_max_ppm = 100;",
+        "auto_ppm_max_step = 5;",
+    ] {
         assert!(text.contains(line), "missing {line:?} in\n{text}");
     }
     assert!(text.contains("split_tx_drop_shorter_than = 2.5;"));

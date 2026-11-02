@@ -5,6 +5,33 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.29] - 2026-11-02
+
+### Added
+
+- **The panel reads auto_ppm's live state.** On fork v6.6.0+, each device's
+  control-socket `status` reply carries an `auto_ppm` object: whether it's
+  on or has tripped (and why), the last measured residual, how many
+  channels voted, the adjustment count, and its limits. The Hardware
+  API passes it through as `SdrHealth.autoPpm`, alongside the config's
+  `correction` (`configCorrection`) and `auto_ppm` key
+  (`autoPpmConfigured`), so the UI can show when the live correction
+  has moved away from the saved one.
+- Tooltips for the new stats metrics `device_ppm_correction`,
+  `device_auto_ppm_residual_ppm`, `device_auto_ppm_adjustment_count` and
+  `channel_split_tx_dropped_counter`.
+
+### Changed
+
+- **No suggested correction while auto_ppm is adjusting.** The
+  suggestion uses a carrier-offset average that still holds samples from
+  before auto_ppm's last step, so it would contradict auto_ppm. It comes
+  back if auto_ppm trips.
+- Without `-j` JSON logging, auto_ppm's trip ("auto_ppm disabled: …") is
+  logged as an error on the Errors page, and its max_ppm clamp warning
+  as a warning. Before, the clamp warning matched no keyword and was
+  dropped.
+
 ## [0.6.28] - 2026-11-02
 
 ### Added

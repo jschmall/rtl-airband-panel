@@ -38,6 +38,14 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   rdio_scanner_upload_failure_count: "Number of rdio_scanner uploads that failed after exhausting max_retries. Process-wide, same reason as rdio_scanner_queue_drop_count.",
   centerfreq_retune_failure_count:
     "Number of times a live centerfreq retune (from the panel's Apply, or the fork's automatic frequency-hopping scan) failed at the hardware level. Does not mean the device stopped running -- only that this specific retune attempt didn't take effect. Expected to stay at 0 on healthy hardware; a climbing value points at a flaky tuner or i2c bus.",
+  device_ppm_correction:
+    "The frequency correction (ppm) this device is running with right now. Only reported for devices with auto_ppm set, where it can drift from the configured correction as auto_ppm adjusts it.",
+  device_auto_ppm_residual_ppm:
+    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under 0.75 ppm. Missing until enough transmissions have been measured.",
+  device_auto_ppm_adjustment_count:
+    "How many times auto_ppm has changed this device's correction since the process started. A few after startup is normal; a steady climb means the dongle is still drifting (warming up, or temperature swings).",
+  channel_split_tx_dropped_counter:
+    "Recordings deleted because the whole transmission was shorter than split_tx_drop_shorter_than. This is the setting working as intended, not a failure.",
 };
 
 export function deviceMetricTooltip(metric: string): string | undefined {

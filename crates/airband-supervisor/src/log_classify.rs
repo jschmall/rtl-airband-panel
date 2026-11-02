@@ -25,7 +25,7 @@ const ROUTINE: [&str; 6] =
     ["got signal", "connecting to ", "connected to ", "deactivated successfully", "consumed ", "cleaning up"];
 
 /// Keywords that mean the process (or a whole device) went down.
-const ERROR_WORDS: [&str; 10] = [
+const ERROR_WORDS: [&str; 11] = [
     "fatal",
     "abort",
     "segfault",
@@ -36,9 +36,11 @@ const ERROR_WORDS: [&str; 10] = [
     "/abrt",
     "out of memory",
     "all receivers failed",
+    // fork auto_ppm's divergence trip (LOG_ERR): it's off until a reload.
+    "auto_ppm disabled",
 ];
 
-const WARNING_WORDS: [&str; 22] = [
+const WARNING_WORDS: [&str; 23] = [
     "error",
     "fail",
     "cannot",
@@ -61,6 +63,8 @@ const WARNING_WORDS: [&str; 22] = [
     "warning",
     "too big",
     "exiting",
+    // fork auto_ppm hitting auto_ppm_max_ppm (LOG_WARNING).
+    "auto_ppm wants",
 ];
 
 /// The severity to log a line under, or None for a routine line.
@@ -131,6 +135,32 @@ mod tests {
         assert_eq!(class(None, "dev01 rtl_airband[812]: RTLSDR-Airband version v6.5.0 starting"), None);
         assert_eq!(class(None, "dev01 rtl_airband[812]: Connecting to example:8000/tower..."), None);
         assert_eq!(class(None, "dev01 rtl_airband[812]: Got signal 15, exiting"), None);
+    }
+
+    #[test]
+    fn plain_text_auto_ppm_lines() {
+        let line = |m: &str| format!("dev01 rtl_airband[812]: Device #0: {m}");
+        assert_eq!(
+            class(
+                None,
+                &line(
+                    "auto_ppm disabled: error grew after 2 consecutive adjustments; reverted correction to 3 ppm. Fix the cause, then reload_diff or restart to re-enable"
+                )
+            ),
+            Some((LogSeverity::Error, true))
+        );
+        assert_eq!(
+            class(
+                None,
+                &line(
+                    "auto_ppm wants +12.0 ppm beyond the current 95 ppm, past the +/-100 ppm limit - check the dongle"
+                )
+            ),
+            Some((LogSeverity::Warning, true))
+        );
+        assert_eq!(class(None, &line("auto_ppm correction 3 -> 5 ppm (residual +2.10, 3/3 channels)")), None);
+        // With -j the level decides.
+        assert_eq!(class(Some("info"), "Device #0: auto_ppm correction 3 -> 5 ppm"), None);
     }
 
     #[test]
