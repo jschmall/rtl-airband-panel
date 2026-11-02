@@ -110,10 +110,11 @@ it on for an instance:
 **What can change without a restart:**
 
 - center frequency (a retune)
-- sample rate on RTL-SDR and Mirics dongles (the whole dongle pauses
-  briefly)
+- sample rate on RTL-SDR dongles (the whole dongle pauses briefly)
 - gain and tuner bandwidth on RTL-SDR and SoapySDR devices
 - frequency correction (PPM) on RTL-SDR dongles
+- turning automatic PPM correction on or off, once the device has been
+  restarted with it set (on, or **Off, ready to turn on live**)
 - switching channels and mixers on or off (the **Enabled** checkbox)
 - adding, editing and removing channels, as long as the device has spare
   capacity: set **Reserve channels** on the device (and **Reserve inputs**
@@ -121,8 +122,9 @@ it on for an instance:
   briefly drops it and the channels listed after it.
 
 **What always needs a restart:** global settings, a mixer's own outputs
-and filters, device serial numbers or buffers, and adding or removing a
-device or mixer. You don't need to remember this list: the bar at the
+and filters, device serial numbers or buffers, the automatic PPM
+correction's interval and limits, and adding or removing a device or
+mixer. You don't need to remember this list: the bar at the
 bottom of the editor tells you before you save.
 
 After Apply live, the panel shows what was applied, what still needs a
@@ -161,9 +163,35 @@ device settings.
     and restart the instance.
   - **"Correction OK"** appears once the error is under 0.75 ppm.
   - **It needs transmissions:** nothing shows until a few have been heard.
+  - **With automatic PPM correction on,** there's no suggestion: the tile
+    shows auto PPM's remaining error instead (see below).
 - **Dropped and clipped samples**: running totals and per-second rates.
 - **Settings**: center frequency, span, gain and correction.
 - **Channels**: a per-channel table of signal, noise and frequency offset.
+
+### Automatic PPM correction
+
+An RTL-SDR device can correct its own frequency error (fork v6.6.0 and
+later). In the device editor, set **Automatic PPM correction** to **On**.
+rtl_airband then measures how far received carriers sit off-frequency
+while squelch is open, and every interval moves the correction a small
+step toward the median error. It starts from the device's **Correction**,
+so set that to your best known value.
+
+- **Off, ready to turn on live** keeps the setting in the config but
+  switched off. Adding the setting at all needs one restart; after that,
+  switching it on or off applies live.
+- **Nothing is saved by itself.** On the Hardware page, the device's
+  **Auto PPM** row shows the live correction next to the saved one. When
+  they differ, **Save N ppm to config…** opens the editor with that value
+  filled in; review it, then Save or Apply live. After a restart, auto PPM
+  starts again from the saved value.
+- **If it goes wrong, it stops.** If the error grows after two
+  adjustments in a row, it puts the saved correction back and stops; the
+  Hardware page says why. Restart the instance to start it again.
+- **Continuous transmitters** (weather radio, control channels) need a
+  fixed **Squelch threshold** on their channel, or squelch never opens
+  and nothing is measured.
 
 Live readings need an instance running the bundled fork (v6.4.0 or later)
 with `control_socket_path` set. Other instances show their configured

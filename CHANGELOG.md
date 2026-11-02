@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.31] - 2026-11-02
+
+### Changed
+
+- **Docs for fork v7.1.0.**
+  - README: the bundled build supports RTL-SDR only (no Mirics) and has
+    automatic PPM correction.
+  - User guide: a new "Automatic PPM correction" section (turning it on,
+    Off-but-ready, Save to config, what happens when it trips, squelch
+    for continuous transmitters), and the live-apply lists updated.
+  - DEVELOPMENT.md: the auto_ppm live-apply rules, the Hardware API's
+    auto_ppm fields, the driver gate, the `auto_ppm` feature name, the
+    upstream v6.3.x tag clash, and the bundled build without libmirisdr.
+
 ## [0.6.30] - 2026-11-02
 
 ### Added

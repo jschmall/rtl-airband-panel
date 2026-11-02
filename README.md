@@ -195,10 +195,12 @@ each instance runs, and marks fork-only settings. Standard RTLSDR-Airband
 ignores most of them, but a few (the `mixer_remote` output type, JSON
 logging) stop it from starting, so the panel blocks those.
 
-The bundled `rtl_airband` supports RTL-SDR and Mirics dongles, with
-narrowband FM and rdio-scanner uploads. It's built without PulseAudio and
-SoapySDR; if you need those, build the fork yourself and point the panel
-at it (`RTL_PANEL_RTL_AIRBAND_BIN`).
+The bundled `rtl_airband` supports RTL-SDR dongles, with narrowband FM,
+rdio-scanner uploads and automatic PPM correction. It's built without
+PulseAudio and SoapySDR; if you need those, build the fork yourself and
+point the panel at it (`RTL_PANEL_RTL_AIRBAND_BIN`). Mirics dongles need an
+`rtl_airband` older than upstream v7.0.0, which removed that driver; the
+panel flags a Mirics device on a build without it.
 
 ## More documentation
 
