@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.24] - 2026-11-02
+
+### Changed
+
+- **Merged the `issue-hints` branch into `master` (0.6.23).**
+  - **How-to-fix hints on validation errors and warnings**: a **?** after
+    each issue in the editor shows a one-line fix on hover and a full
+    explanation on click.
+  - Tooltips stay inside the window, and long issue breadcrumbs wrap
+    left-aligned.
+
 ## [0.6.23] - 2026-11-01
 
 ### Added
