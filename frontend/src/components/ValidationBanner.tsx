@@ -1,6 +1,9 @@
+import { useState } from "react";
 import type { RtlAirbandConfig } from "../types/config.js";
 import type { ValidationIssue } from "../types/config.js";
 import { describeValidationPath } from "../lib/validation-path.js";
+import { ISSUE_HINTS } from "../generated/issue-hints.js";
+import { Tooltip } from "./Tooltip.js";
 
 interface ValidationBannerProps {
   errors?: ValidationIssue[];
@@ -65,17 +68,43 @@ function IssueRow({
   labelClassName: string;
 }) {
   const label = describeValidationPath(issue.path, config);
+  // Codes the pages make up themselves (request-failed, conflict) have no hint.
+  const hint = Object.hasOwn(ISSUE_HINTS, issue.code) ? ISSUE_HINTS[issue.code] : undefined;
+  const [open, setOpen] = useState(false);
   return (
     <li>
       {label && (
         <>
-          <button type="button" onClick={() => onJumpTo(issue.path)} className={`${labelClassName} underline decoration-dotted hover:text-slate-50`}>
+          <button type="button" onClick={() => onJumpTo(issue.path)} className={`${labelClassName} text-left underline decoration-dotted hover:text-slate-50`}>
             {label}
           </button>
           {": "}
         </>
       )}
       {issue.message}
+      {hint && (
+        <>
+          {" "}
+          <Tooltip
+            content={hint.summary}
+            onClick={() => setOpen((o) => !o)}
+            expanded={open}
+            label={open ? "Hide how to fix" : "How to fix"}
+            className={`inline-flex h-4 w-4 translate-y-[-1px] items-center justify-center rounded-full border border-current align-middle text-[10px] font-semibold leading-none opacity-70 hover:opacity-100 focus-visible:opacity-100 ${labelClassName}`}
+          >
+            ?
+          </Tooltip>
+          {open && (
+            <div className="mt-1 mb-2 rounded border border-slate-600/50 bg-slate-950/30 px-2 py-1.5 text-xs text-slate-300">
+              <p>
+                <span className={`font-medium ${labelClassName}`}>How to fix: </span>
+                {hint.summary}
+              </p>
+              <p className="mt-1 text-slate-400">{hint.detail}</p>
+            </div>
+          )}
+        </>
+      )}
     </li>
   );
 }

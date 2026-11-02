@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.23] - 2026-11-01
+
+### Added
+
+- **How-to-fix hints on validation errors and warnings.** Every issue in
+  the editor's error and warning list now has a small **?** after it.
+  Hover or focus it for a one-line fix; click it to expand an
+  explanation of what the problem means and how to fix it, naming the
+  fields to change. All 68 issue types have a hint.
+  - The hints live in `crates/airband-validate/src/hints.rs`, next to the
+    checks, and are generated into `frontend/src/generated/issue-hints.ts`
+    by `cargo test`. A test fails if a check emits a code with no hint,
+    or a hint is left for a code nothing emits.
+
+### Changed
+
+- Tooltips keep inside the window: near the right edge, or on a narrow
+  screen, they shift left instead of running off the page.
+- Long issue breadcrumbs in the error and warning list wrap left-aligned
+  instead of centered.
+
 ## [0.6.22] - 2026-11-01
 
 ### Changed
