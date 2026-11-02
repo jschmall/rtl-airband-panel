@@ -5,6 +5,26 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.25] - 2026-11-02
+
+### Changed
+
+- **Bundled rtl_airband updated from fork v6.5.0 to v7.1.0.** v7.1.0 is
+  the fork's delta on top of upstream v7.0.0. It brings:
+  - automatic PPM correction (`auto_ppm`, fork v6.6.0);
+  - `split_tx_drop_shorter_than`, which drops split recordings shorter
+    than a given length (upstream #580, fork v6.7.0);
+  - **no MiriSDR support**: upstream v7.0.0 (#582) removed the mirisdr
+    driver, so the bundled build can no longer use Mirics dongles. Build
+    an older rtl_airband yourself and point `RTL_PANEL_RTL_AIRBAND_BIN`
+    at it if you still need one.
+  Until the panel models them, the new settings are kept verbatim as
+  unknown settings.
+- The release build no longer compiles libmirisdr-4, and the
+  static-drivers patch drops its mirisdr entry.
+- install.sh's udev rules no longer cover Mirics MSi2500 / SDRplay RSP1
+  dongles.
+
 ## [0.6.24] - 2026-11-02
 
 ### Changed

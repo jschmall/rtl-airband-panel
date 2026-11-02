@@ -54,14 +54,6 @@ RUN git clone -q https://github.com/rtlsdrblog/rtl-sdr-blog \
  && cmake --build rtl-sdr-blog/build -j"$(nproc)" \
  && cmake --install rtl-sdr-blog/build
 
-# libmirisdr-4 (Mirics dongles).
-ARG LIBMIRISDR_COMMIT=fd0452e31264f065bb315e74313384ca4a121ef1
-RUN git clone -q https://github.com/f4exb/libmirisdr-4 \
- && git -C libmirisdr-4 checkout -q ${LIBMIRISDR_COMMIT} \
- && cmake -S libmirisdr-4 -B libmirisdr-4/build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
- && cmake --build libmirisdr-4/build -j"$(nproc)" \
- && cmake --install libmirisdr-4/build
-
 FROM airband-deps AS airband
 ARG AIRBAND_VERSION
 # The pinned fork, exported with `git archive` into RTLSDR-Airband-<version>/
@@ -82,10 +74,10 @@ RUN patch -p1 < /tmp/airband-static-drivers.patch
 # - append every library the static archives themselves need, for C and C++
 #   links, including the configure-time feature checks (try_compile only sees
 #   variables listed in CMAKE_TRY_COMPILE_PLATFORM_VARIABLES).
-RUN for l in config++ mp3lame shout curl fftw3f usb-1.0 rtlsdr mirisdr; do rm -f /usr/lib/lib$l.so; done \
+RUN for l in config++ mp3lame shout curl fftw3f usb-1.0 rtlsdr; do rm -f /usr/lib/lib$l.so; done \
  && extra="$(pkg-config --static --libs shout libcurl libconfig++ fftw3f libusb-1.0) -lmp3lame" \
  && cmake -B build -DCMAKE_BUILD_TYPE=Release -DPLATFORM=generic \
-      -DNFM=ON -DRDIO_SCANNER=ON -DRTLSDR=ON -DMIRISDR=ON -DPULSEAUDIO=OFF -DSOAPYSDR=OFF \
+      -DNFM=ON -DRDIO_SCANNER=ON -DRTLSDR=ON -DPULSEAUDIO=OFF -DSOAPYSDR=OFF \
       -DBUILD_UNITTESTS=ON \
       -DCMAKE_EXE_LINKER_FLAGS="-static" \
       -DCMAKE_C_STANDARD_LIBRARIES="$extra" \

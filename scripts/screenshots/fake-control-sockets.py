@@ -123,7 +123,7 @@ class Replay:
                 "clipped_samples": self.clipped[i], "buffer_overflows": 0, "buffer_underruns": 0,
                 "retune_failures": 0, "output_overruns": 0, "channels": channels,
             })
-        return {"ok": True, "version": "v6.5.0", "devices": devices}
+        return {"ok": True, "version": "v7.1.0", "devices": devices}
 
 
 def serve(path: str, replay: Replay, lock: threading.Lock, config_url: str) -> None:
