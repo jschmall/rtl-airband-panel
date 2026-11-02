@@ -5,6 +5,39 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.30] - 2026-11-02
+
+### Added
+
+- **Automatic PPM correction in the device editor** (rtlsdr only, fork
+  v6.6.0+). It has three states: *Not set*, *On*, and *Off, ready to
+  turn on live*, which keeps `auto_ppm = false` so it can later be
+  turned on without a restart. The interval, max ppm and max step fields
+  show while it's set, with their defaults as labels. On a build without
+  auto_ppm the field is marked "needs the fork". Switching the device
+  to another type clears all four settings.
+- **Auto PPM on the Hardware page.** A device running auto_ppm shows its
+  live correction next to the saved one, how many channels are voting,
+  how many adjustments it has made and when it last made one, and its
+  limits. A tripped auto_ppm shows why it stopped. While it's active,
+  the Frequency error tile reports auto_ppm's residual instead of
+  suggesting a correction.
+- **Save to config.** When auto_ppm has moved the correction away from
+  the saved value, a "Save N ppm to config…" button opens the editor
+  with that device's correction set to N in the unsaved draft. The
+  change preview shows it as a live correction change; review it, then
+  Save or Apply live. (auto_ppm starts again from the saved correction
+  after every restart.)
+- **"Drop recordings shorter than"** (`split_tx_drop_shorter_than`) on
+  file and rawfile outputs, next to Min RX seconds.
+
+### Changed
+
+- The screenshot tooling's fake control sockets report auto_ppm status
+  for devices that set it, and `FAKE_AUTO_PPM_TRIPPED` shows chosen
+  instances' auto_ppm as tripped. The fake `-v` binary reports fork
+  v7.1.0.
+
 ## [0.6.29] - 2026-11-02
 
 ### Added

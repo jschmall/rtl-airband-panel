@@ -13,6 +13,10 @@ Hardware page shows live readings without any SDR attached:
   error, as if each had heard a transmission.
 `reload_diff` (Apply live) re-reads the instance's saved config and reports
 any device gain that changed as applied, which the replay then uses.
+A device with an `auto_ppm` key reports auto_ppm status (fork v6.6.0+): on,
+it has moved the correction 3 ppm from the config's; false, it's off. Set
+FAKE_AUTO_PPM_TRIPPED to a comma-separated list of instance names to show
+their auto_ppm devices tripped instead.
 Runs until interrupted, removing its sockets on exit.
 """
 
@@ -62,8 +66,32 @@ def channels_of(device: dict) -> list:
     return out
 
 
+TRIPPED = {n for n in os.environ.get("FAKE_AUTO_PPM_TRIPPED", "").split(",") if n}
+
+
+def auto_ppm_status(dev: dict, tripped: bool):
+    """(live correction, status object) the way the fork reports a device's auto_ppm."""
+    base = int(dev.get("correction", 0))
+    if "auto_ppm" not in dev:
+        return base, None
+    on = bool(dev["auto_ppm"])
+    active = on and not tripped
+    status = {
+        "enabled": on, "active": active,
+        "disabled_reason": "error grew after 2 consecutive adjustments" if on and tripped else None,
+        "residual_ppm": round(random.uniform(-0.4, 0.4), 2) if active else None,
+        "eligible": 3 if active else 0, "contributing": 3 if active else 0, "rejected": 0, "clamped": False,
+        "reason": "within deadband" if active else None,
+        "adjustments": 3 if on else 0, "last_adjust_age_s": 260 if active else None,
+        "base_correction": base, "max_ppm": int(dev.get("auto_ppm_max_ppm", 100)),
+        "max_step": int(dev.get("auto_ppm_max_step", 5)), "interval": int(dev.get("auto_ppm_interval", 30)),
+    }
+    return (base + 3 if active else base), status
+
+
 class Replay:
     def __init__(self, db: sqlite3.Connection, instance: str, config: dict):
+        self.tripped = instance in TRIPPED
         self.devices = [d for d in config["devices"] if not d.get("disable")]
         self.levels = channel_levels(db, instance)
         self.rows = {}
@@ -96,6 +124,7 @@ class Replay:
             gain = self.gain_override.get(i, gain)
             if headroom is not None and headroom < 0.5:
                 self.clipped[i] += random.randint(50, 400)
+            correction, auto_ppm = auto_ppm_status(dev, self.tripped)
             channels = []
             for ci, freqs in enumerate(channels_of(dev)):
                 entries = []
@@ -118,10 +147,10 @@ class Replay:
                 "index": i, "driver": dev.get("type", "rtlsdr"), "state": "running",
                 "mode": dev.get("mode") or "multichannel",
                 "centerfreq": int(dev.get("centerfreq") or 0), "sample_rate": int(dev.get("sample_rate") or 2_560_000),
-                "gain": gain, "correction": dev.get("correction", 0), "bandwidth": int(dev.get("bandwidth") or 0),
+                "gain": gain, "correction": correction, "bandwidth": int(dev.get("bandwidth") or 0),
                 "peak_dbfs": None if headroom is None else -headroom,
                 "clipped_samples": self.clipped[i], "buffer_overflows": 0, "buffer_underruns": 0,
-                "retune_failures": 0, "output_overruns": 0, "channels": channels,
+                "retune_failures": 0, "output_overruns": 0, "channels": channels, "auto_ppm": auto_ppm,
             })
         return {"ok": True, "version": "v7.1.0", "devices": devices}
 

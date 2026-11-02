@@ -64,6 +64,8 @@ export const HARDWARE_TOOLTIPS = {
     "How far received carriers sit from their configured frequencies, in parts per million: the median across this SDR's channels that have had a transmission. All channels on one SDR share its oscillator, so a consistent error here is that oscillator's drift. The suggested correction is the value to set, not an amount to add: it stays the same as you approach it (a partial change shrinks the error by the same amount) and turns into \"Correction OK\" once less than 0.75 ppm remains. Restart the instance after changing it, then give it a few transmissions to settle; a single off-frequency transmitter can't move the median.",
   dropped:
     "Times the SDR's sample buffer overflowed because rtl_airband couldn't keep up, losing samples. Any steady climb means the host is short on CPU or USB bandwidth.",
+  autoPpm:
+    "Automatic PPM correction (fork v6.6.0+). rtl_airband measures how far received carriers sit off-frequency while squelch is open, and moves the correction toward the median error in small steps. 'Live' is the correction the dongle runs with now; 'config' is the saved value it restarts from, since nothing is saved automatically. Save to config opens the editor with the live value filled in. If the error grows after two steps in a row, auto_ppm reverts to the config value and stops until the instance restarts (or a live apply that changes this device).",
   clipped:
     "Samples where the ADC hit its full-scale limit. Occasional clipping on a strong nearby transmitter can be fine; a steady rate means the gain is too high.",
 } as const;

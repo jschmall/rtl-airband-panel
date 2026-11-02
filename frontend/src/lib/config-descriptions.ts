@@ -47,7 +47,13 @@ export const DEVICE_TOOLTIPS = {
     "The frequency the dongle is tuned to; all of this device's channels are demodulated from the bandwidth captured around it. Only used in multichannel mode — in scan mode the dongle retunes to each scanned frequency instead.",
   sampleRate: "How much bandwidth around centerfreq is captured, in Hz. Determines both the usable channel window and the width of each FFT bin (together with FFT size).",
   correctionPpm: "Frequency tuning error correction, in parts-per-million. Positive if the dongle tunes too high, negative if it tunes too low.",
-  correctionHz: "Frequency tuning error correction, in Hz. Positive if the receiver tunes too high, negative if it tunes too low.",
+  correctionHz: "Frequency tuning error correction, in Hz. Positive if the receiver tunes too high, negative if it tunes too low. Mirics dongles (mirisdr) only work with rtl_airband builds older than upstream v7.0.0 / fork v7.1.0, which removed that driver.",
+  autoPpm:
+    "Lets rtl_airband adjust Correction by itself while running. It measures how far received carriers sit from their configured frequencies (only while squelch is open, so it needs transmissions) and, every interval, moves the correction toward the median error in small steps. Correction above is where it starts after every restart; nothing is saved automatically, so use the Hardware page's Save to config to keep a learned value. Off but set (unchecked here, still present) keeps the device ready, so turning it on later applies live; adding it at all needs one restart. Continuous transmitters (weather radio, control channels) need a fixed Squelch threshold or squelch never opens. RTL-SDR only. Requires the jschmall RTLSDR-Airband fork v6.6.0 or newer.",
+  autoPpmInterval: "Seconds between evaluations, 5 to 86400 (default 30). Longer intervals average more transmissions per step.",
+  autoPpmMaxPpm:
+    "The largest correction, either way, that auto_ppm may ever set (1 to 100, default 100). Correction above must already be within it. If the dongle keeps wanting to go past it, auto_ppm holds at the limit and logs a warning.",
+  autoPpmMaxStep: "The largest change in a single adjustment, in ppm (1 to 100, default 5). Smaller steps converge more slowly but ride out one off-frequency transmitter better.",
   tauDevice: "Overrides the global NFM de-emphasis time constant for every channel on this device, unless a channel sets its own.",
   buffers: "Number of USB transfer buffers to allocate. Rarely needs changing; increase only if you're seeing buffer overflow warnings in stats.",
   numBuffers: "Number of USB transfer buffers to allocate. Rarely needs changing; increase only if you're seeing buffer overflow warnings in stats.",
@@ -93,6 +99,8 @@ export const OUTPUT_TOOLTIPS = {
   fileDirectory: "Directory recordings are written into. Created if it doesn't already exist.",
   filenameTemplate: "Base filename for recordings (without extension) — combined with a timestamp unless split_on_transmission changes that.",
   minRxSeconds: "Minimum transmission length, in seconds, to keep as a separate file when split_on_transmission is enabled. Shorter transmissions are discarded.",
+  splitTxDropShorterThan:
+    "Deletes a split recording instead of keeping it when the whole transmission, from its first to its last write, was shorter than this many seconds. Filters out key-ups and noise bursts. A transmission long enough to be cut into several files always keeps every part, and files closed at shutdown are never dropped. Must be below split_max_file_time (default 3600). Blank uses the global setting; 0 keeps everything. Counted in the channel_split_tx_dropped_counter stat. Independent of Min RX seconds: a file is deleted if either rule says so.",
   postWriteScript: "A script to run after each file is finished writing, given the file path as an argument — useful for uploading, transcoding, or notifications.",
   splitOnTransmission: "Starts a new file for each individual transmission (squelch open-to-close) instead of one continuously-appended file.",
   includeFreq: "Includes the channel's frequency in the output filename.",

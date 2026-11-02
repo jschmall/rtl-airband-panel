@@ -126,3 +126,60 @@ describe("DeviceEditor gain", () => {
     expect(gain).toHaveValue("37.2");
   });
 });
+
+describe("DeviceEditor auto_ppm", () => {
+  function Spy({ onDevice }: { onDevice: (d: Device) => void }) {
+    const [device, setDevice] = useState<Device>(defaultDevice());
+    return (
+      <DeviceEditor
+        device={device}
+        deviceIndex={0}
+        onChange={(_key, next) => {
+          setDevice(next);
+          onDevice(next);
+        }}
+        onRemove={() => {}}
+        onDuplicate={() => {}}
+        pathPrefix="$.test"
+        channelTargets={[]}
+        onCopyOutputToChannel={() => {}}
+      />
+    );
+  }
+
+  it("has three states, shows parameters only while set, and clears them all when unset", async () => {
+    const user = userEvent.setup();
+    let latest: Device | undefined;
+    render(<Spy onDevice={(d) => (latest = d)} />);
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+
+    const select = screen.getByLabelText(/^Automatic PPM correction/);
+    expect(select).toHaveValue("unset");
+    expect(screen.queryByLabelText(/Auto PPM interval/)).not.toBeInTheDocument();
+
+    await user.selectOptions(select, "off");
+    expect(latest?.auto_ppm).toBe(false);
+    await user.type(screen.getByLabelText(/Auto PPM interval/), "60");
+    expect(latest?.auto_ppm_interval).toBe(60);
+
+    await user.selectOptions(select, "on");
+    expect(latest?.auto_ppm).toBe(true);
+    expect(latest?.auto_ppm_interval).toBe(60);
+
+    await user.selectOptions(select, "unset");
+    expect(latest && "auto_ppm" in latest).toBe(false);
+    expect(latest && "auto_ppm_interval" in latest).toBe(false);
+  });
+
+  it("is rtlsdr only", async () => {
+    const user = userEvent.setup();
+    let latest: Device | undefined;
+    render(<Spy onDevice={(d) => (latest = d)} />);
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+    await user.selectOptions(screen.getByLabelText(/^Automatic PPM correction/), "on");
+
+    await user.selectOptions(screen.getByLabelText(/^Type/), "soapysdr");
+    expect(screen.queryByLabelText(/^Automatic PPM correction/)).not.toBeInTheDocument();
+    expect(latest && "auto_ppm" in latest).toBe(false);
+  });
+});

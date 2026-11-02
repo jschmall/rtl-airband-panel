@@ -276,6 +276,23 @@ interface FileLikeOutput {
   include_freq?: boolean;
   append?: boolean;
   dated_subdirectories?: boolean;
+  split_tx_drop_shorter_than?: number;
+}
+
+/** split_tx_drop_shorter_than, shared by FileOutput and RawFileOutput (upstream #580; fork v6.7.0+). */
+function SplitDropField<T extends FileLikeOutput>({ output, onChange }: { output: T; onChange: (o: T) => void }) {
+  return (
+    <Field label="Drop recordings shorter than, s (only used if split_on_transmission; blank = global, default 0 = keep all)" tooltip={OUTPUT_TOOLTIPS.splitTxDropShorterThan}>
+      <input
+        type="number"
+        min="0"
+        step="0.1"
+        className={inputClass}
+        value={output.split_tx_drop_shorter_than ?? ""}
+        onChange={(e) => onChange({ ...output, split_tx_drop_shorter_than: numberOrUndefined(e.target.value) })}
+      />
+    </Field>
+  );
 }
 
 /** Directory/filename_template text fields, shared by FileOutput and RawFileOutput. */
@@ -347,6 +364,7 @@ function FileFields({
           onChange={(e) => onChange({ ...output, min_rx_seconds: numberOrUndefined(e.target.value) })}
         />
       </Field>
+      <SplitDropField output={output} onChange={onChange} />
       <Field
         label="Post-write script (optional)"
         tooltip={OUTPUT_TOOLTIPS.postWriteScript}
@@ -501,6 +519,7 @@ function RawFileFields({ output, onChange }: { output: RawFileOutput; onChange: 
   return (
     <div className={responsiveGrid2}>
       <FileLikeTextFields output={output} onChange={onChange} />
+      <SplitDropField output={output} onChange={onChange} />
       <FileLikeCheckboxFields output={output} onChange={onChange} />
     </div>
   );

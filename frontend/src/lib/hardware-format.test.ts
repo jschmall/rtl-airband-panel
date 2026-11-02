@@ -10,9 +10,12 @@ import {
   headroomLevel,
   mergeHistory,
   notLiveReason,
+  autoPpmSummary,
+  saveCorrectionHref,
   sdrEditorHref,
   sdrTitle,
   sortBySerial,
+  unsavedAutoCorrection,
 } from "./hardware-format.js";
 
 function sdr(overrides: Partial<SdrHealth> = {}): SdrHealth {
@@ -227,5 +230,52 @@ describe("sdrEditorHref", () => {
   it("opens the editor at the device's position in the config, not its running index", () => {
     // A disabled device before it shifts rtl_airband's index but not the config's.
     expect(sdrEditorHref("tower 1", sdr({ index: 0, configIndex: 1 }))).toBe("/instances/tower%201?device=1");
+  });
+});
+
+const AUTO_PPM = {
+  enabled: true,
+  active: true,
+  disabledReason: null,
+  residualPpm: 0.31,
+  eligible: 3,
+  contributing: 2,
+  rejected: 0,
+  clamped: false,
+  reason: "within deadband",
+  adjustments: 4,
+  lastAdjustAgeS: 40,
+  baseCorrection: 1,
+  maxPpm: 100,
+  maxStep: 5,
+  intervalS: 30,
+};
+
+describe("auto_ppm on the Hardware page", () => {
+  it("replaces the correction advice while active", () => {
+    const a = sdr({ autoPpm: AUTO_PPM, suggestedCorrection: null });
+    expect(correctionAdvice(a)).toEqual({ tone: "ok", text: "auto_ppm active (residual +0.31 ppm)" });
+    expect(correctionAdvice(sdr({ autoPpm: { ...AUTO_PPM, residualPpm: null } }))?.tone).toBe("pending");
+    // Tripped: the usual advice is back.
+    const tripped = sdr({ autoPpm: { ...AUTO_PPM, active: false, disabledReason: "error grew" }, correction: 2, suggestedCorrection: 5 });
+    expect(correctionAdvice(tripped)?.text).toBe("Set correction to 5 ppm (now 2)");
+  });
+
+  it("offers to save the live correction only when it differs from the config", () => {
+    expect(unsavedAutoCorrection(sdr({ autoPpm: AUTO_PPM, correction: 4, configCorrection: 1 }))).toBe(4);
+    expect(unsavedAutoCorrection(sdr({ autoPpm: AUTO_PPM, correction: 1, configCorrection: 1 }))).toBeNull();
+    expect(unsavedAutoCorrection(sdr({ autoPpm: AUTO_PPM, correction: 0, configCorrection: null }))).toBeNull();
+    expect(unsavedAutoCorrection(sdr({ autoPpm: null, correction: 4, configCorrection: 1 }))).toBeNull();
+    const s = sdr({ configIndex: 2, autoPpm: AUTO_PPM, correction: -3 });
+    expect(saveCorrectionHref("tower", s, -3)).toBe("/instances/tower?device=2&correction=-3");
+  });
+
+  it("summarises its state", () => {
+    expect(autoPpmSummary(sdr())).toBeNull();
+    expect(autoPpmSummary(sdr({ autoPpm: AUTO_PPM }))).toEqual({ tone: "ok", text: "auto_ppm on · within deadband" });
+    expect(autoPpmSummary(sdr({ autoPpm: { ...AUTO_PPM, enabled: false, active: false } }))?.text).toBe("auto_ppm off");
+    expect(autoPpmSummary(sdr({ autoPpm: { ...AUTO_PPM, active: false, disabledReason: "error grew after 2 consecutive adjustments" } }))).toMatchObject({
+      tone: "warn",
+    });
   });
 });
