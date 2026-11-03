@@ -1,6 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { ErrorLogEvent } from "../api/client.js";
+import { ErrorGuide, GuideDetail, type GuideJump } from "../components/errors/ErrorGuide.js";
 import { GuardedLink } from "../components/GuardedLink.js";
+import { Tooltip } from "../components/Tooltip.js";
+import { guideCounts, guideFor } from "../lib/error-guide.js";
 import { errorLog, isMarker, useErrorLog } from "../lib/error-log.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 
@@ -20,6 +23,15 @@ const SOURCE: Record<string, string> = {
   "unit-failed": "systemd",
   "unit-stopped": "systemd",
 };
+
+const SOURCE_TOOLTIP: Record<string, string> = {
+  log: "A line from the instance's journal (rtl_airband's own log, or systemd's lines about the unit).",
+  counter: "A problem counter in the instance's stats went up, e.g. Icecast disconnects or dropped samples. Shows how much it rose since the last event.",
+  "unit-failed": "The instance's systemd unit changed state.",
+  "unit-stopped": "The instance's systemd unit changed state.",
+};
+
+const HINT_CLASS = "cursor-help text-[10px] text-slate-500 underline decoration-dotted decoration-slate-600 underline-offset-2";
 
 const SEVERITY_CHIP: Record<string, string> = {
   error: "border-red-500/40 bg-red-500/10 text-red-300",
@@ -45,7 +57,8 @@ function InstanceName({ name }: { name: string }) {
 }
 
 /** A restart or live apply: a divider across the timeline, so what came before and after it is easy to tell apart. */
-function MarkerRow({ event, showInstance }: { event: ErrorLogEvent; showInstance: boolean }) {
+function MarkerRow({ event, showInstance, onOpenGuide }: { event: ErrorLogEvent; showInstance: boolean; onOpenGuide: (id: string) => void }) {
+  const guide = guideFor(event);
   const style = MARKER_STYLE[event.kind] ?? MARKER_STYLE.restart!;
   const skipped = (event.detail?.skippedRequiresRestart as string[] | undefined) ?? [];
   const applied = (event.detail?.applied as string[] | undefined) ?? [];
@@ -58,15 +71,39 @@ function MarkerRow({ event, showInstance }: { event: ErrorLogEvent; showInstance
         {showInstance && <InstanceName name={event.instance} />}
         <span>{event.message}</span>
         <span className="tabular-nums opacity-75">· {timeOf(event.ts)}</span>
+        {guide && (
+          <Tooltip
+            content={guide.summary}
+            onClick={() => onOpenGuide(guide.id)}
+            label="What this means"
+            className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-semibold leading-none opacity-70 hover:opacity-100 focus-visible:opacity-100"
+          >
+            ?
+          </Tooltip>
+        )}
       </span>
       <span aria-hidden="true" className={`flex-1 border-t-2 ${style.line}`} />
     </li>
   );
 }
 
-function EventRow({ event, showInstance, isNew }: { event: ErrorLogEvent; showInstance: boolean; isNew: boolean }) {
+function EventRow({
+  event,
+  showInstance,
+  isNew,
+  onOpenGuide,
+}: {
+  event: ErrorLogEvent;
+  showInstance: boolean;
+  isNew: boolean;
+  onOpenGuide: (id: string) => void;
+}) {
   const d = event.detail ?? {};
   const repeated = typeof d.repeatedBefore === "number" ? d.repeatedBefore : 0;
+  const guide = guideFor(event);
+  const [open, setOpen] = useState(false);
+  const source = SOURCE[event.kind] ?? event.kind;
+  const sourceTip = SOURCE_TOOLTIP[event.kind];
   return (
     <li
       className={`grid grid-cols-[4.5rem_1fr] gap-x-3 border-l-2 py-1.5 pl-2 text-sm ${isNew ? "border-sky-500" : "border-transparent"}`}
@@ -81,22 +118,50 @@ function EventRow({ event, showInstance, isNew }: { event: ErrorLogEvent; showIn
             {event.severity}
           </span>
           {showInstance && <InstanceName name={event.instance} />}
-          <span className="text-xs text-slate-500">{SOURCE[event.kind] ?? event.kind}</span>
+          {sourceTip ? (
+            <Tooltip content={sourceTip} className="cursor-help text-xs text-slate-500 underline decoration-dotted decoration-slate-600 underline-offset-2">
+              {source}
+            </Tooltip>
+          ) : (
+            <span className="text-xs text-slate-500">{source}</span>
+          )}
           {d.heuristic === true && (
-            <span
-              className="text-[10px] text-slate-500"
-              title="Logged without -j, so rtl_airband's own level isn't known: this line was flagged by keywords (error, failed, lost connection, …)"
+            <Tooltip
+              content="Logged without -j, so rtl_airband's own level isn't known: this line was flagged by keywords (error, failed, lost connection, …). Turn on JSON logging for exact levels."
+              className={HINT_CLASS}
             >
               keyword match
-            </span>
+            </Tooltip>
           )}
           {repeated > 0 && (
-            <span className="text-[10px] text-slate-500" title="The same line was logged this many more times in the minute before this one">
+            <Tooltip content="The same line was logged this many more times in the minute before this one" className={HINT_CLASS}>
               +{repeated} repeats
-            </span>
+            </Tooltip>
+          )}
+          {guide && (
+            <Tooltip
+              content={guide.summary}
+              onClick={() => setOpen((o) => !o)}
+              expanded={open}
+              className="rounded border border-sky-500/40 px-1.5 text-[10px] font-medium text-sky-300 hover:bg-sky-500/10 focus-visible:bg-sky-500/10"
+            >
+              {open ? "Hide fix" : "How to fix"}
+            </Tooltip>
           )}
         </div>
         <p className={`mt-0.5 break-words text-slate-300 ${event.kind === "log" ? "font-mono text-xs" : ""}`}>{event.message}</p>
+        {guide && open && (
+          <div className="mt-1.5 rounded border border-slate-700/60 bg-slate-950/40 px-2.5 py-2">
+            <p className="mb-1.5 text-xs text-slate-300">
+              <span className="font-medium text-sky-300">{guide.title}: </span>
+              {guide.summary}
+            </p>
+            <GuideDetail entry={guide} />
+            <button type="button" onClick={() => onOpenGuide(guide.id)} className="mt-1.5 text-xs text-sky-400 hover:text-sky-300">
+              Open in the guide ↑
+            </button>
+          </div>
+        )}
       </div>
     </li>
   );
@@ -112,6 +177,8 @@ export function ErrorsPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   // What was already seen when the page opened: newer rows get highlighted.
   const [seenAtOpen] = useState(() => errorLog.get().seenId);
+  const [jump, setJump] = useState<GuideJump | null>(null);
+  const openGuide = (id: string) => setJump((prev) => ({ id, n: (prev?.n ?? 0) + 1 }));
 
   useEffect(() => {
     void errorLog.ensureLoaded();
@@ -137,6 +204,8 @@ export function ErrorsPage() {
     [log.events, instance, level, showMarkers]
   );
 
+  const counts = useMemo(() => guideCounts(log.events ?? []), [log.events]);
+
   const selectClass =
     "h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none";
 
@@ -146,9 +215,12 @@ export function ErrorsPage() {
         <h1 className="text-lg font-semibold text-slate-100">Errors</h1>
         <p className="text-sm text-slate-400">
           Failures, errors and oddities from every instance's log, stats and systemd unit, newest first. Restarts and live applies are marked in
-          between, so you can tell whether a problem came before or after a change.
+          between, so you can tell whether a problem came before or after a change. Use <span className="text-sky-300">How to fix</span> on an
+          event, or the guide below, for what usually causes it.
         </p>
       </div>
+
+      <ErrorGuide counts={counts} jump={jump} />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <label className="flex items-center gap-2 text-sm text-slate-400">
@@ -192,9 +264,9 @@ export function ErrorsPage() {
                   <li className={`pb-1 text-xs font-medium uppercase tracking-wide text-slate-500 ${i === 0 ? "pt-1" : "pt-4"}`}>{day}</li>
                 )}
                 {isMarker(e) ? (
-                  <MarkerRow event={e} showInstance={!instance} />
+                  <MarkerRow event={e} showInstance={!instance} onOpenGuide={openGuide} />
                 ) : (
-                  <EventRow event={e} showInstance={!instance} isNew={e.id > seenAtOpen} />
+                  <EventRow event={e} showInstance={!instance} isNew={e.id > seenAtOpen} onOpenGuide={openGuide} />
                 )}
               </Fragment>
             );
