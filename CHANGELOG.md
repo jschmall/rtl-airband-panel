@@ -5,6 +5,38 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.35] - 2026-11-03
+
+### Added
+
+- **Sort the Hardware page** by **Instance**, **SDR serial** or
+  **Severity**. The page remembers the choice.
+  - *Instance* groups SDRs under their instance, by instance name.
+  - *SDR serial* and *Severity* show one list of every SDR across all
+    instances. A card whose instance isn't live says why.
+  - *Severity* puts the worst SDR first, in three tiers:
+    - **not receiving properly:** instance down, input failed, clipping,
+      or dropping samples;
+    - **something to change:** lower the gain, fix the PPM correction,
+      auto_ppm tripped, or errors logged for the instance in the last 15
+      minutes;
+    - **optional:** room to raise the gain, an unsaved auto_ppm
+      correction, or no live readings.
+
+    It counts findings rather than adding up a score, so the order only
+    changes when an SDR gains or loses a finding. Clipping and dropped
+    samples count for a minute after the last one. Ties go by how far
+    the correction is off, then by serial.
+- **Each SDR card has an issue badge:** *OK*, or the number of findings
+  in the worst one's colour. Its tooltip lists them. The findings come
+  from the same advice the card shows.
+
+### Changed
+
+- The default order lists every SDR by serial. Before, instances were
+  grouped and ordered by their first SDR's serial.
+- Tooltips keep line breaks.
+
 ## [0.6.33] - 2026-11-02
 
 ### Changed

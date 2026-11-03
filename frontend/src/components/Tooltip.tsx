@@ -65,7 +65,7 @@ export function Tooltip({ content, children, className, onClick, expanded, label
         id={id}
         role="tooltip"
         style={place ? { left: place.left, maxWidth: place.maxWidth } : undefined}
-        className={`pointer-events-none absolute bottom-full left-0 z-20 mb-1 w-max max-w-xs rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-normal text-slate-200 shadow-lg ${
+        className={`pointer-events-none absolute bottom-full left-0 z-20 mb-1 w-max max-w-xs whitespace-pre-line rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-normal text-slate-200 shadow-lg ${
           visible ? "block" : "hidden"
         }`}
       >

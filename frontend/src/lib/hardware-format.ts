@@ -77,20 +77,6 @@ function compareSdrs(a: SdrHealth, b: SdrHealth): number {
   return compareSerials(a.serial, b.serial) || a.index - b.index;
 }
 
-/**
- * Instances ordered by the serial of their first SDR, each instance's SDRs
- * sorted by serial too. Instances without devices go last, by name.
- */
-export function sortBySerial(instances: readonly InstanceHardware[]): InstanceHardware[] {
-  const sorted = instances.map((i) => ({ ...i, devices: [...i.devices].sort(compareSdrs) }));
-  return sorted.sort((a, b) => {
-    const da = a.devices[0];
-    const db = b.devices[0];
-    if (!da || !db) return da ? -1 : db ? 1 : a.name.localeCompare(b.name);
-    return compareSdrs(da, db) || a.name.localeCompare(b.name);
-  });
-}
-
 export function gainText(sdr: SdrHealth): string {
   if (sdr.gainDb !== null) return `${sdr.gainDb.toFixed(1)} dB`;
   if (sdr.gainText) return sdr.gainText;
@@ -307,4 +293,148 @@ export function appendHistory(
     next.set(key, kept);
   }
   return next;
+}
+
+// ---- Sorting and severity ----
+
+export type HardwareSort = "instance" | "serial" | "severity";
+
+export const HARDWARE_SORT_LABEL: Record<HardwareSort, string> = {
+  instance: "Instance",
+  serial: "SDR serial",
+  severity: "Severity",
+};
+
+/** Instances by name (case-insensitive, numbers in order), each instance's SDRs by serial. */
+export function sortByInstance(instances: readonly InstanceHardware[]): InstanceHardware[] {
+  return instances
+    .map((i) => ({ ...i, devices: [...i.devices].sort(compareSdrs) }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }) || (a.name < b.name ? -1 : 1));
+}
+
+/** One SDR with the instance it belongs to: the unit of the flat (serial/severity) layouts. */
+export interface PlacedSdr {
+  instance: InstanceHardware;
+  sdr: SdrHealth;
+}
+
+export function flattenSdrs(instances: readonly InstanceHardware[]): PlacedSdr[] {
+  return instances.flatMap((instance) => instance.devices.map((sdr) => ({ instance, sdr })));
+}
+
+/** By serial; the instance name breaks ties, then the device index. */
+function comparePlaced(a: PlacedSdr, b: PlacedSdr): number {
+  return compareSerials(a.sdr.serial, b.sdr.serial) || a.instance.name.localeCompare(b.instance.name) || a.sdr.index - b.sdr.index;
+}
+
+export function sortSdrsBySerial<T extends PlacedSdr>(sdrs: readonly T[]): T[] {
+  return [...sdrs].sort(comparePlaced);
+}
+
+/**
+ * When an SDR last clipped or dropped samples, by sdrKey. Both come and go
+ * from one 2 s reading to the next, so the severity counts them for
+ * TRANSIENT_HOLD_MS after the last one rather than flickering the order.
+ */
+export type TransientMarks = ReadonlyMap<string, { clipAt?: number; dropAt?: number }>;
+
+export const TRANSIENT_HOLD_MS = 60_000;
+
+export function markTransients(prev: TransientMarks, now: number, sdrs: readonly { key: string; sdr: SdrHealth }[]): TransientMarks {
+  const next = new Map<string, { clipAt?: number; dropAt?: number }>();
+  for (const { key, sdr } of sdrs) {
+    const p = prev.get(key) ?? {};
+    const m = {
+      clipAt: (sdr.clippedPerSec ?? 0) > 0 ? now : p.clipAt,
+      dropAt: (sdr.overflowsPerSec ?? 0) > 0 ? now : p.dropAt,
+    };
+    if (m.clipAt !== undefined || m.dropAt !== undefined) next.set(key, m);
+  }
+  return next;
+}
+
+/**
+ * How serious a finding is. `critical`: the SDR isn't receiving properly
+ * right now. `warn`: something should change. `info`: optional, or no
+ * live readings to judge by.
+ */
+export type IssueLevel = "critical" | "warn" | "info";
+
+export interface SdrIssue {
+  level: IssueLevel;
+  text: string;
+}
+
+export interface IssueContext {
+  /** The SDR's history at this page (for the gain advice). */
+  history: readonly HistoryPoint[];
+  /** Its clip/drop marks (markTransients) and the snapshot time. */
+  marks?: { clipAt?: number; dropAt?: number };
+  now: number;
+  /** Errors and warnings logged for its instance recently. */
+  recentProblems?: number;
+}
+
+/** Not-live reasons that mean something is wrong, rather than that there's no way to read the SDR. */
+const DOWN_REASONS = new Set(["not-running", "unreachable", "protocol-error", "config-error"]);
+
+/**
+ * Everything worth flagging about one SDR, worst first. Built from the same
+ * advice the card shows, so the severity order never disagrees with it.
+ */
+export function sdrIssues(instance: InstanceHardware, sdr: SdrHealth, ctx: IssueContext): SdrIssue[] {
+  const issues: SdrIssue[] = [];
+  if (!instance.live) {
+    const reason = notLiveReason(instance.reason, instance.detail);
+    issues.push(DOWN_REASONS.has(instance.reason ?? "") ? { level: "critical", text: reason } : { level: "info", text: `No live readings. ${reason}` });
+  } else {
+    const within = (t: number | undefined) => t !== undefined && ctx.now - t < TRANSIENT_HOLD_MS;
+    if (sdr.state !== null && sdr.state !== "running") issues.push({ level: "critical", text: `Input ${sdr.state}` });
+    if ((sdr.clippedPerSec ?? 0) > 0) issues.push({ level: "critical", text: "Clipping now" });
+    else if (within(ctx.marks?.clipAt)) issues.push({ level: "critical", text: "Clipped in the last minute" });
+    if ((sdr.overflowsPerSec ?? 0) > 0) issues.push({ level: "critical", text: "Dropping samples now" });
+    else if (within(ctx.marks?.dropAt)) issues.push({ level: "critical", text: "Dropped samples in the last minute" });
+
+    const gain = gainAdvice(sdr, ctx.history);
+    if (gain?.tone === "warn") issues.push({ level: "warn", text: gain.text });
+    const correction = correctionAdvice(sdr);
+    if (correction?.tone === "warn") issues.push({ level: "warn", text: correction.text });
+    const auto = autoPpmSummary(sdr);
+    if (auto?.tone === "warn") issues.push({ level: "warn", text: auto.text });
+    if (gain?.tone === "info") issues.push({ level: "info", text: gain.text });
+    const unsaved = unsavedAutoCorrection(sdr);
+    if (unsaved !== null) issues.push({ level: "info", text: `auto_ppm correction ${unsaved} ppm isn't saved to the config` });
+  }
+  const n = ctx.recentProblems ?? 0;
+  if (n > 0) issues.push({ level: "warn", text: `${n} error${n === 1 ? "" : "s"}/warning${n === 1 ? "" : "s"} logged for ${instance.name} in the last 15 min` });
+  const order: Record<IssueLevel, number> = { critical: 0, warn: 1, info: 2 };
+  return issues.sort((a, b) => order[a.level] - order[b.level]);
+}
+
+/** How far the correction is from the suggested one, in whole ppm: orders SDRs within a severity tier. */
+export function ppmOff(sdr: SdrHealth): number {
+  if (sdr.autoPpm?.active || sdr.correctionUnit !== "ppm" || sdr.suggestedCorrection === null) return 0;
+  return Math.round(Math.abs(sdr.suggestedCorrection - (sdr.correction ?? 0)));
+}
+
+/**
+ * The severity of a list of issues as a tuple compared element by element:
+ * critical count, warn count, ppm off, info count. Counts rather than a
+ * weighted score, so the order only changes when an SDR gains or loses a
+ * finding, not as readings wiggle.
+ */
+export function severityKey(issues: readonly SdrIssue[], sdr: SdrHealth): [number, number, number, number] {
+  const count = (l: IssueLevel) => issues.filter((i) => i.level === l).length;
+  return [count("critical"), count("warn"), ppmOff(sdr), count("info")];
+}
+
+/** Worst first; equal severity falls back to serial order. */
+export function sortSdrsBySeverity<T extends PlacedSdr & { key: readonly number[] }>(sdrs: readonly T[]): T[] {
+  return [...sdrs].sort((a, b) => {
+    for (let i = 0; i < a.key.length; i++) {
+      const d = (b.key[i] ?? 0) - (a.key[i] ?? 0);
+      if (d) return d;
+    }
+    return comparePlaced(a, b);
+  });
 }

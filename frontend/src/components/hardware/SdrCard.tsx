@@ -11,12 +11,15 @@ import {
   formatSpan,
   gainAdvice,
   gainText,
+  instanceEditorHref,
   saveCorrectionHref,
   sdrEditorHref,
   sdrTitle,
   unsavedAutoCorrection,
   type Advice,
   type HistoryPoint,
+  type IssueLevel,
+  type SdrIssue,
 } from "../../lib/hardware-format.js";
 import { HARDWARE_TOOLTIPS } from "../../lib/stats-descriptions.js";
 import { GuardedLink } from "../GuardedLink.js";
@@ -102,6 +105,29 @@ interface SdrCardProps {
   sdr: SdrHealth;
   live: boolean;
   history: HistoryPoint[];
+  /** What's wrong with it (sdrIssues), for the header badge. */
+  issues?: readonly SdrIssue[];
+  /** Why readings aren't live, shown on the card when there's no instance header above it. */
+  notLive?: string;
+}
+
+const ISSUE_BADGE: Record<IssueLevel | "ok", string> = {
+  critical: "border-red-500/40 bg-red-500/10 text-red-300",
+  warn: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+  info: "border-sky-500/40 bg-sky-500/10 text-sky-300",
+  ok: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+};
+
+/** "OK", or how many findings with the worst one's colour; the tooltip lists them. */
+function IssueBadge({ issues }: { issues: readonly SdrIssue[] }) {
+  const worst = issues[0]?.level ?? "ok";
+  const text = issues.length === 0 ? "OK" : `${issues.length} issue${issues.length === 1 ? "" : "s"}`;
+  const content = issues.length === 0 ? "Nothing to flag on this SDR right now." : issues.map((i) => `• ${i.text}`).join("\n");
+  return (
+    <Tooltip content={content} className={`cursor-help rounded border px-1.5 text-[11px] font-medium ${ISSUE_BADGE[worst]}`}>
+      {text}
+    </Tooltip>
+  );
 }
 
 /** auto_ppm's state and the learned correction, with a link to keep it. */
@@ -143,7 +169,7 @@ function AutoPpmRow({ instance, sdr }: { instance: string; sdr: SdrHealth }) {
   );
 }
 
-function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
+function SdrCardImpl({ instance, sdr, live, history, issues, notLive }: SdrCardProps) {
   const [showChannels, setShowChannels] = useState(false);
   const series = (pick: (p: HistoryPoint) => number | null) => history.map((p) => ({ ts: p.ts, value: pick(p) }));
   const openCount = sdr.channels.filter((c) => c.squelchOpen).length;
@@ -158,18 +184,22 @@ function SdrCardImpl({ instance, sdr, live, history }: SdrCardProps) {
           </GuardedLink>
         </h3>
         <span className="text-xs text-slate-400">
-          {instance}
+          <GuardedLink to={instanceEditorHref(instance)} className="hover:text-sky-300 hover:underline decoration-slate-500 underline-offset-2" title="Edit this instance">
+            {instance}
+          </GuardedLink>
           {sdr.mode === "scan" ? " · scan" : ""}
         </span>
         {stateBad && (
           <span className="rounded border border-red-500/40 px-1.5 text-[11px] font-medium uppercase tracking-wide text-red-300">{sdr.state}</span>
         )}
+        {issues && <IssueBadge issues={issues} />}
         {live && (
           <span className="ml-auto text-xs text-slate-400">
             {openCount > 0 ? `${openCount} of ${sdr.channels.length} active` : `${sdr.channels.length} channel${sdr.channels.length === 1 ? "" : "s"}`}
           </span>
         )}
       </header>
+      {notLive && <p className="-mt-1 mb-3 text-xs text-amber-300">Not live: {notLive} Showing configured values.</p>}
 
       <dl className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
         <Setting label="Center" tooltip={HARDWARE_TOOLTIPS.centerSpan} value={formatMHz(sdr.centerFreqHz)} />
