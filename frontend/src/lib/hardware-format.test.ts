@@ -13,8 +13,15 @@ import {
   autoPpmSummary,
   saveCorrectionHref,
   sdrEditorHref,
+  flattenSdrs,
+  markTransients,
+  sdrIssues,
   sdrTitle,
-  sortBySerial,
+  severityKey,
+  sortByInstance,
+  sortSdrsBySerial,
+  sortSdrsBySeverity,
+  TRANSIENT_HOLD_MS,
   unsavedAutoCorrection,
 } from "./hardware-format.js";
 
@@ -115,18 +122,88 @@ describe("serial ordering", () => {
     expect([...serials].sort(compareSerials)).toEqual(["00000001", "00000002", "9", "10", "a9", "A10", "b2", null, ""]);
   });
 
-  it("orders instances by their first SDR's serial and sorts SDRs within each", () => {
-    const inst = (name: string, serials: (string | null)[]): InstanceHardware => ({
-      name,
-      live: true,
-      reason: null,
-      detail: null,
-      version: null,
-      devices: serials.map((serial, index) => sdr({ index, serial })),
-    });
-    const sorted = sortBySerial([inst("empty", []), inst("tower", ["blog-v4"]), inst("ops", ["30", "4"]), inst("app", ["12"])]);
-    expect(sorted.map((i) => i.name)).toEqual(["ops", "app", "tower", "empty"]);
-    expect(sorted[0]!.devices.map((d) => d.serial)).toEqual(["4", "30"]);
+  const inst = (name: string, serials: (string | null)[]): InstanceHardware => ({
+    name,
+    live: true,
+    reason: null,
+    detail: null,
+    version: null,
+    devices: serials.map((serial, index) => sdr({ index, serial })),
+  });
+
+  it("sorts instances by name, numbers in order, with each instance's SDRs by serial", () => {
+    const sorted = sortByInstance([inst("tower", ["blog-v4"]), inst("rtl_10", ["30", "4"]), inst("rtl_9", ["12"]), inst("App", [])]);
+    expect(sorted.map((i) => i.name)).toEqual(["App", "rtl_9", "rtl_10", "tower"]);
+    expect(sorted[2]!.devices.map((d) => d.serial)).toEqual(["4", "30"]);
+  });
+
+  it("lists every SDR by serial across instances", () => {
+    const flat = sortSdrsBySerial(flattenSdrs([inst("b", ["30", "blog"]), inst("a", ["4", null]), inst("c", [])]));
+    expect(flat.map((p) => `${p.instance.name}:${p.sdr.serial}`)).toEqual(["a:4", "b:30", "b:blog", "a:null"]);
+  });
+});
+
+describe("severity", () => {
+  const live: InstanceHardware = { name: "tower", live: true, reason: null, detail: null, version: null, devices: [] };
+  const healthy = (o: Partial<SdrHealth> = {}) => sdr({ suggestedCorrection: 0, freqErrorPpm: 0.2, ...o });
+  const ctx = { history: [], now: 1_000_000 };
+  const levels = (s: SdrHealth, i = live, c: Parameters<typeof sdrIssues>[2] = ctx) => sdrIssues(i, s, c).map((x) => x.level);
+
+  it("has nothing to say about a healthy SDR", () => {
+    expect(sdrIssues(live, healthy(), ctx)).toEqual([]);
+  });
+
+  it("calls clipping, dropped samples and a failed input critical", () => {
+    expect(levels(healthy({ clippedPerSec: 3 }))).toContain("critical");
+    expect(levels(healthy({ overflowsPerSec: 1 }))).toEqual(["critical"]);
+    expect(levels(healthy({ state: "failed" }))).toEqual(["critical"]);
+  });
+
+  it("keeps clipping and drops flagged for a minute after the last one", () => {
+    const s = healthy({ clippedPerSec: 2 });
+    const marks = markTransients(new Map(), 1000, [{ key: "k", sdr: s }]);
+    const quiet = healthy({ clippedPerSec: 0 });
+    const later = markTransients(marks, 20_000, [{ key: "k", sdr: quiet }]);
+    expect(sdrIssues(live, quiet, { history: [], now: 20_000, marks: later.get("k") })[0]).toEqual({ level: "critical", text: "Clipped in the last minute" });
+    expect(sdrIssues(live, quiet, { history: [], now: 1000 + TRANSIENT_HOLD_MS, marks: later.get("k") })).toEqual([]);
+    // SDRs that are gone, or never clipped, aren't tracked.
+    expect(markTransients(later, 30_000, []).size).toBe(0);
+    expect(markTransients(new Map(), 0, [{ key: "q", sdr: quiet }]).size).toBe(0);
+  });
+
+  it("flags a PPM correction to change, a tripped auto_ppm and recent errors as warnings", () => {
+    expect(sdrIssues(live, sdr({ correction: 0, suggestedCorrection: 7 }), ctx)).toEqual([{ level: "warn", text: "Set correction to 7 ppm (now 0)" }]);
+    const tripped = healthy({ autoPpm: { ...AUTO_PPM, active: false, disabledReason: "error grew" } });
+    expect(levels(tripped)).toEqual(["warn"]);
+    expect(sdrIssues(live, healthy(), { ...ctx, recentProblems: 3 })).toEqual([
+      { level: "warn", text: "3 errors/warnings logged for tower in the last 15 min" },
+    ]);
+  });
+
+  it("calls a stopped instance critical, but missing live readings only info", () => {
+    expect(levels(healthy(), { ...live, live: false, reason: "not-running" })).toEqual(["critical"]);
+    expect(levels(healthy(), { ...live, live: false, reason: "no-control-socket" })).toEqual(["info"]);
+  });
+
+  it("orders worst first: critical, then warnings, then how far off the PPM is, then serial", () => {
+    const placed = (name: string, serial: string, s: SdrHealth) => {
+      const p = { instance: { ...live, name }, sdr: { ...s, serial } };
+      return { ...p, key: severityKey(sdrIssues(p.instance, p.sdr, ctx), p.sdr) };
+    };
+    const order = sortSdrsBySeverity([
+      placed("ok-b", "2", healthy()),
+      placed("ppm3", "5", sdr({ correction: 0, suggestedCorrection: 3 })),
+      placed("ok-a", "1", healthy()),
+      placed("clip", "9", healthy({ clippedPerSec: 4 })),
+      placed("ppm10", "6", sdr({ correction: 0, suggestedCorrection: -10 })),
+    ]).map((p) => p.instance.name);
+    expect(order).toEqual(["clip", "ppm10", "ppm3", "ok-a", "ok-b"]);
+  });
+
+  it("keeps the same key while readings wiggle inside the same band", () => {
+    const a = healthy({ headroomDb: 7.2, noiseFloorDbfs: -41 });
+    const b = healthy({ headroomDb: 8.9, noiseFloorDbfs: -38 });
+    expect(severityKey(sdrIssues(live, a, ctx), a)).toEqual(severityKey(sdrIssues(live, b, ctx), b));
   });
 });
 
