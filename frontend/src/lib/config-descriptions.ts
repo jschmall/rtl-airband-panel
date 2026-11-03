@@ -55,7 +55,10 @@ export const DEVICE_TOOLTIPS = {
     "The largest correction, either way, that auto_ppm may ever set (1 to 100, default 100). Correction above must already be within it. If the dongle keeps wanting to go past it, auto_ppm holds at the limit and logs a warning.",
   autoPpmMaxStep: "The largest change in a single adjustment, in ppm (1 to 100, default 5). Smaller steps converge more slowly but ride out one off-frequency transmitter better.",
   tauDevice: "Overrides the global NFM de-emphasis time constant for every channel on this device, unless a channel sets its own.",
-  buffers: "Number of USB transfer buffers to allocate. Rarely needs changing; increase only if you're seeing buffer overflow warnings in stats.",
+  buffers:
+    "Number of USB transfer buffers to allocate. Rarely needs changing. Left blank, rtl_airband fork v7.2.0 and newer pick enough to keep about 3.2 MB of samples in flight for whatever USB transfer size is used (25 at 1.024 Msps); older builds use 10. A value set here is used as-is, so with the smaller automatic transfers it holds less audio than it used to.",
+  bufferSize:
+    "Bytes per USB transfer from the dongle, a multiple of 512. Leave blank: rtl_airband sizes each transfer to half an audio batch (62.5 ms) for the sample rate, which stops low sample rates from delivering audio in bursts that overrun the outputs. 320000 with Buffers 10 restores the old fixed sizing. Takes effect only on a restart. RTL-SDR only. Requires the jschmall RTLSDR-Airband fork v7.2.0 or newer.",
   numBuffers: "Number of USB transfer buffers to allocate. Rarely needs changing; increase only if you're seeing buffer overflow warnings in stats.",
   deviceString: "Identifies the physical device and driver to SoapySDR, as comma-separated 'variable=value' stanzas (e.g. driver, serial number). Required — this is how SoapySDR devices are selected, in place of serial/index.",
   channel: "Which physical receive channel on the device to use, for devices with more than one (most single-tuner dongles only have channel 0).",

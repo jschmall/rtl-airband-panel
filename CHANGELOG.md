@@ -5,6 +5,39 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.40] - 2026-11-03
+
+### Changed
+
+- **Bundled rtl_airband: fork v7.1.0 → v7.2.0.** The new fork release
+  sizes each RTL-SDR USB transfer to half an audio batch (62.5 ms) for the
+  sample rate. Before, every transfer was a fixed 320000 bytes, which at
+  1.024 Msps is 156 ms. The demod then sometimes emitted two batches back
+  to back, which was the main cause of `output_overrun_count` on
+  low-sample-rate instances. When `buffers` is left blank, the fork picks a
+  count that keeps total USB buffering at the old 3.2 MB. There are no new
+  build options or dependencies.
+- The editor's **Buffers** label now reads "auto" instead of "default 10"
+  on builds with the new sizing (Features line `usb_chunk_sizing`). Its
+  tooltip and the `device-buffers-invalid` hint no longer promise a
+  default of 10.
+- The Errors guide's **Outputs falling behind** entry names old
+  rtl_airband builds on RTL-SDR below 2.56 Msps as a cause, and suggests
+  the bundled v7.2.0 as the fix.
+
+### Added
+
+- **`buffer_size` on rtlsdr devices** (fork v7.2.0+), shown as **USB
+  transfer size** in the device editor.
+  - Before, it was kept only as an unknown setting.
+  - It is validated like the fork does: a whole number, a positive
+    multiple of 512, at most 16777216 (`device-buffer-size-invalid`).
+  - On builds without `usb_chunk_sizing`, the field is locked as "needs
+    the fork", and a set value warns that it's ignored.
+  - The change preview treats it as restart-only: the fork reads it when
+    the RX thread starts, and `reload_diff` ignores it.
+  - `buffer_size = 320000` with `buffers = 10` restores the old sizing.
+
 ## [0.6.39] - 2026-11-03
 
 ### Changed

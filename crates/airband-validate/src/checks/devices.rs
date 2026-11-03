@@ -176,6 +176,10 @@ pub fn scan_mode(config: &RtlAirbandConfig, issues: &mut Issues) {
 const KNOWN_DEVICE_TYPES: [&str; 3] = ["rtlsdr", "mirisdr", "soapysdr"];
 
 /// Per-type/mode requiredness and RTLSDR-Airband's device startup checks.
+/// The fork's upper bound for an explicit rtlsdr `buffer_size` (16 MiB,
+/// `RTLSDR_MAX_USB_BUF_LEN` in src/input-common.h, fork v7.2.0).
+const RTLSDR_MAX_USB_BUF_LEN: f64 = 16_777_216.0;
+
 pub fn device_requirements(config: &RtlAirbandConfig, issues: &mut Issues) {
     for (di, device) in config.devices.iter().enumerate() {
         let path = format!("$.devices[{di}]");
@@ -240,6 +244,20 @@ pub fn device_requirements(config: &RtlAirbandConfig, issues: &mut Issues) {
             && b <= 0.0
         {
             issues.error("device-buffers-invalid", &path, format!("buffers {} must be greater than 0", js(b)));
+        }
+        if let Some(b) = device.buffer_size
+            && is_rtl
+            && !(b > 0.0 && b % 512.0 == 0.0 && b <= RTLSDR_MAX_USB_BUF_LEN)
+        {
+            issues.error(
+                "device-buffer-size-invalid",
+                &path,
+                format!(
+                    "buffer_size {} must be a positive multiple of 512, at most {}",
+                    js(b),
+                    js(RTLSDR_MAX_USB_BUF_LEN)
+                ),
+            );
         }
         if let Some(b) = device.num_buffers
             && is_miri

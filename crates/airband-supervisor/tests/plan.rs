@@ -130,6 +130,17 @@ fn other_device_fields_need_a_restart() {
 }
 
 #[test]
+fn buffer_size_needs_a_restart() {
+    // Fork v7.2.0 reads buffer_size only when the RX thread starts, and
+    // reload_diff ignores it.
+    let a = conf(HEAD, &[device("", &base_channels())], "");
+    let b = conf(HEAD, &[device("buffer_size = 320000;", &base_channels())], "");
+    assert_eq!(plan(&a, &b).restart, ["device[0]: buffer_size changed"]);
+    let c = b.replace("buffer_size = 320000", "buffer_size = 128000");
+    assert_eq!(plan(&b, &c).restart, ["device[0]: buffer_size changed"]);
+}
+
+#[test]
 fn appending_channels_needs_reserve_slots() {
     let mut more = base_channels();
     more.push(chan(151400000, ""));

@@ -81,6 +81,7 @@ pub fn whole_numbers(config: &RtlAirbandConfig, issues: &mut Issues) {
         check(issues, &path, "reserve_channels", device.reserve_channels);
         check(issues, &path, "tau", device.tau);
         check(issues, &path, "buffers", device.buffers);
+        check(issues, &path, "buffer_size", device.buffer_size);
         check(issues, &path, "num_buffers", device.num_buffers);
         check(issues, &path, "channel", device.channel);
 

@@ -99,6 +99,14 @@ pub fn check(config: &RtlAirbandConfig, features: &[String], issues: &mut Issues
                 "correction stays where it's set",
             );
         }
+        if device.buffer_size.is_some() {
+            g.ignored_needs(
+                "usb_chunk_sizing",
+                "Needs jschmall RTLSDR-Airband fork v7.2.0 or newer.",
+                format!("$.devices[{di}].buffer_size"),
+                "USB transfers stay at 320000 bytes",
+            );
+        }
         if device.reserve_channels.is_some() {
             g.ignored(
                 "reserve",

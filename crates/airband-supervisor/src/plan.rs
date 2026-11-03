@@ -3,13 +3,13 @@
 //! needs a restart of that instance's unit.
 //!
 //! Mirrors `compute_and_apply_diff()` in the RTLSDR-Airband fork
-//! (src/live_reconfig.cpp, v7.1.0), and closes its blind spot: reload_diff
+//! (src/live_reconfig.cpp, v7.2.0), and closes its blind spot: reload_diff
 //! only looks at device/mixer counts, device type/mode, each device's channel
 //! list (by signature) and `enabled` flags, device centerfreq / sample_rate /
 //! gain / bandwidth / correction / auto_ppm, and mixer name / remote_inputs /
 //! enabled.
 //! A change anywhere else (any global setting, a mixer's own outputs or
-//! filters, a device's serial/buffers/reserve_channels, ...) is neither applied
+//! filters, a device's serial/buffers/buffer_size/reserve_channels, ...) is neither applied
 //! nor reported by reload_diff, so it is classified here as restart-required.
 //!
 //! Works on the syntax tree rather than the domain model because

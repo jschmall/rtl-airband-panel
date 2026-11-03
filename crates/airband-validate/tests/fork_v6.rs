@@ -294,3 +294,35 @@ fn auto_ppm_params_without_auto_ppm_are_ignored() {
         ]
     );
 }
+
+// --- buffer_size (fork v7.2.0) ---
+
+#[test]
+fn rtlsdr_buffer_size_follows_the_fork_rule() {
+    for ok in [
+        "buffer_size = 512;",
+        "buffer_size = 128000;",
+        "buffer_size = 320000; buffers = 10;",
+        "buffer_size = 16777216;",
+    ] {
+        let got = device_issues(&format!("{RTL} {ok}"));
+        assert!(got.is_empty(), "{ok}: {got:?}");
+    }
+    for bad in ["buffer_size = 0;", "buffer_size = -512;", "buffer_size = 1000;", "buffer_size = 16777728;"] {
+        let got = device_issues(&format!("{RTL} {bad}"));
+        assert_eq!(codes(&got), [("device-buffer-size-invalid", "$.devices[0]", Severity::Error)], "{bad}");
+        assert!(got[0].message.ends_with("must be a positive multiple of 512, at most 16777216"), "{}", got[0].message);
+    }
+    // The fork reads it as an int.
+    let got = device_issues(&format!("{RTL} buffer_size = 1024.5;"));
+    assert_eq!(
+        codes(&got),
+        [
+            ("device-buffer-size-invalid", "$.devices[0]", Severity::Error),
+            ("not-whole-number", "$.devices[0].buffer_size", Severity::Error)
+        ]
+    );
+    // Only rtlsdr reads it.
+    let got = device_issues(r#"type = "soapysdr"; device_string = "driver=airspy"; buffer_size = 1000;"#);
+    assert!(got.is_empty(), "{got:?}");
+}

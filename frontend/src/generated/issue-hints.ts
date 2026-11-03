@@ -74,8 +74,12 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
     detail: "librtlsdr can't run RTL2832U dongles between 300,001 and 900,000 Hz and fails when the device opens. Above about 2.4-2.56 MHz many dongles start dropping samples.",
   },
   "device-buffers-invalid": {
-    summary: "Set Buffers to 1 or more, or leave it blank for the default of 10.",
-    detail: "This is how many sample buffers rtl_airband keeps for the dongle. Raise it if the logs show buffer overruns on a busy machine.",
+    summary: "Set Buffers to 1 or more, or leave it blank for the default.",
+    detail: "This is how many USB transfer buffers rtl_airband keeps for the dongle. Left blank, fork v7.2.0 and newer pick enough to keep about 3.2 MB in flight whatever the transfer size; older builds use 10.",
+  },
+  "device-buffer-size-invalid": {
+    summary: "Use a multiple of 512 bytes up to 16777216, or leave USB transfer size blank to let rtl_airband size it.",
+    detail: "librtlsdr needs USB transfers in 512-byte multiples, and rtl_airband won't start with any other value. Left blank, fork v7.2.0 and newer size each transfer to half an audio batch (62.5 ms) for the sample rate. 320000 with Buffers 10 restores the old fixed sizing.",
   },
   "device-num-buffers-invalid": {
     summary: "Set Num buffers to 1 or more, or leave it blank for the default of 10.",
