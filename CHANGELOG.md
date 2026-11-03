@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.37] - 2026-11-03
+
+### Changed
+
+- **Merged the `hardware-sort` branch into `master` (0.6.35).** The
+  Hardware page can be sorted by **Instance**, **SDR serial** or
+  **Severity** (worst first), and each SDR card has an issue badge
+  listing what's wrong. The default order is now every SDR by serial.
+  See 0.6.35 for details.
+
 ## [0.6.36] - 2026-11-03
 
 ### Changed
