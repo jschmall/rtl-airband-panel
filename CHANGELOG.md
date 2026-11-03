@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.42] - 2026-11-03
+
+### Changed
+
+- **Bundled rtl_airband: fork v7.2.0 → v7.2.1.** This release merges
+  upstream v7.0.1, which adds Ubuntu 26.04 to upstream's CI and
+  devcontainer.
+  - rtl_airband behaves the same: no new config keys and no new
+    Features.
+  - The fork's CMake now fails at configure time when `RTLSDR`,
+    `SOAPYSDR`, `PULSEAUDIO` or `PROFILING` is on but its library is
+    missing. Before, it quietly built without that library.
+  - The release build already sets every driver flag explicitly
+    (`PULSEAUDIO`/`SOAPYSDR` off), so the bundled binary is unchanged.
+  - Anyone building rtl_airband themselves now gets an error instead of
+    a binary that's silently missing a driver. `RDIO_SCANNER` is still
+    auto-detected.
+
 ## [0.6.41] - 2026-11-03
 
 ### Changed
