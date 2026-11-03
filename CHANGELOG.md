@@ -5,6 +5,32 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.38] - 2026-11-03
+
+### Changed
+
+- **install.sh shows the rtl_airband already on the machine before asking
+  whether to install the bundled one.**
+  - Each copy is listed with its version and whether it's the
+    jschmall/RTLSDR-Airband fork, decided the same way the panel does.
+  - A fork build is compared with the bundled version: the same, older or
+    newer.
+  - The copy an earlier install bundled into
+    `/usr/local/lib/rtl-airband-panel` is now listed too. Before, it wasn't
+    mentioned at all.
+  - A line under the list says what each answer does. If you already have
+    this fork version, it says installing again changes nothing. If it's
+    older, it says yes upgrades it. If the machine's own rtl_airband is
+    already the current fork, it says you don't need the bundled one. If
+    there's none at all, it says the panel has nothing to run until you
+    install one.
+- After the choice, install.sh says which rtl_airband it's keeping, or
+  that the bundled one is unchanged or being upgraded, and from which
+  version. The closing summary describes the rtl_airband new instances
+  will run the same way.
+- The panel-only warning about non-fork builds is skipped when that
+  rtl_airband is already the current fork.
+
 ## [0.6.37] - 2026-11-03
 
 ### Changed

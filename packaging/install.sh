@@ -212,6 +212,53 @@ fi
 # The bundled rtl_airband, or only the panel? An upgrade keeps what the
 # existing install chose.
 airband_version() { "$1" -v 2>&1 | sed -n 's/^RTLSDR-Airband version //p' | head -1; }
+# fork | stock | unknown, decided the way the panel does
+# (airband_supervisor::binary::classify): a Features line naming "fork", or a
+# fork release from before that line existed. A plain release version without
+# it is another build; anything else (a build between tags) can't be told.
+airband_kind() {
+  if "$1" -v 2>&1 | sed -n 's/^Features://p' | grep -qw fork; then echo fork; return; fi
+  case "$(airband_version "$1")" in
+    v6.3.0 | v6.3.1 | v6.4.0 | 6.3.0 | 6.3.1 | 6.4.0) echo fork ;;
+    "") echo unknown ;;
+    *-g[0-9a-f]* | *-dirty) echo unknown ;;
+    *) echo stock ;;
+  esac
+}
+# -1, 0 or 1: version A against B, as dotted numbers (a leading v and a
+# git-describe suffix like -3-gabc1234 are ignored).
+version_cmp() {
+  awk -v a="$1" -v b="$2" 'function core(s) { sub(/^v/, "", s); sub(/-.*/, "", s); return s }
+    BEGIN { na = split(core(a), x, "."); nb = split(core(b), y, "."); n = na > nb ? na : nb
+      for (i = 1; i <= n; i++) { if (x[i] + 0 < y[i] + 0) { print -1; exit } if (x[i] + 0 > y[i] + 0) { print 1; exit } }
+      print 0 }'
+}
+# One rtl_airband in words: its version, whether it's the fork, and how it
+# compares with the one this release bundles.
+describe_airband() {
+  v="$(airband_version "$1" || true)"
+  [ -n "$v" ] || { echo "version unknown (\`$1 -v\` didn't say)"; return; }
+  case "$(airband_kind "$1")" in
+    fork)
+      case "$(version_cmp "$v" "$bundled_version")" in
+        0) echo "$v, jschmall fork: the same version this release bundles" ;;
+        -1) echo "$v, jschmall fork: older than this release's $bundled_version" ;;
+        *) echo "$v, jschmall fork: newer than this release's $bundled_version" ;;
+      esac
+      ;;
+    stock) echo "$v, not the jschmall fork" ;;
+    *) echo "$v (can't tell whether it's the jschmall fork)" ;;
+  esac
+}
+# Whether this rtl_airband is the fork at this release's version or newer.
+current_fork() {
+  [ "$(airband_kind "$1")" = fork ] && [ "$(version_cmp "$(airband_version "$1")" "$bundled_version")" -ge 0 ]
+}
+bundled_version=""
+if [ -x "$here/bin/rtl_airband" ]; then bundled_version="$(airband_version "$here/bin/rtl_airband" || true)"; fi
+# What an earlier install bundled, which this one would upgrade.
+prev_bundled=""
+if [ -x "$LIB_DIR/rtl_airband" ]; then prev_bundled="$LIB_DIR/rtl_airband"; fi
 other_airband=""
 for candidate in "$PREFIX/bin/rtl_airband" $(command -v rtl_airband 2>/dev/null); do
   [ -x "$candidate" ] || continue
@@ -237,9 +284,28 @@ if [ -z "$bundle" ]; then
   [ -x "$LIB_DIR/rtl-airband-panel" ] && [ ! -e "$LIB_DIR/rtl_airband" ] && bundle=0
   if [ "$assume_yes" -eq 0 ] && [ -t 0 ]; then
     step "Install the bundled rtl_airband too?"
-    say "This release includes rtl_airband $(airband_version "$here/bin/rtl_airband"), built from the jschmall/RTLSDR-Airband fork the"
+    say "This release bundles rtl_airband $bundled_version, built from the jschmall/RTLSDR-Airband fork the"
     say "panel is developed against. Apply live, the Hardware page and other fork-only settings need it."
-    [ -z "$other_airband" ] || say "Already on this machine: $other_airband ($(airband_version "$other_airband" || true)). If you install the fork, you'll choose next whether it replaces that one."
+    say ""
+    say "rtl_airband on this machine now:"
+    [ -z "$prev_bundled" ] || say "  $prev_bundled (bundled by an earlier install): $(describe_airband "$prev_bundled")"
+    [ -z "$other_airband" ] || say "  $other_airband: $(describe_airband "$other_airband")"
+    [ -n "$prev_bundled$other_airband" ] || say "  none found"
+    say ""
+    if [ -n "$prev_bundled" ] && current_fork "$prev_bundled"; then
+      say "You already have this fork version, so installing it again changes nothing."
+      say "Either answer keeps it."
+    elif [ -n "$prev_bundled" ] && [ "$(airband_kind "$prev_bundled")" = fork ]; then
+      say "Yes upgrades the bundled one to $bundled_version. No leaves it at $(airband_version "$prev_bundled")."
+    elif [ -n "$other_airband" ] && current_fork "$other_airband"; then
+      say "$other_airband is already the fork, at this version or newer, so you don't need the"
+      say "bundled one. If you answer no, new instances run $other_airband."
+    elif [ -n "$other_airband" ]; then
+      say "If you install the fork, you'll choose next whether it replaces $other_airband"
+      say "or goes alongside it. If you answer no, new instances run $other_airband."
+    else
+      say "If you answer no, the panel has no rtl_airband to run until you install one yourself."
+    fi
     if [ "$bundle" -eq 1 ]; then printf 'Install it? [Y/n]: '; else printf 'Install it? [y/N]: '; fi
     read -r answer || answer=""
     case "$answer" in [Yy]*) bundle=1 ;; [Nn]*) bundle=0 ;; esac
@@ -271,11 +337,25 @@ fi
 
 panel_version="$("$here/bin/rtl-airband-panel" --version | awk '{print $2}')"
 if [ "$bundle" -eq 1 ]; then
-  say "Installing rtl-airband-panel $panel_version with rtl_airband $(airband_version "$here/bin/rtl_airband")"
+  say "Installing rtl-airband-panel $panel_version with rtl_airband $bundled_version"
+  if [ -n "$prev_bundled" ]; then
+    prev_version="$(airband_version "$prev_bundled" || true)"
+    if [ "$(airband_kind "$prev_bundled")" = fork ] && [ "$(version_cmp "$prev_version" "$bundled_version")" -eq 0 ]; then
+      say "(the bundled $prev_bundled is already $prev_version: unchanged)"
+    else
+      say "(upgrading the bundled $prev_bundled from ${prev_version:-an unknown version})"
+    fi
+  fi
   default_airband_bin="$LIB_DIR/rtl_airband"
 else
   say "Installing rtl-airband-panel $panel_version only (no bundled rtl_airband)"
   default_airband_bin="${other_airband:-$PREFIX/bin/rtl_airband}"
+  kept="${prev_bundled:-$other_airband}"
+  if [ -n "$kept" ]; then
+    say "Keeping $kept: $(describe_airband "$kept")"
+  else
+    say "No rtl_airband found on this machine; install one before starting any instance"
+  fi
 fi
 
 step "Service account '$user'"
@@ -465,13 +545,13 @@ say "Settings:         $ENV_FILE  (restart the panel after editing: systemctl re
 airband_bin="$(file_value RTL_PANEL_RTL_AIRBAND_BIN "$ENV_FILE")"
 airband_bin="${airband_bin:-$PREFIX/bin/rtl_airband}"
 if [ -x "$airband_bin" ]; then
-  say "New instances run $airband_bin ($(airband_version "$airband_bin" || true)). Existing instances"
-  say "keep running whatever their service already uses until you change that."
+  say "New instances run $airband_bin ($(describe_airband "$airband_bin"))."
+  say "Existing instances keep running whatever their service already uses until you change that."
 else
   say "New instances run $airband_bin, which isn't there yet: install rtl_airband (or set"
   say "RTL_PANEL_RTL_AIRBAND_BIN in $ENV_FILE) before starting any."
 fi
-if [ "$bundle" -eq 0 ]; then
+if [ "$bundle" -eq 0 ] && ! { [ -x "$airband_bin" ] && current_fork "$airband_bin"; }; then
   say ""
   say "Panel only: an rtl_airband that isn't the jschmall/RTLSDR-Airband fork may not support"
   say "every panel feature (Apply live, the Hardware page, fork-only settings). Run this"
