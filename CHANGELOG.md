@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.41] - 2026-11-03
+
+### Changed
+
+- **Merged the `fork-v7.2` branch into `master` (0.6.40).** The bundled
+  rtl_airband moves to fork v7.2.0, which sizes RTL-SDR USB transfers to
+  the sample rate. The editor gains a USB transfer size field
+  (`buffer_size`), with validation and a feature lock for older builds.
+  See 0.6.40 for details.
+
 ## [0.6.40] - 2026-11-03
 
 ### Changed
