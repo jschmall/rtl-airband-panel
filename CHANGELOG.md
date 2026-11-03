@@ -5,6 +5,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.43] - 2026-11-03
+
+### Changed
+
+- **Merged the `fork-v7.2.1` branch into `master` (0.6.42).** The bundled
+  rtl_airband moves to fork v7.2.1 (upstream v7.0.1 merged in). Nothing
+  changes at runtime; see 0.6.42.
+
 ## [0.6.42] - 2026-11-03
 
 ### Changed
