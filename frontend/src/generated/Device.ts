@@ -26,4 +26,11 @@ auto_ppm_max_step?: number,
 /**
  * rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
  */
-bandwidth?: number, mode?: DeviceMode, reserve_channels?: number, disable?: boolean, tau?: number, buffers?: number, num_buffers?: number, device_string?: string, channel?: number, antenna?: string, channels: Array<Channel>, unknown_settings?: Array<Setting>, };
+bandwidth?: number, mode?: DeviceMode, reserve_channels?: number, disable?: boolean, tau?: number, buffers?: number, 
+/**
+ * Fork v7.2.0+, rtlsdr only: USB transfer length in bytes (a positive
+ * multiple of 512, at most 16 MiB). Unset, the fork sizes each transfer
+ * to half an audio batch for the device's sample rate. Read at RX start
+ * only (reload_diff ignores it).
+ */
+buffer_size?: number, num_buffers?: number, device_string?: string, channel?: number, antenna?: string, channels: Array<Channel>, unknown_settings?: Array<Setting>, };

@@ -334,6 +334,7 @@ fn to_device(g: &[Setting], path: String) -> Result<Device> {
         disable: None,
         tau: None,
         buffers: None,
+        buffer_size: None,
         num_buffers: None,
         device_string: None,
         channel: None,
@@ -356,6 +357,7 @@ fn to_device(g: &[Setting], path: String) -> Result<Device> {
     device.disable = r.optional_bool("disable")?;
     device.tau = r.optional_number("tau")?;
     device.buffers = r.optional_number("buffers")?;
+    device.buffer_size = r.optional_number("buffer_size")?;
     device.num_buffers = r.optional_number("num_buffers")?;
     device.device_string = r.optional_string("device_string")?;
     device.channel = r.optional_number("channel")?;
@@ -791,6 +793,7 @@ fn device_from_domain(d: &Device) -> Value {
         .opt_bool("disable", d.disable)
         .opt_int("tau", d.tau)
         .opt_int("buffers", d.buffers)
+        .opt_int("buffer_size", d.buffer_size)
         .opt_int("num_buffers", d.num_buffers)
         .opt_string("device_string", &d.device_string)
         .opt_int("channel", d.channel)

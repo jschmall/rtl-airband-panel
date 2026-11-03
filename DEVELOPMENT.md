@@ -332,7 +332,9 @@ It also classifies as restart-required what `reload_diff` drops without
 reporting:
 
 - **Changes outside its scope:** every global setting, a mixer's outputs
-  and filters, device serial/buffers/`reserve_channels`, and so on.
+  and filters, device serial/buffers/`buffer_size`/`reserve_channels`,
+  and so on. (The fork reads `buffers` and `buffer_size` only when a
+  device's RX thread starts.)
 - **Setters a driver doesn't implement** (ENOTSUP): mirisdr (builds older
   than upstream v7.0.0 only) has no live gain, bandwidth or correction; soapysdr has no live correction and
   refuses live sample-rate changes.
@@ -553,7 +555,9 @@ What depends on it:
 
 Feature names are the fork's: `control_socket`, `device_status`,
 `reserve`, `mixer_remote`, `send_tx_tags`, `stats_http`, `json_log`,
-`post_write_script`, `auto_ppm` (v6.6.0), plus build components
+`post_write_script`, `auto_ppm` (v6.6.0), `usb_chunk_sizing` (v7.2.0:
+rtlsdr USB transfers sized to the sample rate, and the `buffer_size`
+device key), plus build components
 (`rdio_scanner`, `soapysdr`, `pulseaudio`, `nfm`; `mirisdr` until upstream
 v7.0.0 removed the driver). `fork` itself covers small fork-only
 settings such as UDP `bit_depth`.

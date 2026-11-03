@@ -248,6 +248,8 @@ fn fork_v7_fields_round_trip() {
         (Some(30.0), Some(100.0), Some(5.0))
     );
     assert_eq!((d1.devices[1].auto_ppm, d1.devices[1].auto_ppm_interval), (Some(false), None));
+    assert_eq!((d1.devices[1].buffers, d1.devices[1].buffer_size), (Some(10.0), Some(320_000.0)));
+    assert_eq!(dev.buffer_size, None);
     let Channel::Multichannel(c) = &dev.channels[0] else { panic!() };
     let Output::File(f) = &c.outputs[0] else { panic!() };
     assert_eq!(f.split_tx_drop_shorter_than, Some(1.0));
@@ -262,6 +264,7 @@ fn fork_v7_fields_round_trip() {
         "auto_ppm_interval = 30;",
         "auto_ppm_max_ppm = 100;",
         "auto_ppm_max_step = 5;",
+        "buffer_size = 320000;",
     ] {
         assert!(text.contains(line), "missing {line:?} in\n{text}");
     }

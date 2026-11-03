@@ -24,6 +24,7 @@ import { formatMsps, numberOrUndefined } from "../lib/number-utils.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import { DEVICE_TOOLTIPS } from "../lib/config-descriptions.js";
+import { useForkFeature } from "../state/AirbandBuildContext.js";
 import { isMultichannelChannel, isScanChannel, type ChannelTarget } from "../lib/channel-targets.js";
 import { channelFrequencyRangeHz, deviceUsableWindowHz } from "../lib/frequency-range.js";
 
@@ -185,6 +186,8 @@ export const DeviceEditor = memo(function DeviceEditor({
   const isSoapy = device.type === "soapysdr";
   const isMiri = device.type === "mirisdr";
   const isRtl = device.type === "rtlsdr";
+  // Fork v7.2.0+ sizes USB transfers to the sample rate and picks the buffer count to match.
+  const autoUsbSizing = useForkFeature("usb_chunk_sizing");
   const isScan = device.mode === "scan";
 
   // At-a-glance occupied range + usable-window summary shown above the channel list --
@@ -505,7 +508,7 @@ export const DeviceEditor = memo(function DeviceEditor({
         )}
 
         {isRtl && (
-          <Field label="Buffers (optional, default 10)" tooltip={DEVICE_TOOLTIPS.buffers}>
+          <Field label={`Buffers (optional, ${autoUsbSizing ? "auto" : "default 10"})`} tooltip={DEVICE_TOOLTIPS.buffers}>
             <input
               type="number"
               min="1"
@@ -513,6 +516,23 @@ export const DeviceEditor = memo(function DeviceEditor({
               className={inputClass}
               value={device.buffers ?? ""}
               onChange={(e) => emitChange({ ...device, buffers: numberOrUndefined(e.target.value) })}
+            />
+          </Field>
+        )}
+        {isRtl && (
+          <Field
+            label="USB transfer size (bytes, optional, auto)"
+            tooltip={DEVICE_TOOLTIPS.bufferSize}
+            requires="usb_chunk_sizing"
+            hasValue={device.buffer_size !== undefined}
+          >
+            <input
+              type="number"
+              min="512"
+              step="512"
+              className={inputClass}
+              value={device.buffer_size ?? ""}
+              onChange={(e) => emitChange({ ...device, buffer_size: numberOrUndefined(e.target.value) })}
             />
           </Field>
         )}

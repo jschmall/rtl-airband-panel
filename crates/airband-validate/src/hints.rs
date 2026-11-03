@@ -112,8 +112,13 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
     ),
     h(
         "device-buffers-invalid",
-        "Set Buffers to 1 or more, or leave it blank for the default of 10.",
-        "This is how many sample buffers rtl_airband keeps for the dongle. Raise it if the logs show buffer overruns on a busy machine.",
+        "Set Buffers to 1 or more, or leave it blank for the default.",
+        "This is how many USB transfer buffers rtl_airband keeps for the dongle. Left blank, fork v7.2.0 and newer pick enough to keep about 3.2 MB in flight whatever the transfer size; older builds use 10.",
+    ),
+    h(
+        "device-buffer-size-invalid",
+        "Use a multiple of 512 bytes up to 16777216, or leave USB transfer size blank to let rtl_airband size it.",
+        "librtlsdr needs USB transfers in 512-byte multiples, and rtl_airband won't start with any other value. Left blank, fork v7.2.0 and newer size each transfer to half an audio batch (62.5 ms) for the sample rate. 320000 with Buffers 10 restores the old fixed sizing.",
     ),
     h(
         "device-num-buffers-invalid",

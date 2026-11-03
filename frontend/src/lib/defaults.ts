@@ -91,6 +91,7 @@ const TYPE_SPECIFIC_FIELDS = [
   "serial",
   "index",
   "buffers",
+  "buffer_size",
   "num_buffers",
   "device_string",
   "channel",
@@ -103,7 +104,7 @@ const TYPE_SPECIFIC_FIELDS = [
 ] as const;
 
 const FIELDS_BY_TYPE: Record<string, readonly (typeof TYPE_SPECIFIC_FIELDS)[number][]> = {
-  rtlsdr: ["serial", "index", "buffers", "bandwidth", "auto_ppm", "auto_ppm_interval", "auto_ppm_max_ppm", "auto_ppm_max_step"],
+  rtlsdr: ["serial", "index", "buffers", "buffer_size", "bandwidth", "auto_ppm", "auto_ppm_interval", "auto_ppm_max_ppm", "auto_ppm_max_step"],
   mirisdr: ["serial", "index", "num_buffers"],
   soapysdr: ["device_string", "channel", "antenna"],
 };

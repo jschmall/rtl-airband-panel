@@ -245,8 +245,16 @@ export const ERROR_GUIDE: readonly GuideEntry[] = [
     category: "Streaming & outputs",
     title: "Outputs falling behind",
     summary: "Audio or transmission tags arrived faster than an output could take them, so some were dropped.",
-    causes: ["A slow disk or network output holding everything up.", "The host is overloaded."],
-    fixes: ["Look for file-write or streaming errors at the same time: they're usually the cause.", "Check host load and disk speed."],
+    causes: [
+      "On rtl_airband builds older than fork v7.2.0, RTL-SDR dongles below 2.56 Msps deliver audio in bursts that outrun the outputs. This was the main cause on 1.024 Msps instances, even with fast disks.",
+      "A slow disk or network output holding everything up.",
+      "The host is overloaded.",
+    ],
+    fixes: [
+      "Run the bundled rtl_airband (fork v7.2.0 or newer) and leave the device's USB transfer size blank.",
+      "Look for file-write or streaming errors at the same time: they're usually the cause.",
+      "Check host load and disk speed.",
+    ],
     match: { metrics: ["output_overrun_count"], patterns: [/queue overrun/i] },
   },
   {

@@ -14,7 +14,7 @@
 //! - RTLSDR-Airband v5.5/v6.3 fields: `stats_update_interval`, the
 //!   `split_*_file_time` settings, and `split_include_transmission_start`.
 //! - Fork v6.6.0+ `auto_ppm*` device settings; upstream #580 (fork v6.7.0+)
-//!   `split_tx_drop_shorter_than`.
+//!   `split_tx_drop_shorter_than`; fork v7.2.0+ rtlsdr `buffer_size`.
 
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -126,6 +126,11 @@ pub struct Device {
     pub disable: Option<bool>,
     pub tau: Option<f64>,
     pub buffers: Option<f64>,
+    /// Fork v7.2.0+, rtlsdr only: USB transfer length in bytes (a positive
+    /// multiple of 512, at most 16 MiB). Unset, the fork sizes each transfer
+    /// to half an audio batch for the device's sample rate. Read at RX start
+    /// only (reload_diff ignores it).
+    pub buffer_size: Option<f64>,
     pub num_buffers: Option<f64>,
     pub device_string: Option<String>,
     pub channel: Option<f64>,

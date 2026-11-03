@@ -147,3 +147,20 @@ fn auto_ppm_needs_fork_v6_6() {
     let with: Vec<String> = BUNDLED_V7_1.iter().map(|s| s.to_string()).collect();
     assert!(fork_issues(&validate_config_for(&config, Some(&with))).is_empty());
 }
+
+#[test]
+fn buffer_size_needs_fork_v7_2() {
+    let config =
+        devices_config(&format!(r#"{{ type = "rtlsdr"; serial = "1"; gain = 29; buffer_size = 320000; {CHANNELS} }}"#));
+    let v7_1: Vec<String> = BUNDLED_V7_1.iter().map(|s| s.to_string()).collect();
+    let result = validate_config_for(&config, Some(&v7_1));
+    assert_eq!(fork_issues(&result), [(Severity::Warning, "$.devices[0].buffer_size".to_string())]);
+    assert!(
+        result.warnings.iter().any(|i| i.message.starts_with("Needs jschmall RTLSDR-Airband fork v7.2.0 or newer.")
+            && i.message.contains("USB transfers stay at 320000 bytes"))
+    );
+
+    let mut v7_2 = v7_1.clone();
+    v7_2.push("usb_chunk_sizing".into());
+    assert!(fork_issues(&validate_config_for(&config, Some(&v7_2))).is_empty());
+}
