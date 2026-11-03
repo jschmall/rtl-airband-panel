@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.36] - 2026-11-03
+
+### Changed
+
+- **Merged the `errors-guide` branch into `master` (0.6.34).** The Errors
+  page gets a **How to fix** button on each event it recognizes, and a
+  collapsible **Common errors and how to fix them** key covering 20 kinds
+  of problem. See 0.6.34 for details.
+
 ## [0.6.34] - 2026-11-03
 
 ### Added
