@@ -5,6 +5,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.34] - 2026-11-03
+
+### Added
+
+- **The Errors page explains how to fix what it shows.**
+  - Events it recognizes get a **How to fix** button:
+    - hover or focus shows a one-line summary;
+    - click shows the likely causes and fixes under the event, with a
+      link into the guide.
+  - **Common errors and how to fix them** is a collapsible key at the top
+    of the page. It has 20 kinds of problem in six groups: service, SDR
+    hardware, frequency correction, streaming and outputs, recording files,
+    and sockets and ports.
+    - Kinds that appear in the loaded log show a count and are listed
+      first in their group.
+    - The key remembers whether it was left open.
+  - Matching uses each event's systemd state change, its counter (every
+    counter the panel records is covered), or its log line, with patterns
+    taken from the messages the bundled fork, librtlsdr and systemd actually
+    write. Lines it doesn't recognize get no guide rather than a generic
+    one.
+  - The *keyword match* and *repeats* notes, and the event's source, now
+    have tooltips that work with the keyboard and on touch screens. Before,
+    these were hover-only `title`s.
+
 ## [0.6.33] - 2026-11-02
 
 ### Changed
