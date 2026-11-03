@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.39] - 2026-11-03
+
+### Changed
+
+- **Merged the `installer-airband-version` branch into `master`
+  (0.6.38).** Before asking whether to install the bundled rtl_airband,
+  install.sh now lists every rtl_airband already on the machine. Each
+  shows its version, whether it's the jschmall fork, and how it compares
+  with the bundled version. A line says what each answer does. See
+  0.6.38 for details.
+
 ## [0.6.38] - 2026-11-03
 
 ### Changed
