@@ -145,12 +145,17 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     let addr = SocketAddr::new(settings.host, settings.port);
     let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| format!("binding {addr}: {e}"))?;
     tracing::info!("listening on http://{addr}");
+    let stats_db = app.state.stats.db.clone();
+    let flush_db = stats_db.clone();
     axum::serve(listener, app.router.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(async {
+        .with_graceful_shutdown(async move {
             let ctrl_c = tokio::signal::ctrl_c();
             let mut term =
                 tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler");
             tokio::select! { _ = ctrl_c => {}, _ = term.recv() => {} }
+            // Right away: open websockets can hold the rest of shutdown up
+            // until systemd kills the process, which would lose held stats.
+            flush_stats(flush_db).await;
         })
         .await
         .map_err(|e| e.to_string())?;
@@ -163,5 +168,12 @@ pub async fn serve(settings: Settings) -> Result<(), String> {
     unit_watcher.abort();
     journal_watcher.abort();
     hardware_watcher.abort();
+    flush_stats(stats_db).await;
     Ok(())
+}
+
+async fn flush_stats(db: Arc<StatsDb>) {
+    if let Ok(Err(e)) = tokio::task::spawn_blocking(move || db.flush()).await {
+        tracing::warn!(error = %e, "couldn't write out held stats");
+    }
 }

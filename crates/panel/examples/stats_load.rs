@@ -6,9 +6,7 @@
 //!
 //! Phases (time is simulated from a fixed start, nothing sleeps):
 //! - `day`: from an empty file, poll for --hours; reports each hour.
-//! - `seed`: fill --days of history. --bulk writes it with a raw connection
-//!   instead of through `StatsDb`, which is how the row-per-sample layout
-//!   avoids a terabyte of writes just to set up the measurement.
+//! - `seed`: fill --days of history.
 //! - `measure`: continue a seeded file for --hours, pruning hourly the way
 //!   the poller does, and report polling and pruning separately.
 //! - `read`: time a 24 h history query and a cold `latest`.
@@ -26,7 +24,6 @@ use std::time::Instant;
 
 use airband_supervisor::StatSample;
 use panel::stats_db::{HardwareSample, HistoryQuery, StatsDb};
-use panel::store::canonical_labels;
 
 const POLL_MS: i64 = 15_000;
 const HOUR_MS: i64 = 3_600_000;
@@ -320,94 +317,15 @@ fn run_hours(db: &StatsDb, load: &mut Load, from: i64, hours: i64, path: &Path) 
     report(&format!("TOTAL prune {hours}h"), prune_totals, 0.0, path);
 }
 
-/// Writes --days of history straight into the row-per-sample tables.
-fn bulk_seed_rows(path: &Path, load: &mut Load, days: i64) {
-    // Create the schema and every series through the real code first.
-    {
-        let db = StatsDb::open(path).expect("open");
-        load.tick(&db, START_MS);
-    }
-    let conn = rusqlite::Connection::open(path).expect("open raw");
-    conn.execute_batch(
-        "PRAGMA synchronous=OFF; PRAGMA cache_size=-1000000;
-         DROP INDEX idx_samples_series_ts; DROP INDEX idx_samples_ts; DROP INDEX idx_hardware_samples_ts;",
-    )
-    .expect("prepare bulk seed");
-    let mut ids = std::collections::HashMap::new();
-    {
-        let mut stmt = conn.prepare("SELECT id, instance, metric, labels FROM series").unwrap();
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?))
-            })
-            .unwrap();
-        for row in rows {
-            let (id, instance, metric, labels) = row.unwrap();
-            ids.insert((instance, metric, labels), id);
-        }
-    }
-    let end = START_MS + days * DAY_MS;
-    let mut t = START_MS + POLL_MS;
-    let mut stored = 0u64;
-    while t < end {
-        conn.execute_batch("BEGIN").unwrap();
-        {
-            let mut insert =
-                conn.prepare_cached("INSERT INTO samples (series_id, value, ts) VALUES (?, ?, ?)").unwrap();
-            let mut hardware = conn
-                .prepare_cached(
-                    "INSERT INTO hardware_samples (instance, device, ts, headroom_db, noise_floor_dbfs, freq_error_ppm, gain_db)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)",
-                )
-                .unwrap();
-            let hour_end = (t + HOUR_MS).min(end);
-            while t < hour_end {
-                for i in 0..INSTANCES {
-                    let (samples, late) = load.poll(i);
-                    for s in &samples {
-                        let key = (load.names[i].clone(), s.metric.clone(), canonical_labels(&s.labels));
-                        insert.execute(rusqlite::params![ids[&key], s.value, t + late]).unwrap();
-                        stored += 1;
-                    }
-                }
-                for r in load.hardware(t) {
-                    hardware
-                        .execute(rusqlite::params![
-                            r.instance,
-                            r.device,
-                            r.ts,
-                            r.headroom_db,
-                            r.noise_floor_dbfs,
-                            r.freq_error_ppm,
-                            r.gain_db
-                        ])
-                        .unwrap();
-                }
-                t += POLL_MS;
-            }
-        }
-        conn.execute_batch("COMMIT").unwrap();
-    }
-    conn.execute_batch(
-        "CREATE INDEX idx_samples_series_ts ON samples(series_id, ts);
-         CREATE INDEX idx_samples_ts ON samples(ts);
-         CREATE INDEX idx_hardware_samples_ts ON hardware_samples(ts);
-         PRAGMA wal_checkpoint(TRUNCATE);",
-    )
-    .expect("rebuild indexes");
-    println!("bulk seeded {stored} samples");
-}
-
 fn main() {
     let mut args = std::env::args().skip(1);
-    let (mut db_path, mut phase, mut hours, mut days, mut bulk) = (None, None, 24i64, 7i64, false);
+    let (mut db_path, mut phase, mut hours, mut days) = (None, None, 24i64, 7i64);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--db" => db_path = args.next().map(PathBuf::from),
             "--phase" => phase = args.next(),
             "--hours" => hours = args.next().and_then(|v| v.parse().ok()).expect("--hours N"),
             "--days" => days = args.next().and_then(|v| v.parse().ok()).expect("--days N"),
-            "--bulk" => bulk = true,
             other => panic!("unknown argument {other}"),
         }
     }
@@ -427,17 +345,13 @@ fn main() {
         }
         "seed" => {
             let clock = Instant::now();
-            if bulk {
-                bulk_seed_rows(&path, &mut load, days);
-            } else {
-                let db = StatsDb::open(&path).expect("open");
-                let mut t = START_MS;
-                while t < seeded_end {
-                    load.tick(&db, t);
-                    t += POLL_MS;
-                }
-                db.flush().expect("flush");
+            let db = StatsDb::open(&path).expect("open");
+            let mut t = START_MS;
+            while t < seeded_end {
+                load.tick(&db, t);
+                t += POLL_MS;
             }
+            db.flush().expect("flush");
             report("seeded", Io::default(), clock.elapsed().as_secs_f64(), &path);
         }
         "measure" => {

@@ -319,3 +319,15 @@ is safe to take live; SQLite's WAL mode, which this file uses, tolerates
 being copied while the panel is running, though you may catch a write
 mid-flight — prefer `sqlite3 stats.db ".backup backup.db"` over `cp` if that
 matters to you). There's no built-in backup/export for this file today.
+
+The panel keeps the newest few minutes of samples in memory and writes them
+every 5 minutes, or on a clean stop, so a crash can lose up to 5 minutes of
+chart history. At 12 instances and about 2,300 series, expect a database of
+about 350 MB at 7 days' retention, with about 230 MB/day written to disk. The
+file doesn't shrink if you lower the retention: freed space is reused for new
+samples. To reclaim it, stop the panel and run `sqlite3 stats.db VACUUM`.
+
+**Upgrading from before v0.6.51** replaces the database on first start: chart
+history starts over, while the error log, hardware readings and Overview
+counter zero points are kept. It takes seconds and doesn't rewrite the old data.
+Rolling back to an older version works, also with empty charts.
