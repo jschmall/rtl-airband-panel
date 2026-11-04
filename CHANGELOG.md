@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.48] - 2026-11-04
+
+### Changed
+
+- **Status polling no longer goes through `sudo`.** In sudo mode the panel ran
+  `sudo systemctl show` about twice every 5 s, and each call logs four journal
+  lines, about 5,000 lines an hour. `systemctl show` is read-only and works
+  without root, so it now runs directly. Start, stop, restart, enable, disable,
+  `daemon-reload`, unit-file writes and `journalctl` still use `sudo`.
+- The `systemctl show` line is gone from `deploy/rtl-airband-panel.sudoers`. An
+  installed rule that still has it is harmless, and re-running `install.sh`
+  replaces it.
+
 ## [0.6.47] - 2026-11-04
 
 ### Added

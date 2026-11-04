@@ -289,10 +289,12 @@ Then run `scripts/build-release.sh amd64` and check its unit tests pass.
   refuses in-process to touch any unit not named `<prefix>...service`, and
   the sudoers glob should match. A mismatch fails closed on one side or the
   other, never open.
-- **Status batching.** Every `sudo` invocation writes its own PAM
-  session-open/close and audit lines to syslog, so all units' status comes
-  from one `systemctl show unit1 unit2 ... --timestamp=utc` call, not one
-  per unit.
+- **Status runs without sudo.** Every `sudo` invocation writes its own PAM
+  session-open/close and audit lines to syslog, and status is polled every
+  few seconds. `systemctl show` is read-only and needs no root, so all units'
+  status comes from one plain `systemctl show unit1 unit2 ... --timestamp=utc`
+  call. Everything else stays on `sudo -n`, including `journalctl`, because
+  the panel's account isn't in `systemd-journal`.
 - Generated unit files (`unit_file.rs`) run `rtl_airband -F -e [-j] -c
   <conf>` with `Restart=no` (an exit means misconfiguration or device
   failure), and `User=`/`Group=` from the instance's options or

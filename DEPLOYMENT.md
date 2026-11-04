@@ -190,12 +190,8 @@ the installer finds.
    existing `.env`. `RTL_PANEL_FRONTEND_DIST` is no longer needed (the UI is
    built in), and `RTL_PANEL_LOG_LEVEL` takes the new filter syntax (plain
    levels like `info` still work).
-4. **In sudo mode, reinstall the sudoers rule.** The status query now asks
-   systemd for each unit's start time (`--property=ActiveEnterTimestamp
-   --timestamp=utc`), which the old rule doesn't allow, so every status
-   check would be refused.
-5. If the panel now listens beyond localhost, set `RTL_PANEL_PASSWORD`.
-6. `sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel`.
+4. If the panel now listens beyond localhost, set `RTL_PANEL_PASSWORD`.
+5. `sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel`.
 
 The panel adds a `.running/` directory next to your configs (what each
 instance was started with, for live-apply predictions).
@@ -286,16 +282,15 @@ backgrounded with `nohup`/`&` (not recommended for anything long-running)
 without redirecting its stdout yourself.
 
 `RTL_PANEL_LOG_FILE` only relocates the panel's *own* logging. In `sudo`
-systemd mode, every `sudo systemctl ...` the panel runs also produces its
-own PAM session-open/close and command-audit lines, written by `sudo`
-itself straight to syslog (typically `/var/log/auth.log` or equivalent) —
-independent of the panel's process and unaffected by this setting, since
-it's the OS's `sudo`/PAM stack doing the logging, not the panel. The
-panel batches every instance's status check into one `sudo systemctl show`
-call rather than one call per instance specifically to keep that volume
-from scaling with instance count;
-if you still want to relocate what's left, that's a syslog/rsyslog-side
-routing rule for `sudo`'s facility, not something the panel can configure.
+systemd mode, every `sudo` command the panel runs also produces its own PAM
+session-open/close and command-audit lines, written by `sudo` itself straight
+to syslog (typically `/var/log/auth.log` or equivalent) — independent of the
+panel's process and unaffected by this setting. The panel only uses `sudo`
+for actions you take (start, stop, restart, saving a unit file, viewing logs)
+and once per instance to follow its journal. Its regular status polling runs
+`systemctl show` without `sudo`, so it adds nothing to those logs. If you want
+to relocate what's left, that's a syslog/rsyslog-side routing rule for
+`sudo`'s facility, not something the panel can configure.
 
 By default, the panel logs mutating actions (create/update/delete/rename/
 restart/import) as one audit line each, plus warnings and errors — it does
