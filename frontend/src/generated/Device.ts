@@ -32,7 +32,8 @@ auto_ppm_min_voters?: number,
 /**
  * Fork v7.3.0+: smallest error worth correcting, in Hz at the voters'
  * frequency, int 0..=1000 (default 100). The deadband is the larger of
- * this and 0.75 ppm, so it only widens below about 133 MHz.
+ * this and 1 ppm (0.75 before fork v7.4.0), so it only widens below
+ * 100 MHz.
  */
 auto_ppm_deadband_hz?: number, 
 /**

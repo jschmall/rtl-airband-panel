@@ -393,6 +393,11 @@ pub async fn run_poller(
                 }
             }
         }
+        // Polls normally do this as they arrive; every instance can go quiet.
+        let db = stats.db.clone();
+        if let Ok(Err(e)) = tokio::task::spawn_blocking(move || db.flush_if_due(now_ms())).await {
+            tracing::warn!(error = %e, "writing held stats failed");
+        }
         if last_prune.is_none_or(|t| t.elapsed() >= opts.prune_interval) {
             last_prune = Some(Instant::now());
             let db = stats.db.clone();

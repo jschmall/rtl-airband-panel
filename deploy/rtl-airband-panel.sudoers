@@ -4,7 +4,8 @@
 # invocations the panel issues (SudoSystemctl in
 # crates/airband-supervisor/src/systemd.rs; argv is pinned by its
 # argv_matches_sudoers_rules test) -- never a blanket `ALL` grant. sudo
-# matches arguments literally, so these must match the code exactly.
+# matches arguments literally, so these must match the code exactly. Status
+# queries (`systemctl show`) run without sudo, so they need no rule here.
 #
 # This file additionally scopes by *which* units, using "rtl_" as an example
 # prefix -- adjust every "rtl_" glob below to match your own instance naming
@@ -27,7 +28,6 @@ Cmnd_Alias RTL_PANEL_SYSTEMCTL = \
     /usr/bin/systemctl stop rtl_*.service, \
     /usr/bin/systemctl enable rtl_*.service, \
     /usr/bin/systemctl disable rtl_*.service, \
-    /usr/bin/systemctl show rtl_*.service --property=ActiveState --property=SubState --property=ActiveEnterTimestamp --timestamp=utc, \
     /usr/bin/systemctl daemon-reload
 
 Cmnd_Alias RTL_PANEL_UNIT_FILES = \

@@ -36,19 +36,14 @@ def get(url: str):
         return json.load(res)
 
 
-def channel_levels(db: sqlite3.Connection, instance: str) -> dict:
+def channel_levels(panel: str, instance: str) -> dict:
     """Latest noise and signal dBFS per frequency label (e.g. "151.160")."""
     out: dict = {}
-    for metric, key in (("channel_dbfs_noise_level", "noise"), ("channel_dbfs_signal_level", "signal")):
-        rows = db.execute(
-            """SELECT s.labels, (SELECT value FROM samples WHERE series_id = s.id ORDER BY ts DESC LIMIT 1)
-               FROM series s WHERE s.instance = ? AND s.metric = ?""",
-            (instance, metric),
-        )
-        for labels, value in rows:
-            freq = json.loads(labels).get("freq")
-            if freq is not None and value is not None:
-                out.setdefault(freq, {})[key] = value
+    keys = {"channel_dbfs_noise_level": "noise", "channel_dbfs_signal_level": "signal"}
+    for sample in get(f"{panel}/api/instances/{instance}/stats/latest"):
+        key, freq = keys.get(sample["metric"]), sample["labels"].get("freq")
+        if key and freq is not None:
+            out.setdefault(freq, {})[key] = sample["value"]
     return out
 
 
@@ -97,10 +92,10 @@ def auto_ppm_status(dev: dict, tripped: bool):
 
 
 class Replay:
-    def __init__(self, db: sqlite3.Connection, instance: str, config: dict):
+    def __init__(self, db: sqlite3.Connection, panel: str, instance: str, config: dict):
         self.tripped = instance in TRIPPED
         self.devices = [d for d in config["devices"] if not d.get("disable")]
-        self.levels = channel_levels(db, instance)
+        self.levels = channel_levels(panel, instance)
         self.rows = {}
         for i in range(len(self.devices)):
             self.rows[i] = db.execute(
@@ -193,7 +188,7 @@ def main() -> int:
         path = config.get("control_socket_path")
         if not path:
             continue
-        replay = Replay(db, inst["name"], config)
+        replay = Replay(db, panel, inst["name"], config)
         url = f"{panel}/api/instances/{inst['name']}"
         threading.Thread(target=serve, args=(path, replay, lock, url), daemon=True).start()
         paths.append(path)

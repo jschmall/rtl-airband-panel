@@ -152,7 +152,8 @@ install).
 - **What it does:** runs the panel in mock mode on a temp copy, replays
   the database's recorded hardware readings through fake control sockets
   (`fake-control-sockets.py`, on each config's `control_socket_path`), and
-  shifts the history so it ends now (`prepare-db.py`).
+  shifts the history by whole 5-minute buckets so it ends within 5 minutes of
+  now (`prepare-db.py`). The source `stats.db` must come from v0.6.51 or newer.
 - **Browser:** it drives Chromium with `shoot.cjs`; set `CHROMIUM` and
   `PLAYWRIGHT_CORE` if they aren't found.
 - **Keep the data out of git:** never commit `DATA_DIR`.
@@ -289,10 +290,12 @@ Then run `scripts/build-release.sh amd64` and check its unit tests pass.
   refuses in-process to touch any unit not named `<prefix>...service`, and
   the sudoers glob should match. A mismatch fails closed on one side or the
   other, never open.
-- **Status batching.** Every `sudo` invocation writes its own PAM
-  session-open/close and audit lines to syslog, so all units' status comes
-  from one `systemctl show unit1 unit2 ... --timestamp=utc` call, not one
-  per unit.
+- **Status runs without sudo.** Every `sudo` invocation writes its own PAM
+  session-open/close and audit lines to syslog, and status is polled every
+  few seconds. `systemctl show` is read-only and needs no root, so all units'
+  status comes from one plain `systemctl show unit1 unit2 ... --timestamp=utc`
+  call. Everything else stays on `sudo -n`, including `journalctl`, because
+  the panel's account isn't in `systemd-journal`.
 - Generated unit files (`unit_file.rs`) run `rtl_airband -F -e [-j] -c
   <conf>` with `Restart=no` (an exit means misconfiguration or device
   failure), and `User=`/`Group=` from the instance's options or
@@ -370,18 +373,41 @@ the latest snapshot. The panel polls each instance on
 - **Limits.** 5 MB size cap and 5 s timeout per read: `stats_filepath` comes
   from the config unchecked.
 
-Samples go into SQLite (`stats_db.rs`), in the same schema the TypeScript
-backend used:
-- **Tables.** `series(id, instance, metric, labels)` interns each series
-  once (labels as sorted-key JSON); `samples(series_id, value, ts)` holds
-  the values.
+Samples go into SQLite (`stats_db.rs`). The layout exists to keep disk writes
+low, because this runs next to rtl_airband, which loses audio when the disk is
+busy:
+- **Tables.** `series(id, instance, metric, labels, last_seen)` interns each
+  series once (labels as sorted-key JSON). `sample_chunks(bucket, series_id,
+  data)` holds one packed row per series per 5-minute bucket, keyed
+  `WITHOUT ROWID` with the bucket first and no other indexes, so writes append
+  at one end and pruning deletes from the other. `instance_last_poll` lets a
+  cold read find an instance's newest poll.
+- **Writes are held in memory** and written in one transaction when a poll
+  enters a new bucket, on prune, and on shutdown; hardware readings go the same
+  way. Readers merge what's held with what's stored, so nothing looks delayed.
+  A crash loses up to one bucket of chart history.
+- **Timestamps are stamped to the second.** All of a poll's series share one
+  `ts`, and the Stats page's squelch line joins three metrics on it exactly.
+- **The chunk format** (`stats_chunk.rs`) is self-delimiting frames, so a flush
+  partway through a bucket appends with `CAST(data || excluded.data AS BLOB)`
+  (`||` alone returns TEXT). Values come back bit-exact: every poll stays
+  visible, and an unchanged value costs a byte.
+- **Layout changes replace the file.** `PRAGMA user_version` holds the schema
+  version. An older file with a `samples` table is replaced by a new one
+  holding just `events`, `summary_baselines` and `hardware_samples`; converting
+  or vacuuming in place would be gigabytes of I/O.
+- **Measuring.** `cargo run --release -p rtl-airband-panel --example
+  stats_load -- --db FILE --phase day` replays prod's load through `StatsDb`
+  and reports bytes written and read. Run it before and after storage changes.
 - **Relabeled channels keep their history.** When a channel's label is
   added or edited, its exact label set changes. If exactly one series at
   the same frequency stopped reporting, the new label set takes over that
   series instead of starting a new one.
-- **Pruning** deletes samples (and error-log events) older than the
-  retention window and orphaned series, on its own interval, followed by
-  an incremental vacuum.
+- **Pruning** deletes buckets (and error-log events) older than the retention
+  window, and series not heard from since then, on its own interval. It never
+  vacuums: freed pages are reused, so the file settles at a steady size.
+  `last_seen` is written at prune rather than every flush, since it rewrites
+  the whole small table.
 - **Overview counter zero points.** On every panel restart or live apply
   (`RestartObserver` on `InstanceService`), `StatsService::mark_baseline`
   saves the instance's latest poll in `summary_baselines`. The Overview

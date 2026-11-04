@@ -3,7 +3,8 @@
 //!
 //! The sudo implementation issues exactly the argv that
 //! deploy/rtl-airband-panel.sudoers allows (sudo matches arguments
-//! literally); keep the two in sync.
+//! literally); keep the two in sync. Status queries are read-only and run
+//! without sudo, so they neither need a rule nor log to the journal.
 
 use std::collections::HashMap;
 use std::process::Stdio;
@@ -90,8 +91,8 @@ pub trait UnitManager: Send + Sync {
     async fn enable(&self, unit: &str) -> Result<(), UnitError>;
     async fn disable(&self, unit: &str) -> Result<(), UnitError>;
     async fn status(&self, unit: &str) -> Result<UnitStatus, UnitError>;
-    /// One underlying call for many units (each sudo invocation logs its
-    /// own PAM session, so polling N units one by one floods syslog).
+    /// One underlying call for many units, so polling doesn't spawn a
+    /// process per unit.
     async fn status_many(&self, units: &[String]) -> Result<HashMap<String, UnitStatus>, UnitError>;
     async fn daemon_reload(&self) -> Result<(), UnitError>;
     async fn install_unit_file(&self, unit: &str, contents: &str) -> Result<(), UnitError>;
@@ -172,8 +173,9 @@ const SUDO_NONINTERACTIVE: &str = "-n";
 const SHOW_PROPS: [&str; 4] =
     ["--property=ActiveState", "--property=SubState", "--property=ActiveEnterTimestamp", "--timestamp=utc"];
 
-/// Real implementation: `sudo -n systemctl ...`, scoped to unit names that
-/// start with a configurable prefix (enforced here and in sudoers).
+/// Real implementation: `sudo -n systemctl ...` for anything that needs root
+/// and plain `systemctl show` for status, scoped to unit names that start
+/// with a configurable prefix (enforced here and in sudoers).
 pub struct SudoSystemctl {
     unit_dir: String,
     prefix: String,
@@ -214,7 +216,9 @@ impl SudoSystemctl {
         Self::sudo(vec!["systemctl".into(), verb.into(), unit.into()], None).await.map(|_| ())
     }
 
-    /// Exposed for tests: the exact argv a call issues (after `sudo -n`).
+    /// Exposed for tests: the exact argv a call issues. Status runs this as
+    /// is, without sudo: every sudo call logs four journal lines, and the
+    /// panel polls status every few seconds.
     pub fn show_argv(units: &[String]) -> Vec<String> {
         let mut argv = vec!["systemctl".to_string(), "show".to_string()];
         argv.extend(units.iter().cloned());
@@ -222,6 +226,7 @@ impl SudoSystemctl {
         argv
     }
 
+    /// Exposed for tests: the exact argv a call issues (after `sudo -n`).
     pub fn logs_argv(unit: &str, lines: u32) -> Vec<String> {
         ["journalctl", "-u", unit, "-n", &lines.to_string(), "--no-pager", "-o", "short-iso"]
             .iter()
@@ -269,7 +274,8 @@ impl UnitManager for SudoSystemctl {
             return Ok(HashMap::new());
         }
         // `systemctl show` exits 0 for unknown units (ActiveState=inactive).
-        let output = Self::sudo(Self::show_argv(units), None).await?;
+        let argv = Self::show_argv(units);
+        let output = run_command(&argv[0], &argv[1..], None).await?;
         Ok(parse_show_output(units, &output))
     }
 
@@ -532,13 +538,10 @@ mod tests {
         assert!(SudoSystemctl::new("/x", "rtl.*").is_err());
     }
 
+    /// Pins the code to deploy/rtl-airband-panel.sudoers (sudo matches
+    /// arguments literally).
     #[test]
     fn argv_matches_sudoers_rules() {
-        let units = vec!["rtl_1.service".to_string()];
-        assert_eq!(
-            SudoSystemctl::show_argv(&units).join(" "),
-            "systemctl show rtl_1.service --property=ActiveState --property=SubState --property=ActiveEnterTimestamp --timestamp=utc"
-        );
         assert_eq!(
             SudoSystemctl::logs_argv("rtl_1.service", 200).join(" "),
             "journalctl -u rtl_1.service -n 200 --no-pager -o short-iso"
@@ -547,6 +550,68 @@ mod tests {
             SudoSystemctl::follow_argv("rtl_1.service", 50).join(" "),
             "journalctl -u rtl_1.service -n 50 -f -o short-iso --no-pager"
         );
+        let rules = include_str!("../../../deploy/rtl-airband-panel.sudoers");
+        assert!(rules.contains("/usr/bin/journalctl -u rtl_*.service -n * --no-pager -o short-iso"));
+        assert!(rules.contains("/usr/bin/journalctl -u rtl_*.service -n * -f -o short-iso --no-pager"));
+    }
+
+    /// Status is polled every few seconds, and each sudo call logs to the
+    /// journal, so it must not go through sudo. It runs the argv as is.
+    #[test]
+    fn status_runs_systemctl_directly() {
+        let units = vec!["rtl_1.service".to_string()];
+        assert_eq!(
+            SudoSystemctl::show_argv(&units).join(" "),
+            "systemctl show rtl_1.service --property=ActiveState --property=SubState --property=ActiveEnterTimestamp --timestamp=utc"
+        );
+        let rules = include_str!("../../../deploy/rtl-airband-panel.sudoers");
+        assert!(!rules.contains("/usr/bin/systemctl show"), "status needs no sudo rule");
+    }
+
+    /// Exercises the real call against a stub `systemctl` and a `sudo` that
+    /// fails: status has to come back without sudo being involved.
+    #[tokio::test]
+    async fn status_many_never_calls_sudo() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let write = |name: &str, body: &str| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, body).unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        };
+        write("systemctl", "#!/bin/sh\nprintf 'ActiveState=active\\nSubState=running\\nActiveEnterTimestamp=\\n'\n");
+        write("sudo", "#!/bin/sh\nexit 1\n");
+        let _path = PathGuard::prepend(dir.path());
+
+        let units = SudoSystemctl::new("/nonexistent", "rtl_").unwrap();
+        let status = units.status("rtl_1.service").await.unwrap();
+        assert_eq!(status.active_state, ActiveState::Active);
+        assert_eq!(status.sub_state, "running");
+        assert!(units.restart("rtl_1.service").await.is_err(), "restart still goes through sudo");
+    }
+
+    /// The only test in this crate that changes PATH; restored on drop.
+    struct PathGuard(Option<std::ffi::OsString>);
+
+    impl PathGuard {
+        fn prepend(dir: &std::path::Path) -> PathGuard {
+            let old = std::env::var_os("PATH");
+            let mut paths = vec![dir.to_path_buf()];
+            paths.extend(old.iter().flat_map(std::env::split_paths));
+            // SAFETY: std serializes its own environment access, and nothing in these unit tests uses C getenv.
+            unsafe { std::env::set_var("PATH", std::env::join_paths(paths).unwrap()) };
+            PathGuard(old)
+        }
+    }
+
+    impl Drop for PathGuard {
+        fn drop(&mut self) {
+            // SAFETY: as in `prepend`.
+            match self.0.take() {
+                Some(old) => unsafe { std::env::set_var("PATH", old) },
+                None => unsafe { std::env::remove_var("PATH") },
+            }
+        }
     }
 
     #[test]

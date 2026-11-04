@@ -5,6 +5,114 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.52] - 2026-11-04
+
+### Changed
+
+- **Merged the `stats-disk-io` branch into `master` (0.6.47 to 0.6.51).** The
+  stats database writes about 1,000× less to disk, status polling no longer goes
+  through `sudo`, and the bundled rtl_airband moves to fork v7.4.0. The first
+  start replaces `stats.db`, so chart history starts over. See those entries for
+  details.
+
+## [0.6.51] - 2026-11-04
+
+### Changed
+
+- **The stats database writes about 1,000× less.** On a 12-instance install, the
+  panel was nearly all of the VM's steady disk writes, and that churn likely
+  made nightly backups longer, which is when every instance lost audio. Samples
+  are now held in memory and written once per 5-minute bucket as packed,
+  append-only rows, and pruning deletes whole buckets from the oldest end. The
+  charts and API return the same points as before. Measured with `stats_load`
+  (2,338 series over 12 instances, every 15 s, on an assumed mix of how often
+  values change):
+
+  | | Before | After |
+  |---|---|---|
+  | Written per simulated day, from empty | 134.6 GB | 128 MB |
+  | Written per hour at 7 days of history, polling | 5,851 MB | 2.9 MB |
+  | Written per hour at 7 days of history, prune | 2,404 MB | 6.6 MB |
+  | Read by a prune on a cold cache | 1,785 MB | 2 MB |
+  | Database at 7 days | 5.6 GB | 352 MB |
+  | 24 h chart query, first metric after a cold cache, then the next two | 3,458 ms, then 54–58 ms | 746 ms, then 12–14 ms |
+  | Latest values on a cold start | 247 ms | 5.7 ms |
+
+  The "before" database was bulk-loaded, so it's less fragmented than a real one.
+- **A crash can now lose up to 5 minutes of chart history.** A clean stop or
+  restart loses nothing.
+- Chart timestamps are stamped to the whole second, and a sample can outlive the
+  retention window by up to 5 minutes.
+- `synchronous=NORMAL` on the stats database, so commits no longer fsync. It no
+  longer vacuums: freed pages are reused, so the file doesn't shrink if you lower
+  the retention until you run `VACUUM` with the panel stopped.
+
+### Upgrade notes
+
+- **The first start replaces `stats.db`, and chart history starts over.** The
+  error log, hardware readings and Overview counter zero points are kept. It
+  builds a new file and renames it into place, because converting or vacuuming
+  the old file would itself be gigabytes of I/O on a busy disk. Rolling back
+  also works, with empty charts, and rolling forward again keeps the new data.
+
+### Fixed
+
+- The docs-screenshot scripts work with the new layout. `prepare-db.py` needs a
+  source `stats.db` from this version or newer.
+
+## [0.6.50] - 2026-11-04
+
+### Added
+
+- **`stats_chunk`, a packed format for stats samples.** It stores one series'
+  samples for a 5-minute bucket, at about 2 bytes a sample for a value that
+  doesn't change. Values come back with exactly the bits they went in with, and
+  two chunks concatenate into one, so a mid-bucket flush can append without
+  decoding. Nothing uses it yet; the next version does.
+
+## [0.6.49] - 2026-11-04
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.3.0 to v7.4.0.** It fixes more
+  auto_ppm hunting seen on prod: divergence only counts steps in the same
+  direction, a lone channel asking for more than 5 ppm is held once the device
+  has converged, and the deadband floor rises from 0.75 to 1 ppm, because the
+  driver takes whole ppm. There are no new config keys, CMake options or
+  dependencies. The Hardware page already shows the new hold through auto_ppm's
+  reason text. The status reply's new `converged` field isn't used yet.
+- The `auto_ppm_deadband_hz` help text gives the new floor, and says the Hz
+  value now only matters below 100 MHz.
+
+## [0.6.48] - 2026-11-04
+
+### Changed
+
+- **Status polling no longer goes through `sudo`.** In sudo mode the panel ran
+  `sudo systemctl show` about twice every 5 s, and each call logs four journal
+  lines, about 5,000 lines an hour. `systemctl show` is read-only and works
+  without root, so it now runs directly. Start, stop, restart, enable, disable,
+  `daemon-reload`, unit-file writes and `journalctl` still use `sudo`.
+- The `systemctl show` line is gone from `deploy/rtl-airband-panel.sudoers`. An
+  installed rule that still has it is harmless, and re-running `install.sh`
+  replaces it.
+
+## [0.6.47] - 2026-11-04
+
+### Added
+
+- **`stats_load`, a load generator for the stats database**
+  (`crates/panel/examples/stats_load.rs`). It replays 2,338 series over 12
+  instances every simulated 15 s through the real `StatsDb` and reports bytes
+  written and read from `/proc/self/io`, plus the database and WAL sizes. It
+  measures the storage rework that follows.
+
+### Changed
+
+- `StatsDb::prune_before` takes an explicit cutoff, so the generator can
+  simulate time, and `StatsDb::flush` exists ahead of write buffering (it does
+  nothing yet). Behavior is unchanged.
+
 ## [0.6.46] - 2026-11-04
 
 ### Changed

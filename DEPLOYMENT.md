@@ -190,12 +190,8 @@ the installer finds.
    existing `.env`. `RTL_PANEL_FRONTEND_DIST` is no longer needed (the UI is
    built in), and `RTL_PANEL_LOG_LEVEL` takes the new filter syntax (plain
    levels like `info` still work).
-4. **In sudo mode, reinstall the sudoers rule.** The status query now asks
-   systemd for each unit's start time (`--property=ActiveEnterTimestamp
-   --timestamp=utc`), which the old rule doesn't allow, so every status
-   check would be refused.
-5. If the panel now listens beyond localhost, set `RTL_PANEL_PASSWORD`.
-6. `sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel`.
+4. If the panel now listens beyond localhost, set `RTL_PANEL_PASSWORD`.
+5. `sudo systemctl daemon-reload && sudo systemctl enable --now rtl-airband-panel`.
 
 The panel adds a `.running/` directory next to your configs (what each
 instance was started with, for live-apply predictions).
@@ -286,16 +282,15 @@ backgrounded with `nohup`/`&` (not recommended for anything long-running)
 without redirecting its stdout yourself.
 
 `RTL_PANEL_LOG_FILE` only relocates the panel's *own* logging. In `sudo`
-systemd mode, every `sudo systemctl ...` the panel runs also produces its
-own PAM session-open/close and command-audit lines, written by `sudo`
-itself straight to syslog (typically `/var/log/auth.log` or equivalent) —
-independent of the panel's process and unaffected by this setting, since
-it's the OS's `sudo`/PAM stack doing the logging, not the panel. The
-panel batches every instance's status check into one `sudo systemctl show`
-call rather than one call per instance specifically to keep that volume
-from scaling with instance count;
-if you still want to relocate what's left, that's a syslog/rsyslog-side
-routing rule for `sudo`'s facility, not something the panel can configure.
+systemd mode, every `sudo` command the panel runs also produces its own PAM
+session-open/close and command-audit lines, written by `sudo` itself straight
+to syslog (typically `/var/log/auth.log` or equivalent) — independent of the
+panel's process and unaffected by this setting. The panel only uses `sudo`
+for actions you take (start, stop, restart, saving a unit file, viewing logs)
+and once per instance to follow its journal. Its regular status polling runs
+`systemctl show` without `sudo`, so it adds nothing to those logs. If you want
+to relocate what's left, that's a syslog/rsyslog-side routing rule for
+`sudo`'s facility, not something the panel can configure.
 
 By default, the panel logs mutating actions (create/update/delete/rename/
 restart/import) as one audit line each, plus warnings and errors — it does
@@ -324,3 +319,15 @@ is safe to take live; SQLite's WAL mode, which this file uses, tolerates
 being copied while the panel is running, though you may catch a write
 mid-flight — prefer `sqlite3 stats.db ".backup backup.db"` over `cp` if that
 matters to you). There's no built-in backup/export for this file today.
+
+The panel keeps the newest few minutes of samples in memory and writes them
+every 5 minutes, or on a clean stop, so a crash can lose up to 5 minutes of
+chart history. At 12 instances and about 2,300 series, expect a database of
+about 350 MB at 7 days' retention, with about 230 MB/day written to disk. The
+file doesn't shrink if you lower the retention: freed space is reused for new
+samples. To reclaim it, stop the panel and run `sqlite3 stats.db VACUUM`.
+
+**Upgrading from before v0.6.51** replaces the database on first start: chart
+history starts over, while the error log, hardware readings and Overview
+counter zero points are kept. It takes seconds and doesn't rewrite the old data.
+Rolling back to an older version works, also with empty charts.
