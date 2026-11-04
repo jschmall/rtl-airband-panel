@@ -101,10 +101,12 @@ const TYPE_SPECIFIC_FIELDS = [
   "auto_ppm_interval",
   "auto_ppm_max_ppm",
   "auto_ppm_max_step",
+  "auto_ppm_min_voters",
+  "auto_ppm_deadband_hz",
 ] as const;
 
 const FIELDS_BY_TYPE: Record<string, readonly (typeof TYPE_SPECIFIC_FIELDS)[number][]> = {
-  rtlsdr: ["serial", "index", "buffers", "buffer_size", "bandwidth", "auto_ppm", "auto_ppm_interval", "auto_ppm_max_ppm", "auto_ppm_max_step"],
+  rtlsdr: ["serial", "index", "buffers", "buffer_size", "bandwidth", "auto_ppm", "auto_ppm_interval", "auto_ppm_max_ppm", "auto_ppm_max_step", "auto_ppm_min_voters", "auto_ppm_deadband_hz"],
   mirisdr: ["serial", "index", "num_buffers"],
   soapysdr: ["device_string", "channel", "antenna"],
 };

@@ -149,6 +149,30 @@ fn auto_ppm_needs_fork_v6_6() {
 }
 
 #[test]
+fn auto_ppm_voting_keys_need_fork_v7_3() {
+    let config = devices_config(&format!(
+        r#"{{ type = "rtlsdr"; serial = "1"; gain = 29; auto_ppm = true; auto_ppm_min_voters = 1; auto_ppm_deadband_hz = 50; {CHANNELS} }}"#
+    ));
+    let v7_2: Vec<String> =
+        BUNDLED_V7_1.iter().map(|s| s.to_string()).chain(std::iter::once("usb_chunk_sizing".to_string())).collect();
+    let result = validate_config_for(&config, Some(&v7_2));
+    assert_eq!(
+        fork_issues(&result),
+        [
+            (Severity::Warning, "$.devices[0].auto_ppm_min_voters".to_string()),
+            (Severity::Warning, "$.devices[0].auto_ppm_deadband_hz".to_string()),
+        ]
+    );
+    assert!(
+        result.warnings.iter().any(|i| i.message.starts_with("Needs jschmall RTLSDR-Airband fork v7.3.0 or newer.")
+            && i.message.contains("the deadband stays at 0.75 ppm"))
+    );
+
+    let v7_3: Vec<String> = v7_2.into_iter().chain(std::iter::once("auto_ppm_voting".to_string())).collect();
+    assert_eq!(fork_issues(&validate_config_for(&config, Some(&v7_3))), []);
+}
+
+#[test]
 fn buffer_size_needs_fork_v7_2() {
     let config =
         devices_config(&format!(r#"{{ type = "rtlsdr"; serial = "1"; gain = 29; buffer_size = 320000; {CHANNELS} }}"#));

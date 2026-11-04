@@ -99,6 +99,22 @@ pub fn check(config: &RtlAirbandConfig, features: &[String], issues: &mut Issues
                 "correction stays where it's set",
             );
         }
+        if device.auto_ppm_min_voters.is_some() {
+            g.ignored_needs(
+                "auto_ppm_voting",
+                "Needs jschmall RTLSDR-Airband fork v7.3.0 or newer.",
+                format!("$.devices[{di}].auto_ppm_min_voters"),
+                "a single channel can still move the correction",
+            );
+        }
+        if device.auto_ppm_deadband_hz.is_some() {
+            g.ignored_needs(
+                "auto_ppm_voting",
+                "Needs jschmall RTLSDR-Airband fork v7.3.0 or newer.",
+                format!("$.devices[{di}].auto_ppm_deadband_hz"),
+                "the deadband stays at 0.75 ppm",
+            );
+        }
         if device.buffer_size.is_some() {
             g.ignored_needs(
                 "usb_chunk_sizing",

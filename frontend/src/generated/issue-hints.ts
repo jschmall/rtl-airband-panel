@@ -91,15 +91,23 @@ export const ISSUE_HINTS: Readonly<Record<string, IssueHint>> = {
   },
   "auto-ppm-settings-ignored": {
     summary: "Turn on Automatic PPM correction (or add auto_ppm = false to set it up), or remove the auto_ppm_* settings.",
-    detail: "rtl_airband only reads auto_ppm_interval, auto_ppm_max_ppm and auto_ppm_max_step when the device has an auto_ppm setting, so without one they do nothing.",
+    detail: "rtl_airband only reads the auto_ppm_* settings when the device has an auto_ppm setting, so without one they do nothing.",
   },
   "auto-ppm-driver-unsupported": {
     summary: "Remove auto_ppm from this device; only rtlsdr devices support it.",
     detail: "Automatic PPM correction needs a driver that can read back and change the correction while running, which only rtlsdr has. rtl_airband won't start with auto_ppm on any other device type, even when it's set to false.",
   },
   "auto-ppm-param-out-of-range": {
-    summary: "Use a whole number in range: interval 5-86400 seconds, max ppm 1-100, max step 1-100. Leave blank for the defaults (30, 100, 5).",
-    detail: "The interval is how often auto_ppm re-measures, max ppm caps the correction it may ever set, and max step caps one adjustment. rtl_airband refuses to start with a value outside these limits.",
+    summary: "Use a whole number in range: interval 5-86400 seconds, max ppm 1-100, max step 1-100, min voters 1-32, deadband 0-1000 Hz. Leave blank for the defaults (30, 100, 5, 1, 100).",
+    detail: "The interval is how often auto_ppm re-measures, max ppm caps the correction it may ever set, and max step caps one adjustment, min voters is how many channels must agree before any adjustment, and deadband is the smallest error worth correcting. rtl_airband refuses to start with a value outside these limits.",
+  },
+  "auto-ppm-min-voters-scan": {
+    summary: "Set Auto PPM min voters to 1 or leave it blank on this scan device.",
+    detail: "A scan device only measures the frequency it's tuned to at the moment, so there's never more than one voter. rtl_airband refuses to start with a higher value in scan mode.",
+  },
+  "auto-ppm-min-voters-over-capacity": {
+    summary: "Lower Auto PPM min voters, or add channels or Reserve channels to this device.",
+    detail: "auto_ppm could never gather that many voters, because the device doesn't have that many channels, counting reserved slots. rtl_airband refuses to start with it.",
   },
   "auto-ppm-correction-outside-limit": {
     summary: "Bring Correction within ±auto_ppm_max_ppm, or raise auto_ppm_max_ppm (up to 100).",

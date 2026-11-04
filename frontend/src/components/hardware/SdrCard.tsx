@@ -152,6 +152,8 @@ function AutoPpmRow({ instance, sdr }: { instance: string; sdr: SdrHealth }) {
           <span className="tabular-nums text-slate-400">
             {a.contributing}/{a.eligible} channel{a.eligible === 1 ? "" : "s"} voting · {a.adjustments} adjustment{a.adjustments === 1 ? "" : "s"}
             {age ? ` (last ${age})` : ""} · every {a.intervalS} s, max ±{a.maxPpm} ppm
+            {a.deadbandPpm !== null ? ` · deadband ±${a.deadbandPpm.toFixed(2)} ppm` : ""}
+            {a.minVoters !== null && a.minVoters > 1 ? ` · needs ${a.minVoters} voters` : ""}
           </span>
         )}
         {unsaved !== null && (

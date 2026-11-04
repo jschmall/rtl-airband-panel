@@ -326,6 +326,8 @@ const AUTO_PPM = {
   maxPpm: 100,
   maxStep: 5,
   intervalS: 30,
+  minVoters: 1,
+  deadbandPpm: 0.75,
 };
 
 describe("auto_ppm on the Hardware page", () => {
@@ -333,6 +335,12 @@ describe("auto_ppm on the Hardware page", () => {
     const a = sdr({ autoPpm: AUTO_PPM, suggestedCorrection: null });
     expect(correctionAdvice(a)).toEqual({ tone: "ok", text: "auto_ppm active (residual +0.31 ppm)" });
     expect(correctionAdvice(sdr({ autoPpm: { ...AUTO_PPM, residualPpm: null } }))?.tone).toBe("pending");
+    // A hold with no residual says why, instead of claiming to be measuring.
+    expect(correctionAdvice(sdr({ autoPpm: { ...AUTO_PPM, residualPpm: null, deadbandPpm: null, reason: "1 voter, need 2" } }))).toEqual({
+      tone: "pending",
+      text: "auto_ppm active, 1 voter, need 2",
+    });
+    expect(correctionAdvice(sdr({ autoPpm: { ...AUTO_PPM, residualPpm: null, reason: null } }))?.text).toBe("auto_ppm active, measuring…");
     // Tripped: the usual advice is back.
     const tripped = sdr({ autoPpm: { ...AUTO_PPM, active: false, disabledReason: "error grew" }, correction: 2, suggestedCorrection: 5 });
     expect(correctionAdvice(tripped)?.text).toBe("Set correction to 5 ppm (now 2)");

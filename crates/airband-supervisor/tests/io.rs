@@ -226,6 +226,31 @@ async fn status_parses_auto_ppm_from_fork_v7() {
 }
 
 #[tokio::test]
+async fn status_parses_auto_ppm_voting_from_fork_v7_3() {
+    // Captured from the real v7.3.0 binary on a dongle, during two-reading confirmation.
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("ctl.sock");
+    let _server = fake_socket(&sock, include_str!("fixtures/status-v7.3.0.json"));
+    let StatusResult::Ok(report) = ControlSocketClient::default().status(&sock).await else { panic!("not Ok") };
+
+    let a = report.devices[0].auto_ppm.as_ref().expect("auto_ppm object");
+    assert!(a.enabled && a.active);
+    assert_eq!(a.reason.as_deref(), Some("waiting for a consistent second measurement"));
+    assert_eq!((a.min_voters, a.deadband_ppm), (Some(1), Some(0.75)));
+}
+
+#[tokio::test]
+async fn status_from_before_auto_ppm_voting_leaves_those_fields_empty() {
+    let dir = tempfile::tempdir().unwrap();
+    let sock = dir.path().join("ctl.sock");
+    let _server = fake_socket(&sock, include_str!("fixtures/status-v7.1.0.json"));
+    let StatusResult::Ok(report) = ControlSocketClient::default().status(&sock).await else { panic!("not Ok") };
+
+    let a = report.devices[0].auto_ppm.as_ref().expect("auto_ppm object");
+    assert_eq!((a.min_voters, a.deadband_ppm), (None, None));
+}
+
+#[tokio::test]
 async fn status_before_auto_ppm_has_none() {
     let dir = tempfile::tempdir().unwrap();
     let sock = dir.path().join("ctl.sock");

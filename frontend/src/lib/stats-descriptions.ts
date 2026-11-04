@@ -41,7 +41,7 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   device_ppm_correction:
     "The frequency correction (ppm) this device is running with right now. Only reported for devices with auto_ppm set, where it can drift from the configured correction as auto_ppm adjusts it.",
   device_auto_ppm_residual_ppm:
-    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under 0.75 ppm. Missing until enough transmissions have been measured.",
+    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under its deadband, which is 0.75 ppm or more (wider below about 133 MHz). Missing until enough transmissions have been measured.",
   device_auto_ppm_adjustment_count:
     "How many times auto_ppm has changed this device's correction since the process started. A few after startup is normal; a steady climb means the dongle is still drifting (warming up, or temperature swings).",
   channel_split_tx_dropped_counter:
@@ -65,7 +65,7 @@ export const HARDWARE_TOOLTIPS = {
   dropped:
     "Times the SDR's sample buffer overflowed because rtl_airband couldn't keep up, losing samples. Any steady climb means the host is short on CPU or USB bandwidth.",
   autoPpm:
-    "Automatic PPM correction (fork v6.6.0+). rtl_airband measures how far received carriers sit off-frequency while squelch is open, and moves the correction toward the median error in small steps. 'Live' is the correction the dongle runs with now; 'config' is the saved value it restarts from, since nothing is saved automatically. Save to config opens the editor with the live value filled in. If the error grows after two steps in a row, auto_ppm reverts to the config value and stops until the instance restarts (or a live apply that changes this device).",
+    "Automatic PPM correction (fork v6.6.0+). rtl_airband measures how far received carriers sit off-frequency while squelch is open, and moves the correction toward the median error in small steps. It leaves errors inside its deadband alone, and on fork v7.3.0 and newer an error must also show up twice in a row, from newer transmissions, so each step takes at least two intervals. 'Live' is the correction the dongle runs with now; 'config' is the saved value it restarts from, since nothing is saved automatically. Save to config opens the editor with the live value filled in. If the error grows after two steps in a row, auto_ppm reverts to the config value and stops until the instance restarts (or a live apply that changes this device).",
   clipped:
     "Samples where the ADC hit its full-scale limit. Occasional clipping on a strong nearby transmitter can be fine; a steady rate means the gain is too high.",
 } as const;

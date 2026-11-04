@@ -54,6 +54,10 @@ export const DEVICE_TOOLTIPS = {
   autoPpmMaxPpm:
     "The largest correction, either way, that auto_ppm may ever set (1 to 100, default 100). Correction above must already be within it. If the dongle keeps wanting to go past it, auto_ppm holds at the limit and logs a warning.",
   autoPpmMaxStep: "The largest change in a single adjustment, in ppm (1 to 100, default 5). Smaller steps converge more slowly but ride out one off-frequency transmitter better.",
+  autoPpmMinVoters:
+    "How many channels must agree before auto_ppm changes anything (1 to 32, default 1), counted after outliers are dropped. Set it to 2 on a device whose channels carry many different mobiles, so no single transmitter can move the correction. It can't be more than the device's channels plus reserved channels, and must be 1 in scan mode. Needs fork v7.3.0 or newer.",
+  autoPpmDeadbandHz:
+    "Errors smaller than this many Hz are left alone (0 to 1000, default 100). auto_ppm ignores an error under this or under 0.75 ppm, whichever is larger, so it only matters below about 133 MHz: at 42 MHz the default is 2.4 ppm, because ordinary transmitter tolerance there is several ppm. 0 leaves just the 0.75 ppm limit. Needs fork v7.3.0 or newer.",
   tauDevice: "Overrides the global NFM de-emphasis time constant for every channel on this device, unless a channel sets its own.",
   buffers:
     "Number of USB transfer buffers to allocate. Rarely needs changing. Left blank, rtl_airband fork v7.2.0 and newer pick enough to keep about 3.2 MB of samples in flight for whatever USB transfer size is used (25 at 1.024 Msps); older builds use 10. A value set here is used as-is, so with the smaller automatic transfers it holds less audio than it used to.",
