@@ -52,7 +52,7 @@ pub const AUTO_PPM_MAX_STEP_RANGE: (f64, f64) = (1.0, 100.0);
 /// Fork v7.3.0. Voters are counted after outlier rejection.
 pub const DEFAULT_AUTO_PPM_MIN_VOTERS: f64 = 1.0;
 pub const AUTO_PPM_MIN_VOTERS_RANGE: (f64, f64) = (1.0, 32.0);
-/// Fork v7.3.0. 0 leaves only the fixed 0.75 ppm deadband.
+/// Fork v7.3.0. 0 leaves only the fixed deadband: 1 ppm, or 0.75 before fork v7.4.0.
 pub const DEFAULT_AUTO_PPM_DEADBAND_HZ: f64 = 100.0;
 pub const AUTO_PPM_DEADBAND_HZ_RANGE: (f64, f64) = (0.0, 1000.0);
 

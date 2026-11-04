@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.49] - 2026-11-04
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.3.0 to v7.4.0.** It fixes more
+  auto_ppm hunting seen on prod: divergence only counts steps in the same
+  direction, a lone channel asking for more than 5 ppm is held once the device
+  has converged, and the deadband floor rises from 0.75 to 1 ppm, because the
+  driver takes whole ppm. There are no new config keys, CMake options or
+  dependencies. The Hardware page already shows the new hold through auto_ppm's
+  reason text. The status reply's new `converged` field isn't used yet.
+- The `auto_ppm_deadband_hz` help text gives the new floor, and says the Hz
+  value now only matters below 100 MHz.
+
 ## [0.6.48] - 2026-11-04
 
 ### Changed
