@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.47] - 2026-11-04
+
+### Added
+
+- **`stats_load`, a load generator for the stats database**
+  (`crates/panel/examples/stats_load.rs`). It replays 2,338 series over 12
+  instances every simulated 15 s through the real `StatsDb` and reports bytes
+  written and read from `/proc/self/io`, plus the database and WAL sizes. It
+  measures the storage rework that follows.
+
+### Changed
+
+- `StatsDb::prune_before` takes an explicit cutoff, so the generator can
+  simulate time, and `StatsDb::flush` exists ahead of write buffering (it does
+  nothing yet). Behavior is unchanged.
+
 ## [0.6.46] - 2026-11-04
 
 ### Changed

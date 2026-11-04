@@ -312,7 +312,16 @@ impl StatsDb {
         if retention_days <= 0.0 {
             return Ok(());
         }
-        let cutoff = now_ms() - (retention_days * 86_400_000.0) as i64;
+        self.prune_before(now_ms() - (retention_days * 86_400_000.0) as i64)
+    }
+
+    /// Writes out anything held back from the database. Nothing is, yet.
+    pub fn flush(&self) -> rusqlite::Result<()> {
+        Ok(())
+    }
+
+    /// Deletes samples older than `cutoff` (ms) and orphaned series.
+    pub fn prune_before(&self, cutoff: i64) -> rusqlite::Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM samples WHERE ts < ?", params![cutoff])?;
         conn.execute("DELETE FROM hardware_samples WHERE ts < ?", params![cutoff])?;
