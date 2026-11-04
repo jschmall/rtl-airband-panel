@@ -5,6 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.50] - 2026-11-04
+
+### Added
+
+- **`stats_chunk`, a packed format for stats samples.** It stores one series'
+  samples for a 5-minute bucket, at about 2 bytes a sample for a value that
+  doesn't change. Values come back with exactly the bits they went in with, and
+  two chunks concatenate into one, so a mid-bucket flush can append without
+  decoding. Nothing uses it yet; the next version does.
+
 ## [0.6.49] - 2026-11-04
 
 ### Changed

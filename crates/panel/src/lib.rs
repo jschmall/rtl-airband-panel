@@ -9,6 +9,7 @@ pub mod secrets;
 pub mod service;
 pub mod settings;
 pub mod stats;
+pub mod stats_chunk;
 pub mod stats_db;
 pub mod store;
 
