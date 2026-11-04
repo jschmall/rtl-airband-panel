@@ -295,6 +295,97 @@ fn auto_ppm_params_without_auto_ppm_are_ignored() {
     );
 }
 
+// --- auto_ppm_min_voters / auto_ppm_deadband_hz (fork v7.3.0) ---
+
+const TWO_CHANNELS: &str = r#"centerfreq = 120000000;
+  channels: (
+    { freq = 119500000; outputs: ( { type = "file"; directory = "/tmp"; filename_template = "a"; } ); },
+    { freq = 120500000; outputs: ( { type = "file"; directory = "/tmp"; filename_template = "b"; } ); }
+  );"#;
+
+fn voters_issues(extra: &str) -> Vec<ValidationIssue> {
+    let source = format!(
+        r#"{GLOBALS}
+devices: ({{ type = "rtlsdr"; serial = "1"; gain = 29; auto_ppm = true; {TWO_CHANNELS} {extra} }});"#
+    );
+    let config = airband_config::parse_config_file(&source).unwrap();
+    let result = validate_config(&config);
+    result.errors.into_iter().chain(result.warnings).filter(|i| i.code.contains("auto-ppm")).collect()
+}
+
+#[test]
+fn auto_ppm_voting_params_follow_the_fork_ranges() {
+    for ok in [
+        "auto_ppm_min_voters = 1;",
+        "auto_ppm_min_voters = 2;",
+        "auto_ppm_deadband_hz = 0;",
+        "auto_ppm_deadband_hz = 1000;",
+    ] {
+        let got = voters_issues(ok);
+        assert!(got.is_empty(), "{ok}: {got:?}");
+    }
+    for (bad, key, message) in [
+        ("auto_ppm_min_voters = 0;", "auto_ppm_min_voters", "auto_ppm_min_voters must be between 1 and 32"),
+        ("auto_ppm_min_voters = 33;", "auto_ppm_min_voters", "auto_ppm_min_voters must be between 1 and 32"),
+        ("auto_ppm_deadband_hz = -1;", "auto_ppm_deadband_hz", "auto_ppm_deadband_hz must be between 0 and 1000"),
+        ("auto_ppm_deadband_hz = 1001;", "auto_ppm_deadband_hz", "auto_ppm_deadband_hz must be between 0 and 1000"),
+    ] {
+        let got = voters_issues(bad);
+        assert_eq!(
+            codes(&got),
+            [("auto-ppm-param-out-of-range", format!("$.devices[0].{key}").as_str(), Severity::Error)],
+            "{bad}"
+        );
+        assert_eq!(got[0].message, message);
+    }
+    // The fork reads both as ints.
+    let got = device_issues(&format!("{RTL} auto_ppm = true; auto_ppm_deadband_hz = 100.5;"));
+    assert_eq!(codes(&got), [("not-whole-number", "$.devices[0].auto_ppm_deadband_hz", Severity::Error)]);
+    // Without the auto_ppm key they do nothing.
+    let got = device_issues(&format!("{RTL} auto_ppm_min_voters = 2; auto_ppm_deadband_hz = 50;"));
+    assert_eq!(
+        codes(&got),
+        [
+            ("auto-ppm-settings-ignored", "$.devices[0].auto_ppm_min_voters", Severity::Warning),
+            ("auto-ppm-settings-ignored", "$.devices[0].auto_ppm_deadband_hz", Severity::Warning),
+        ]
+    );
+}
+
+#[test]
+fn auto_ppm_min_voters_must_fit_the_channels_and_reserve() {
+    let got = voters_issues("auto_ppm_min_voters = 3;");
+    assert_eq!(
+        codes(&got),
+        [("auto-ppm-min-voters-over-capacity", "$.devices[0].auto_ppm_min_voters", Severity::Error)]
+    );
+    assert_eq!(got[0].message, "auto_ppm_min_voters (3) is more than the device's 2 channel(s)");
+    // Reserved slots count.
+    assert!(voters_issues("auto_ppm_min_voters = 3; reserve_channels = 1;").is_empty());
+    // The fork doesn't parse a disabled device at all.
+    assert!(voters_issues("auto_ppm_min_voters = 3; disable = true;").is_empty());
+}
+
+#[test]
+fn auto_ppm_min_voters_must_be_one_in_scan_mode() {
+    let scan = |extra: &str| {
+        let source = format!(
+            r#"{GLOBALS}
+devices: ({{ type = "rtlsdr"; serial = "1"; gain = 29; mode = "scan"; auto_ppm = true; {extra}
+  channels: ( {{ freqs = ( 119500000, 120500000 ); outputs: ( {{ type = "file"; directory = "/tmp"; filename_template = "a"; }} ); }} );
+}});"#
+        );
+        let config = airband_config::parse_config_file(&source).unwrap();
+        let result = validate_config(&config);
+        result.errors.into_iter().chain(result.warnings).filter(|i| i.code.contains("auto-ppm")).collect::<Vec<_>>()
+    };
+    let got = scan("auto_ppm_min_voters = 2;");
+    assert_eq!(codes(&got), [("auto-ppm-min-voters-scan", "$.devices[0].auto_ppm_min_voters", Severity::Error)]);
+    assert_eq!(got[0].message, "auto_ppm_min_voters must be 1 in scan mode");
+    assert!(scan("auto_ppm_min_voters = 1;").is_empty());
+    assert!(scan("auto_ppm_min_voters = 2; disable = true;").is_empty());
+}
+
 // --- buffer_size (fork v7.2.0) ---
 
 #[test]

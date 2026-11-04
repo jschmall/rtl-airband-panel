@@ -328,6 +328,8 @@ fn to_device(g: &[Setting], path: String) -> Result<Device> {
         auto_ppm_interval: r.optional_number("auto_ppm_interval")?,
         auto_ppm_max_ppm: r.optional_number("auto_ppm_max_ppm")?,
         auto_ppm_max_step: r.optional_number("auto_ppm_max_step")?,
+        auto_ppm_min_voters: r.optional_number("auto_ppm_min_voters")?,
+        auto_ppm_deadband_hz: r.optional_number("auto_ppm_deadband_hz")?,
         bandwidth: r.optional_number("bandwidth")?,
         mode: None,
         reserve_channels: None,
@@ -785,6 +787,8 @@ fn device_from_domain(d: &Device) -> Value {
         .opt_int("auto_ppm_interval", d.auto_ppm_interval)
         .opt_int("auto_ppm_max_ppm", d.auto_ppm_max_ppm)
         .opt_int("auto_ppm_max_step", d.auto_ppm_max_step)
+        .opt_int("auto_ppm_min_voters", d.auto_ppm_min_voters)
+        .opt_int("auto_ppm_deadband_hz", d.auto_ppm_deadband_hz)
         .opt_int("bandwidth", d.bandwidth);
     if let Some(mode) = d.mode {
         m.string("mode", mode.as_str());

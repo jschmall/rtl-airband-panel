@@ -323,7 +323,8 @@ predicts the outcome before anything is written, by mirroring the fork's
   to a device that started without it needs a restart (even as false);
   after that, an on/off change is live (removing the key means off), and
   turning it off re-applies the configured correction. A change to
-  `auto_ppm_interval`/`_max_ppm`/`_max_step` (compared with defaults
+  `auto_ppm_interval`/`_max_ppm`/`_max_step`/`_min_voters`/`_deadband_hz`
+  (the last two from fork v7.3.0; compared with defaults
   filled in, against the *started* config) needs a restart. While it's
   on, an unchanged `correction` is left to auto_ppm; a changed one is
   applied and becomes its new base.
@@ -434,7 +435,10 @@ Derived figures:
   step, so the suggestion would fight it.
 - **auto_ppm** (fork v6.6.0+): the status reply's per-device `auto_ppm`
   object (null without the key) becomes `SdrHealth.autoPpm`, next to
-  `configCorrection` and `autoPpmConfigured` from the config. The UI's
+  `configCorrection` and `autoPpmConfigured` from the config. Fork v7.3.0
+  adds `minVoters` and the last evaluation's `deadbandPpm`, both null from
+  older builds. `residualPpm` stays null during a hold such as
+  `1 voter, need 2`, so the UI shows `reason` rather than "measuring". The UI's
   "Save to config" link opens the editor with `?device=n&correction=N`,
   which puts N into the unsaved draft, so it goes through the normal
   change preview and save.
@@ -557,7 +561,8 @@ Feature names are the fork's: `control_socket`, `device_status`,
 `reserve`, `mixer_remote`, `send_tx_tags`, `stats_http`, `json_log`,
 `post_write_script`, `auto_ppm` (v6.6.0), `usb_chunk_sizing` (v7.2.0:
 rtlsdr USB transfers sized to the sample rate, and the `buffer_size`
-device key), plus build components
+device key), `auto_ppm_voting` (v7.3.0: the `auto_ppm_min_voters` and
+`auto_ppm_deadband_hz` device keys), plus build components
 (`rdio_scanner`, `soapysdr`, `pulseaudio`, `nfm`; `mirisdr` until upstream
 v7.0.0 removed the driver). `fork` itself covers small fork-only
 settings such as UDP `bit_depth`.

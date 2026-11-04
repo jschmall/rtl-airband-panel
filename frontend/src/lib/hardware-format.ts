@@ -101,8 +101,9 @@ export interface Advice {
  */
 export function correctionAdvice(sdr: SdrHealth): Advice | null {
   if (sdr.autoPpm?.active) {
+    // No residual also covers a hold that can last ("1 voter, need 2"), which the reason names.
     return sdr.autoPpm.residualPpm === null
-      ? { tone: "pending", text: "auto_ppm active, measuring…" }
+      ? { tone: "pending", text: sdr.autoPpm.reason ? `auto_ppm active, ${sdr.autoPpm.reason}` : "auto_ppm active, measuring…" }
       : { tone: "ok", text: `auto_ppm active (residual ${formatSigned(sdr.autoPpm.residualPpm, "ppm", 2)})` };
   }
   if (sdr.correctionUnit !== "ppm" || sdr.freqErrorPpm === null) return null;

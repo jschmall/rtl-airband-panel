@@ -112,6 +112,13 @@ pub struct AutoPpmStatus {
     pub max_step: i64,
     /// auto_ppm_interval, seconds.
     pub interval: i64,
+    /// auto_ppm_min_voters (fork v7.3.0+; absent from older builds).
+    #[serde(default)]
+    pub min_voters: Option<i64>,
+    /// The last evaluation's effective deadband, ppm: null until it has a
+    /// residual (fork v7.3.0+; absent from older builds).
+    #[serde(default)]
+    pub deadband_ppm: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]

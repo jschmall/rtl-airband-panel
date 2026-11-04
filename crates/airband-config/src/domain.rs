@@ -14,7 +14,8 @@
 //! - RTLSDR-Airband v5.5/v6.3 fields: `stats_update_interval`, the
 //!   `split_*_file_time` settings, and `split_include_transmission_start`.
 //! - Fork v6.6.0+ `auto_ppm*` device settings; upstream #580 (fork v6.7.0+)
-//!   `split_tx_drop_shorter_than`; fork v7.2.0+ rtlsdr `buffer_size`.
+//!   `split_tx_drop_shorter_than`; fork v7.2.0+ rtlsdr `buffer_size`; fork
+//!   v7.3.0+ `auto_ppm_min_voters` and `auto_ppm_deadband_hz`.
 
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -119,6 +120,14 @@ pub struct Device {
     pub auto_ppm_max_ppm: Option<f64>,
     /// Largest change in one adjustment, int 1..=100 (default 5).
     pub auto_ppm_max_step: Option<f64>,
+    /// Fork v7.3.0+: frequencies that must agree before any step, counted
+    /// after outlier rejection, int 1..=32 (default 1). Must be 1 in scan mode
+    /// and at most `channels` + `reserve_channels`.
+    pub auto_ppm_min_voters: Option<f64>,
+    /// Fork v7.3.0+: smallest error worth correcting, in Hz at the voters'
+    /// frequency, int 0..=1000 (default 100). The deadband is the larger of
+    /// this and 0.75 ppm, so it only widens below about 133 MHz.
+    pub auto_ppm_deadband_hz: Option<f64>,
     /// rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
     pub bandwidth: Option<f64>,
     pub mode: Option<DeviceMode>,

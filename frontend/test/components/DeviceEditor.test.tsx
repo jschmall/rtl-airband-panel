@@ -171,6 +171,33 @@ describe("DeviceEditor auto_ppm", () => {
     expect(latest && "auto_ppm_interval" in latest).toBe(false);
   });
 
+  it("sets the voting keys, clears them when unset, and hides min voters in scan mode", async () => {
+    const user = userEvent.setup();
+    let latest: Device | undefined;
+    render(<Spy onDevice={(d) => (latest = d)} />);
+    await user.click(screen.getByRole("button", { name: /Device — rtlsdr/ }));
+    const select = screen.getByLabelText(/^Automatic PPM correction/);
+    await user.selectOptions(select, "on");
+
+    await user.type(screen.getByLabelText(/Auto PPM deadband/), "50");
+    expect(latest?.auto_ppm_deadband_hz).toBe(50);
+
+    await user.selectOptions(screen.getByLabelText(/Mode/), "scan");
+    expect(screen.queryByLabelText(/Auto PPM min voters/)).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/Mode/), "multichannel");
+
+    await user.type(screen.getByLabelText(/Auto PPM min voters/), "2");
+    expect(latest?.auto_ppm_min_voters).toBe(2);
+    // A stray value stays visible in scan mode, so it can be cleared.
+    await user.selectOptions(screen.getByLabelText(/Mode/), "scan");
+    expect(screen.getByLabelText(/Auto PPM min voters/)).toHaveValue(2);
+    await user.selectOptions(screen.getByLabelText(/Mode/), "multichannel");
+
+    await user.selectOptions(select, "unset");
+    expect(latest && "auto_ppm_min_voters" in latest).toBe(false);
+    expect(latest && "auto_ppm_deadband_hz" in latest).toBe(false);
+  });
+
   it("is rtlsdr only", async () => {
     const user = userEvent.setup();
     let latest: Device | undefined;

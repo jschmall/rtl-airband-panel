@@ -1,12 +1,16 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Device, MultichannelChannel, Output, ScanChannel } from "../types/config.js";
 import {
+  AUTO_PPM_DEADBAND_HZ_RANGE,
   AUTO_PPM_INTERVAL_RANGE,
   AUTO_PPM_MAX_PPM_RANGE,
   AUTO_PPM_MAX_STEP_RANGE,
+  AUTO_PPM_MIN_VOTERS_RANGE,
+  DEFAULT_AUTO_PPM_DEADBAND_HZ,
   DEFAULT_AUTO_PPM_INTERVAL,
   DEFAULT_AUTO_PPM_MAX_PPM,
   DEFAULT_AUTO_PPM_MAX_STEP,
+  DEFAULT_AUTO_PPM_MIN_VOTERS,
   RTLSDR_COMMON_SAMPLE_RATES_HZ,
 } from "../generated/constants.js";
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -97,12 +101,14 @@ function AutoPpmFields({ device, onChange }: { device: Device; onChange: (d: Dev
   const choice = autoPpmChoice(device);
   const hasValue = choice !== "unset";
   const param = (
-    key: "auto_ppm_interval" | "auto_ppm_max_ppm" | "auto_ppm_max_step",
+    key: "auto_ppm_interval" | "auto_ppm_max_ppm" | "auto_ppm_max_step" | "auto_ppm_min_voters" | "auto_ppm_deadband_hz",
     label: string,
     tooltip: string,
     range: { min: number; max: number },
+    // The voting keys came later (fork v7.3.0): an older build can only clear a value already there.
+    requires: { feature: string; hasValue: boolean } = { feature: "auto_ppm", hasValue },
   ) => (
-    <Field label={label} tooltip={tooltip} requires="auto_ppm" hasValue={hasValue}>
+    <Field label={label} tooltip={tooltip} requires={requires.feature} hasValue={requires.hasValue}>
       <input
         type="number"
         min={range.min}
@@ -123,7 +129,15 @@ function AutoPpmFields({ device, onChange }: { device: Device; onChange: (d: Dev
           onChange={(e) => {
             const v = e.target.value;
             if (v === "unset") {
-              const { auto_ppm: _a, auto_ppm_interval: _i, auto_ppm_max_ppm: _m, auto_ppm_max_step: _s, ...rest } = device;
+              const {
+                auto_ppm: _a,
+                auto_ppm_interval: _i,
+                auto_ppm_max_ppm: _m,
+                auto_ppm_max_step: _s,
+                auto_ppm_min_voters: _v,
+                auto_ppm_deadband_hz: _d,
+                ...rest
+              } = device;
               onChange(rest);
             } else {
               onChange({ ...device, auto_ppm: v === "on" });
@@ -140,6 +154,16 @@ function AutoPpmFields({ device, onChange }: { device: Device; onChange: (d: Dev
           {param("auto_ppm_interval", `Auto PPM interval, s (blank = ${DEFAULT_AUTO_PPM_INTERVAL})`, DEVICE_TOOLTIPS.autoPpmInterval, AUTO_PPM_INTERVAL_RANGE)}
           {param("auto_ppm_max_ppm", `Auto PPM max ppm (blank = ${DEFAULT_AUTO_PPM_MAX_PPM})`, DEVICE_TOOLTIPS.autoPpmMaxPpm, AUTO_PPM_MAX_PPM_RANGE)}
           {param("auto_ppm_max_step", `Auto PPM max step, ppm (blank = ${DEFAULT_AUTO_PPM_MAX_STEP})`, DEVICE_TOOLTIPS.autoPpmMaxStep, AUTO_PPM_MAX_STEP_RANGE)}
+          {/* A scan device only ever has one voter, so show this there only to clear a stray value. */}
+          {(device.mode !== "scan" || device.auto_ppm_min_voters !== undefined) &&
+            param("auto_ppm_min_voters", `Auto PPM min voters (blank = ${DEFAULT_AUTO_PPM_MIN_VOTERS})`, DEVICE_TOOLTIPS.autoPpmMinVoters, AUTO_PPM_MIN_VOTERS_RANGE, {
+              feature: "auto_ppm_voting",
+              hasValue: device.auto_ppm_min_voters !== undefined,
+            })}
+          {param("auto_ppm_deadband_hz", `Auto PPM deadband, Hz (blank = ${DEFAULT_AUTO_PPM_DEADBAND_HZ})`, DEVICE_TOOLTIPS.autoPpmDeadbandHz, AUTO_PPM_DEADBAND_HZ_RANGE, {
+            feature: "auto_ppm_voting",
+            hasValue: device.auto_ppm_deadband_hz !== undefined,
+          })}
         </>
       )}
     </>

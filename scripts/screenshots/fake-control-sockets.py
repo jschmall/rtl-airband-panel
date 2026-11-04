@@ -76,15 +76,22 @@ def auto_ppm_status(dev: dict, tripped: bool):
         return base, None
     on = bool(dev["auto_ppm"])
     active = on and not tripped
+    # Every fake device has 3 voters, so asking for more shows the hold.
+    min_voters = int(dev.get("auto_ppm_min_voters", 1))
+    held = min_voters > 3
+    deadband_hz = int(dev.get("auto_ppm_deadband_hz", 100))
     status = {
         "enabled": on, "active": active,
         "disabled_reason": "error grew after 2 consecutive adjustments" if on and tripped else None,
-        "residual_ppm": round(random.uniform(-0.4, 0.4), 2) if active else None,
+        "residual_ppm": round(random.uniform(-0.4, 0.4), 2) if active and not held else None,
         "eligible": 3 if active else 0, "contributing": 3 if active else 0, "rejected": 0, "clamped": False,
-        "reason": "within deadband" if active else None,
+        "reason": ("3 voters, need %d" % min_voters if held else "within deadband") if active else None,
         "adjustments": 3 if on else 0, "last_adjust_age_s": 260 if active else None,
         "base_correction": base, "max_ppm": int(dev.get("auto_ppm_max_ppm", 100)),
         "max_step": int(dev.get("auto_ppm_max_step", 5)), "interval": int(dev.get("auto_ppm_interval", 30)),
+        "min_voters": min_voters, "deadband_hz": deadband_hz,
+        "deadband_ppm": max(0.75, round(deadband_hz / 120.0, 2)) if active and not held else None,
+        "pending_count": 0,
     }
     return (base + 3 if active else base), status
 

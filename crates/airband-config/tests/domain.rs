@@ -247,7 +247,9 @@ fn fork_v7_fields_round_trip() {
         (dev.auto_ppm_interval, dev.auto_ppm_max_ppm, dev.auto_ppm_max_step),
         (Some(30.0), Some(100.0), Some(5.0))
     );
+    assert_eq!((dev.auto_ppm_min_voters, dev.auto_ppm_deadband_hz), (Some(1.0), Some(150.0)));
     assert_eq!((d1.devices[1].auto_ppm, d1.devices[1].auto_ppm_interval), (Some(false), None));
+    assert_eq!((d1.devices[1].auto_ppm_min_voters, d1.devices[1].auto_ppm_deadband_hz), (None, None));
     assert_eq!((d1.devices[1].buffers, d1.devices[1].buffer_size), (Some(10.0), Some(320_000.0)));
     assert_eq!(dev.buffer_size, None);
     let Channel::Multichannel(c) = &dev.channels[0] else { panic!() };
@@ -264,6 +266,8 @@ fn fork_v7_fields_round_trip() {
         "auto_ppm_interval = 30;",
         "auto_ppm_max_ppm = 100;",
         "auto_ppm_max_step = 5;",
+        "auto_ppm_min_voters = 1;",
+        "auto_ppm_deadband_hz = 150;",
         "buffer_size = 320000;",
     ] {
         assert!(text.contains(line), "missing {line:?} in\n{text}");

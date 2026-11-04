@@ -104,7 +104,7 @@ pub fn plan_change(baseline: &Baseline, next: &ConfigFile) -> ChangePlan {
 
 // -------------------------------------------------------------------- devices
 
-const DEVICE_LIVE_KEYS: [&str; 13] = [
+const DEVICE_LIVE_KEYS: [&str; 15] = [
     "type",
     "mode",
     "channels",
@@ -118,6 +118,8 @@ const DEVICE_LIVE_KEYS: [&str; 13] = [
     "auto_ppm_interval",
     "auto_ppm_max_ppm",
     "auto_ppm_max_step",
+    "auto_ppm_min_voters",
+    "auto_ppm_deadband_hz",
 ];
 const DEFAULT_SAMPLE_RATE: i64 = 2_560_000;
 
@@ -244,8 +246,13 @@ fn plan_reapplied(plan: &mut ChangePlan, label: &str, driver: &str, a: &[Setting
 }
 
 /// auto_ppm defaults (fork auto_ppm.h, AutoPpmParams).
-const AUTO_PPM_PARAMS: [(&str, f64); 3] =
-    [("auto_ppm_interval", 30.0), ("auto_ppm_max_ppm", 100.0), ("auto_ppm_max_step", 5.0)];
+const AUTO_PPM_PARAMS: [(&str, f64); 5] = [
+    ("auto_ppm_interval", 30.0),
+    ("auto_ppm_max_ppm", 100.0),
+    ("auto_ppm_max_step", 5.0),
+    ("auto_ppm_min_voters", 1.0),
+    ("auto_ppm_deadband_hz", 100.0),
+];
 
 /// auto_ppm (fork v6.6.0). The fork sets a device up for it at startup only
 /// if the `auto_ppm` key is there (true or false); after that, turning it on
@@ -274,7 +281,9 @@ fn plan_auto_ppm(plan: &mut ChangePlan, label: &str, started: Option<&[Setting]>
     let params_changed =
         AUTO_PPM_PARAMS.iter().any(|(key, default)| number_or(started, key, *default) != number_or(n, key, *default));
     if params_changed {
-        plan.restart.push(format!("{label}: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step changed"));
+        plan.restart.push(format!(
+            "{label}: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step/auto_ppm_min_voters/auto_ppm_deadband_hz changed"
+        ));
     }
     if was_on != now_on {
         plan.live.push(format!("{label}: auto_ppm -> {now_on}"));

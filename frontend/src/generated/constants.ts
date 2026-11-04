@@ -15,3 +15,7 @@ export const DEFAULT_AUTO_PPM_MAX_PPM = 100;
 export const AUTO_PPM_MAX_PPM_RANGE = { min: 1, max: 100 };
 export const DEFAULT_AUTO_PPM_MAX_STEP = 5;
 export const AUTO_PPM_MAX_STEP_RANGE = { min: 1, max: 100 };
+export const DEFAULT_AUTO_PPM_MIN_VOTERS = 1;
+export const AUTO_PPM_MIN_VOTERS_RANGE = { min: 1, max: 32 };
+export const DEFAULT_AUTO_PPM_DEADBAND_HZ = 100;
+export const AUTO_PPM_DEADBAND_HZ_RANGE = { min: 0, max: 1000 };

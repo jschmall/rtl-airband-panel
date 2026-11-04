@@ -24,4 +24,13 @@ reason: string | null, adjustments: number, lastAdjustAgeS: number | null,
 /**
  * The configured correction it started from and reverts to.
  */
-baseCorrection: number, maxPpm: number, maxStep: number, intervalS: number, };
+baseCorrection: number, maxPpm: number, maxStep: number, intervalS: number, 
+/**
+ * auto_ppm_min_voters; None from builds older than fork v7.3.0.
+ */
+minVoters: number | null, 
+/**
+ * Effective deadband of the last evaluation, ppm; None until it has a
+ * residual, or from builds older than fork v7.3.0.
+ */
+deadbandPpm: number | null, };

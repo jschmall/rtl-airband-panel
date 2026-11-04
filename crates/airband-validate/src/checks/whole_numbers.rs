@@ -77,6 +77,8 @@ pub fn whole_numbers(config: &RtlAirbandConfig, issues: &mut Issues) {
         check(issues, &path, "auto_ppm_interval", device.auto_ppm_interval);
         check(issues, &path, "auto_ppm_max_ppm", device.auto_ppm_max_ppm);
         check(issues, &path, "auto_ppm_max_step", device.auto_ppm_max_step);
+        check(issues, &path, "auto_ppm_min_voters", device.auto_ppm_min_voters);
+        check(issues, &path, "auto_ppm_deadband_hz", device.auto_ppm_deadband_hz);
         check(issues, &path, "bandwidth", device.bandwidth);
         check(issues, &path, "reserve_channels", device.reserve_channels);
         check(issues, &path, "tau", device.tau);

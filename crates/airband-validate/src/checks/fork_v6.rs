@@ -5,15 +5,15 @@
 //! implementation.
 
 use airband_config::ast::Setting;
-use airband_config::domain::{Channel, Output, RtlAirbandConfig};
+use airband_config::domain::{Channel, Device, Output, RtlAirbandConfig};
 
 use crate::constants::{
-    AUTO_PPM_INTERVAL_RANGE, AUTO_PPM_MAX_PPM_RANGE, AUTO_PPM_MAX_STEP_RANGE, DEFAULT_AUTO_PPM_MAX_PPM,
-    DEFAULT_SPLIT_MAX_FILE_TIME, DEFAULT_SPLIT_MAX_IDLE_TIME, DEFAULT_SPLIT_MIN_FILE_TIME,
-    DEFAULT_SPLIT_TX_DROP_SHORTER_THAN,
+    AUTO_PPM_DEADBAND_HZ_RANGE, AUTO_PPM_INTERVAL_RANGE, AUTO_PPM_MAX_PPM_RANGE, AUTO_PPM_MAX_STEP_RANGE,
+    AUTO_PPM_MIN_VOTERS_RANGE, DEFAULT_AUTO_PPM_MAX_PPM, DEFAULT_SPLIT_MAX_FILE_TIME, DEFAULT_SPLIT_MAX_IDLE_TIME,
+    DEFAULT_SPLIT_MIN_FILE_TIME, DEFAULT_SPLIT_TX_DROP_SHORTER_THAN,
 };
 use crate::types::Issues;
-use crate::view::{Owner, for_each_output_list, js};
+use crate::view::{Owner, for_each_output_list, is_scan_device, js};
 
 /// stats_update_interval must be > 0 (valid_stats_update_interval).
 pub fn stats_update_interval(config: &RtlAirbandConfig, issues: &mut Issues) {
@@ -182,6 +182,8 @@ pub fn auto_ppm(config: &RtlAirbandConfig, issues: &mut Issues) {
             ("auto_ppm_interval", d.auto_ppm_interval, AUTO_PPM_INTERVAL_RANGE),
             ("auto_ppm_max_ppm", d.auto_ppm_max_ppm, AUTO_PPM_MAX_PPM_RANGE),
             ("auto_ppm_max_step", d.auto_ppm_max_step, AUTO_PPM_MAX_STEP_RANGE),
+            ("auto_ppm_min_voters", d.auto_ppm_min_voters, AUTO_PPM_MIN_VOTERS_RANGE),
+            ("auto_ppm_deadband_hz", d.auto_ppm_deadband_hz, AUTO_PPM_DEADBAND_HZ_RANGE),
         ];
         if d.auto_ppm.is_none() {
             for (name, value, _) in params {
@@ -213,6 +215,7 @@ pub fn auto_ppm(config: &RtlAirbandConfig, issues: &mut Issues) {
                 );
             }
         }
+        min_voters(d, &path, issues);
         let max_ppm = d.auto_ppm_max_ppm.unwrap_or(DEFAULT_AUTO_PPM_MAX_PPM);
         // The fork rounds the driver's correction and compares it to max_ppm.
         let correction = d.correction.unwrap_or(0.0).round();
@@ -223,6 +226,32 @@ pub fn auto_ppm(config: &RtlAirbandConfig, issues: &mut Issues) {
                 format!("correction {} is outside auto_ppm_max_ppm (+/-{})", js(correction), js(max_ppm)),
             );
         }
+    }
+}
+
+/// The fork's startup limits on auto_ppm_min_voters (fork v7.3.0, config.cpp).
+/// It never parses a disabled device, so those are left alone. Capacity counts
+/// every entry in `channels`, disabled ones too, like its `getLength()`.
+fn min_voters(d: &Device, path: &str, issues: &mut Issues) {
+    let Some(voters) = d.auto_ppm_min_voters else { return };
+    let (lo, hi) = AUTO_PPM_MIN_VOTERS_RANGE;
+    if d.disable == Some(true) || !(lo..=hi).contains(&voters) {
+        return;
+    }
+    let path = format!("{path}.auto_ppm_min_voters");
+    if is_scan_device(d) {
+        if voters > 1.0 {
+            issues.error("auto-ppm-min-voters-scan", path, "auto_ppm_min_voters must be 1 in scan mode");
+        }
+        return;
+    }
+    let capacity = d.channels.len() as f64 + d.reserve_channels.unwrap_or(0.0).max(0.0);
+    if voters > capacity {
+        issues.error(
+            "auto-ppm-min-voters-over-capacity",
+            path,
+            format!("auto_ppm_min_voters ({}) is more than the device's {} channel(s)", js(voters), js(capacity)),
+        );
     }
 }
 

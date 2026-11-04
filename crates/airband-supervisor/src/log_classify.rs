@@ -159,6 +159,11 @@ mod tests {
             Some((LogSeverity::Warning, true))
         );
         assert_eq!(class(None, &line("auto_ppm correction 3 -> 5 ppm (residual +2.10, 3/3 channels)")), None);
+        // Fork v7.3.0 added the deadband.
+        assert_eq!(
+            class(None, &line("auto_ppm correction 3 -> 5 ppm (residual +2.10, deadband 0.75, 3/3 channels)")),
+            None
+        );
         // With -j the level decides.
         assert_eq!(class(Some("info"), "Device #0: auto_ppm correction 3 -> 5 ppm"), None);
     }

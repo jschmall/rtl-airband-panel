@@ -205,6 +205,11 @@ pub struct AutoPpmHealth {
     pub max_ppm: f64,
     pub max_step: f64,
     pub interval_s: f64,
+    /// auto_ppm_min_voters; None from builds older than fork v7.3.0.
+    pub min_voters: Option<f64>,
+    /// Effective deadband of the last evaluation, ppm; None until it has a
+    /// residual, or from builds older than fork v7.3.0.
+    pub deadband_ppm: Option<f64>,
 }
 
 impl From<&AutoPpmStatus> for AutoPpmHealth {
@@ -225,6 +230,8 @@ impl From<&AutoPpmStatus> for AutoPpmHealth {
             max_ppm: s.max_ppm as f64,
             max_step: s.max_step as f64,
             interval_s: s.interval as f64,
+            min_voters: s.min_voters.map(|v| v as f64),
+            deadband_ppm: s.deadband_ppm,
         }
     }
 }
@@ -772,6 +779,8 @@ devices: ( { type = "rtlsdr"; index = 0; gain = 20; mode = "scan";
             max_ppm: 100,
             max_step: 5,
             interval: 30,
+            min_voters: Some(2),
+            deadband_ppm: active.then_some(0.75),
         }
     }
 

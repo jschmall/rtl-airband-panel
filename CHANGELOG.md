@@ -5,6 +5,37 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.45] - 2026-11-04
+
+### Added
+
+- **auto_ppm voting settings (fork v7.3.0).** The device editor gets Auto PPM
+  min voters (`auto_ppm_min_voters`) and Auto PPM deadband
+  (`auto_ppm_deadband_hz`), and both now round-trip as modeled settings.
+  - Validation matches rtl_airband's startup checks: min voters 1-32, deadband
+    0-1000 Hz, min voters must be 1 in scan mode, and it can't exceed the
+    device's channels plus reserved channels. Disabled devices are skipped,
+    because rtl_airband doesn't read them.
+  - Changing either key is predicted as needing a restart.
+  - On a build without the `auto_ppm_voting` feature, both fields are marked
+    "needs the fork" and the settings warn. A value that's already set can
+    still be cleared.
+  - Min voters is hidden on scan devices unless it holds a value.
+- **The Hardware page's Auto PPM row shows the effective deadband**, and the
+  required voters when above 1. On low-band devices a residual of a few ppm is
+  normal, and this shows why it's left alone.
+
+### Fixed
+
+- **"auto_ppm active, measuring…" no longer hides a hold.** The Frequency error
+  card said this whenever there was no residual, including while channels
+  disagreed. It now gives rtl_airband's reason, such as `1 voter, need 2`.
+- **The auto_ppm error guide suggested a setting that doesn't exist.** It said
+  to exclude a channel from auto_ppm in the channel editor. It now suggests min
+  voters and the deadband, and lists mobiles and low-band channels as causes.
+- Tooltips no longer say auto_ppm's deadband is always 0.75 ppm, and they
+  explain that each step now takes two readings.
+
 ## [0.6.44] - 2026-11-04
 
 ### Changed

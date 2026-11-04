@@ -361,12 +361,27 @@ fn toggling_auto_ppm_is_live_once_the_device_started_with_it() {
 #[test]
 fn auto_ppm_parameters_need_a_restart() {
     let a = ppm_conf("correction = 3; auto_ppm = true;");
-    for extra in ["auto_ppm_interval = 60;", "auto_ppm_max_ppm = 50;", "auto_ppm_max_step = 2;"] {
+    for extra in [
+        "auto_ppm_interval = 60;",
+        "auto_ppm_max_ppm = 50;",
+        "auto_ppm_max_step = 2;",
+        "auto_ppm_min_voters = 2;",
+        "auto_ppm_deadband_hz = 50;",
+    ] {
         let p = plan(&a, &ppm_conf(&format!("correction = 3; auto_ppm = true; {extra}")));
-        assert_eq!(p.restart, ["device[0]: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step changed"], "{extra}");
+        assert_eq!(
+            p.restart,
+            [
+                "device[0]: auto_ppm_interval/auto_ppm_max_ppm/auto_ppm_max_step/auto_ppm_min_voters/auto_ppm_deadband_hz changed"
+            ],
+            "{extra}"
+        );
     }
     // Spelling out a default is no change.
     let p = plan(&a, &ppm_conf("correction = 3; auto_ppm = true; auto_ppm_interval = 30; auto_ppm_max_ppm = 100;"));
+    assert_eq!(p.method(), ApplyMethod::NoChange, "{p:?}");
+    let p =
+        plan(&a, &ppm_conf("correction = 3; auto_ppm = true; auto_ppm_min_voters = 1; auto_ppm_deadband_hz = 100;"));
     assert_eq!(p.method(), ApplyMethod::NoChange, "{p:?}");
 }
 

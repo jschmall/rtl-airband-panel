@@ -89,12 +89,13 @@ export const ERROR_GUIDE: readonly GuideEntry[] = [
     summary: "auto_ppm's corrections made the frequency error worse, so it put the configured correction back and turned itself off until the next restart.",
     causes: [
       "A transmitter that's itself off-frequency was used as a reference.",
+      "Different mobiles on one frequency disagreeing by a ppm or two, or low-band channels, where ordinary transmitter tolerance is several ppm.",
       "The configured correction is far from right, so measurements look inconsistent.",
       "Interference or a weak signal producing bad error readings.",
     ],
     fixes: [
       "Set the correction manually from the Hardware page's Frequency error reading, then restart the instance to re-arm auto_ppm.",
-      "If one channel is the problem, exclude it from auto_ppm in the channel editor.",
+      "If mobiles keep moving it, set Auto PPM min voters to 2 so one transmitter can't. Below about 133 MHz, also consider raising Auto PPM deadband. Both need fork v7.3.0 or newer.",
     ],
     match: { patterns: [/auto_ppm disabled/i, /auto_ppm failed to set correction/i] },
   },

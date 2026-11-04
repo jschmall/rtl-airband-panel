@@ -24,6 +24,18 @@ auto_ppm_max_ppm?: number,
  */
 auto_ppm_max_step?: number, 
 /**
+ * Fork v7.3.0+: frequencies that must agree before any step, counted
+ * after outlier rejection, int 1..=32 (default 1). Must be 1 in scan mode
+ * and at most `channels` + `reserve_channels`.
+ */
+auto_ppm_min_voters?: number, 
+/**
+ * Fork v7.3.0+: smallest error worth correcting, in Hz at the voters'
+ * frequency, int 0..=1000 (default 100). The deadband is the larger of
+ * this and 0.75 ppm, so it only widens below about 133 MHz.
+ */
+auto_ppm_deadband_hz?: number, 
+/**
  * rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
  */
 bandwidth?: number, mode?: DeviceMode, reserve_channels?: number, disable?: boolean, tau?: number, buffers?: number, 
