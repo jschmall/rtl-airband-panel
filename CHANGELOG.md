@@ -5,6 +5,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.44] - 2026-11-04
+
+### Changed
+
+- **Bundled rtl_airband: fork v7.2.1 → v7.3.0.** This release hardens how
+  auto_ppm decides to move the correction, after it hunted and tripped its
+  divergence guard in production on v7.2.1.
+  - Every step now needs two consecutive same-sign readings, the second from
+    newer transmissions, so each step takes at least two intervals. This
+    applies to every auto_ppm device, with no config change.
+  - The deadband now also has a Hz term (`auto_ppm_deadband_hz`, default
+    100), which widens it below about 133 MHz.
+  - New device keys `auto_ppm_min_voters` and `auto_ppm_deadband_hz`, and the
+    `auto_ppm_voting` Features name. The panel keeps them as unknown settings
+    until the next version models them.
+  - No new CMake options or dependencies, so the release build is unchanged.
+
 ## [0.6.43] - 2026-11-03
 
 ### Changed
