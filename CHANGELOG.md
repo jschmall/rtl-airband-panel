@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.53] - 2026-11-05
+
+### Added
+
+- **Errors page: "Warnings only" in the Show filter**, so you can look at
+  warnings without the errors. Restart markers still follow their own checkbox
+  under every option.
+
+### Changed
+
+- **Errors page: the Show filter is remembered** in this browser, across page
+  changes and reloads, until you change it. The Instance filter and the Restart
+  markers checkbox still reset when you open the page.
+
 ## [0.6.52] - 2026-11-04
 
 ### Changed

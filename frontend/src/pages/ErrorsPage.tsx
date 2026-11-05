@@ -7,7 +7,26 @@ import { guideCounts, guideFor } from "../lib/error-guide.js";
 import { errorLog, isMarker, useErrorLog } from "../lib/error-log.js";
 import { useInstanceList } from "../state/InstanceListContext.js";
 
-type Level = "all" | "error";
+type Level = "all" | "error" | "warning";
+
+const LEVEL_KEY = "rtl-panel:errors-level";
+
+function loadLevel(): Level {
+  try {
+    const v = localStorage.getItem(LEVEL_KEY);
+    return v === "all" || v === "error" || v === "warning" ? v : "all";
+  } catch {
+    return "all";
+  }
+}
+
+function saveLevel(v: Level) {
+  try {
+    localStorage.setItem(LEVEL_KEY, v);
+  } catch {
+    // Storage blocked: the choice just won't be remembered.
+  }
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const timeOf = (ts: number) => {
@@ -172,7 +191,7 @@ export function ErrorsPage() {
   const log = useErrorLog();
   const { instances } = useInstanceList();
   const [instance, setInstance] = useState("");
-  const [level, setLevel] = useState<Level>("all");
+  const [level, setLevel] = useState<Level>(loadLevel);
   const [showMarkers, setShowMarkers] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   // What was already seen when the page opened: newer rows get highlighted.
@@ -199,7 +218,7 @@ export function ErrorsPage() {
       (log.events ?? []).filter((e) => {
         if (instance && e.instance !== instance) return false;
         if (isMarker(e)) return showMarkers;
-        return level === "all" || e.severity === "error";
+        return level === "all" || e.severity === level;
       }),
     [log.events, instance, level, showMarkers]
   );
@@ -236,9 +255,18 @@ export function ErrorsPage() {
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-400">
           Show
-          <select value={level} onChange={(e) => setLevel(e.target.value as Level)} className={selectClass}>
+          <select
+            value={level}
+            onChange={(e) => {
+              const v = e.target.value as Level;
+              setLevel(v);
+              saveLevel(v);
+            }}
+            className={selectClass}
+          >
             <option value="all">Errors and warnings</option>
             <option value="error">Errors only</option>
+            <option value="warning">Warnings only</option>
           </select>
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-400">
