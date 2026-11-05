@@ -108,8 +108,9 @@ impl BaselineIndex {
 }
 
 /// Summed into output_failure_total (excludes icecast_backlog_exceeded_count,
-/// a subset of icecast_disconnect_count, and pulse under/overflows, which are
-/// expected under normal load).
+/// a subset of icecast_disconnect_count, pulse under/overflows, which are
+/// expected under normal load, and icecast_metadata_failure_count, which
+/// doesn't affect audio and is logged as a warning anyway).
 const OUTPUT_FAILURE_METRICS: [&str; 7] = [
     "icecast_disconnect_count",
     "lame_encode_failure_count",

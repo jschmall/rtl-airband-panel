@@ -5,6 +5,37 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.54] - 2026-11-05
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.4.0 to v7.4.1.** Icecast title updates
+  (`send_tx_tags`, `send_scan_freq_tags`) and the stats file are now handled on
+  their own threads, so a slow Icecast server or a filesystem frozen by a VM
+  backup no longer drops audio. auto_ppm gains hysteresis on its deadband, so a
+  dongle sitting between two whole-ppm values stops flipping between them. There
+  are no new config keys, CMake options, dependencies or feature flags. The
+  Hardware page already shows the new "within deadband (hysteresis)" reason. The
+  status reply's new `settled` field isn't used yet.
+- The `auto_ppm_deadband_hz` help text explains the hysteresis.
+- The "Outputs falling behind" guide entry names the causes v7.4.1 fixes, and now
+  recommends v7.4.1 or newer.
+
+### Added
+
+- Stats labels and tooltips for `icecast_tx_tag_update_count` and fork v7.4.1's
+  `icecast_metadata_failure_count` and `icecast_metadata_superseded_count`.
+  Neither new counter adds to the output failure total or creates Errors page
+  counter events, because audio is unaffected.
+
+### Fixed
+
+- The Errors page recognises fork v7.4.1's `Icecast metadata for …` warning: the
+  guide links it to Icecast problems, and it's kept when running without `-j`. The
+  Icecast guide entry says a metadata message means only a title update failed.
+- The auto_ppm residual tooltip still gave the deadband from before fork v7.4.0
+  (0.75 ppm, wider below about 133 MHz). It now says 1 ppm, wider below 100 MHz.
+
 ## [0.6.53] - 2026-11-05
 
 ### Added

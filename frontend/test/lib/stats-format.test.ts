@@ -34,6 +34,7 @@ describe("friendlyMetricLabel", () => {
   it("returns the mapped plain-English name for a known metric", () => {
     expect(friendlyMetricLabel("icecast_disconnect_count")).toBe("Icecast disconnects");
     expect(friendlyMetricLabel("buffer_overflow_count")).toBe("Buffer overflows");
+    expect(friendlyMetricLabel("icecast_metadata_failure_count")).toBe("Icecast title update failures");
   });
 
   it("falls back to titleCaseMetric() for an unmapped metric", () => {

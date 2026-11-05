@@ -152,8 +152,9 @@ export interface InstanceStatsSummary {
    * udp_stream_dropped_packet_count, pulse_disconnect_count,
    * rdio_scanner_queue_drop_count, rdio_scanner_upload_failure_count) across
    * every device/channel/output and mixer/output series. Excludes
-   * icecast_backlog_exceeded_count (a subset of icecast_disconnect_count) and
-   * pulse_underflow_count/pulse_overflow_count (expected under normal load).
+   * icecast_backlog_exceeded_count (a subset of icecast_disconnect_count),
+   * pulse_underflow_count/pulse_overflow_count (expected under normal load) and
+   * icecast_metadata_failure_count (audio unaffected, and logged as a warning).
    */
   outputFailureTotal: number;
   /** Undefined when the instance's build doesn't report process_cpu_seconds_total. */

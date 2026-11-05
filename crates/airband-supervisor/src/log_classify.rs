@@ -40,7 +40,7 @@ const ERROR_WORDS: [&str; 11] = [
     "auto_ppm disabled",
 ];
 
-const WARNING_WORDS: [&str; 23] = [
+const WARNING_WORDS: [&str; 24] = [
     "error",
     "fail",
     "cannot",
@@ -65,6 +65,9 @@ const WARNING_WORDS: [&str; 23] = [
     "exiting",
     // fork auto_ppm hitting auto_ppm_max_ppm (LOG_WARNING).
     "auto_ppm wants",
+    // fork v7.4.1's metadata worker couldn't set up a target (LOG_WARNING); the
+    // rest of the line is libshout's own text, which may match nothing above.
+    "icecast metadata for",
 ];
 
 /// The severity to log a line under, or None for a routine line.
@@ -111,6 +114,13 @@ mod tests {
         assert_eq!(class(Some("warning"), "Failed to add shout metadata"), Some((LogSeverity::Warning, false)));
         assert_eq!(class(Some("info"), "Activity on 151.100 MHz (Tower) failed"), None);
         assert_eq!(class(Some("debug"), "error"), None);
+    }
+
+    #[test]
+    fn fork_metadata_worker_lines_without_json() {
+        let warning = Some((LogSeverity::Warning, true));
+        assert_eq!(class(None, "Icecast metadata for example:8000/tower: Invalid parameter"), warning);
+        assert_eq!(class(None, "Failed to set shout metadata for example:8000/tower: Socket error"), warning);
     }
 
     #[test]

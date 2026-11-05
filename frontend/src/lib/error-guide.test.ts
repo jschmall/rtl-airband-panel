@@ -80,6 +80,8 @@ describe("error guide", () => {
     ["rtl_airband[812]: Lost connection to ice.example:8000/tower", "icecast"],
     ["rtl_airband[812]: Could not connect to ice.example:8000/tower: Connection refused", "icecast"],
     ["rtl_airband[812]: Exceeded max backlog for ice.example:8000/tower, disconnecting", "icecast"],
+    ["rtl_airband[812]: Icecast metadata for ice.example:8000/tower: Invalid parameter", "icecast"],
+    ["rtl_airband[812]: Failed to set shout metadata for ice.example:8000/tower: Socket error", "icecast"],
     ["rtl_airband[812]: lame_encode_buffer_ieee_float: -1", "mp3-encode"],
     ["rtl_airband[812]: tag_queue_put: queue overrun", "output-overrun"],
     ["rtl_airband[812]: udp_stream: could not resolve recv.example:6000 - Name or service not known", "udp-stream"],
