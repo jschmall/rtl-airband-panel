@@ -127,7 +127,8 @@ pub struct Device {
     /// Fork v7.3.0+: smallest error worth correcting, in Hz at the voters'
     /// frequency, int 0..=1000 (default 100). The deadband is the larger of
     /// this and 1 ppm (0.75 before fork v7.4.0), so it only widens below
-    /// 100 MHz.
+    /// 100 MHz. From fork v7.4.1, once a reading has been inside it, an error
+    /// has to reach 1.25x the deadband before auto_ppm acts again.
     pub auto_ppm_deadband_hz: Option<f64>,
     /// rtlsdr tuner bandwidth, literal int Hz (no float-means-MHz shorthand).
     pub bandwidth: Option<f64>,

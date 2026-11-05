@@ -24,6 +24,12 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
     "Number of times this icecast output's connection was lost (network error, exceeded send backlog, or the owning device failing) and had to be reconnected.",
   icecast_backlog_exceeded_count:
     "Subset of icecast_disconnect_count -- specifically caused by the local encode rate outpacing what Icecast could drain, rather than a network-level error.",
+  icecast_tx_tag_update_count:
+    "Number of stream title updates (send_tx_tags or send_scan_freq_tags) the Icecast server accepted. On builds older than fork v7.4.1, send_scan_freq_tags updates aren't counted.",
+  icecast_metadata_failure_count:
+    "Number of stream title updates the Icecast server didn't accept, or that never reached it. Listeners only miss the title change: audio is unaffected, so this isn't counted as an output failure.",
+  icecast_metadata_superseded_count:
+    "Number of stream title updates replaced by a newer one before they were sent, e.g. a transmission that ended while its start tag was still queued. Only the latest title matters, so this isn't a problem by itself.",
   lame_encode_failure_count: "Number of times mp3 encoding failed for this output. Only emitted for outputs that encode mp3 (icecast, file).",
   file_write_failure_count:
     "Number of times a short or failed write happened on this file/rawfile output (disk full, I/O error). The output is disabled when this happens, so a healthy instance should see this stay at 0.",
@@ -41,7 +47,7 @@ const DEVICE_METRIC_TOOLTIPS: Record<string, string> = {
   device_ppm_correction:
     "The frequency correction (ppm) this device is running with right now. Only reported for devices with auto_ppm set, where it can drift from the configured correction as auto_ppm adjusts it.",
   device_auto_ppm_residual_ppm:
-    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under its deadband, which is 0.75 ppm or more (wider below about 133 MHz). Missing until enough transmissions have been measured.",
+    "The frequency error (ppm) auto_ppm measured on its last evaluation, after the current correction. Near 0 means the correction is right; auto_ppm ignores anything under its deadband, which is 1 ppm or more (wider below 100 MHz), and once a reading has been inside it, anything up to 25% past it. Missing until enough transmissions have been measured.",
   device_auto_ppm_adjustment_count:
     "How many times auto_ppm has changed this device's correction since the process started. A few after startup is normal; a steady climb means the dongle is still drifting (warming up, or temperature swings).",
   channel_split_tx_dropped_counter:

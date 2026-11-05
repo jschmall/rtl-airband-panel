@@ -220,6 +220,7 @@ export const ERROR_GUIDE: readonly GuideEntry[] = [
       "Wrong server, port, mountpoint, username or password.",
       "The mountpoint is already in use by another source.",
       "Not enough upstream bandwidth (\"Exceeded max backlog\").",
+      "A metadata message means only a stream title update failed (send_tx_tags or send_scan_freq_tags). Audio keeps flowing, but the same server or credential checks apply.",
     ],
     fixes: [
       "Check the server is up and reachable from this host (`curl http://server:port/`).",
@@ -229,7 +230,7 @@ export const ERROR_GUIDE: readonly GuideEntry[] = [
     ],
     match: {
       metrics: ["icecast_disconnect_count"],
-      patterns: [/Lost connection to/i, /Could not connect to/i, /Exceeded max backlog/i, /Closing connection to/i, /shout metadata/i],
+      patterns: [/Lost connection to/i, /Could not connect to/i, /Exceeded max backlog/i, /Closing connection to/i, /shout metadata/i, /Icecast metadata for /i],
     },
   },
   {
@@ -248,11 +249,12 @@ export const ERROR_GUIDE: readonly GuideEntry[] = [
     summary: "Audio or transmission tags arrived faster than an output could take them, so some were dropped.",
     causes: [
       "On rtl_airband builds older than fork v7.2.0, RTL-SDR dongles below 2.56 Msps deliver audio in bursts that outrun the outputs. This was the main cause on 1.024 Msps instances, even with fast disks.",
+      "On builds older than fork v7.4.1, stream title updates (send_tx_tags, send_scan_freq_tags) and stats file writes ran on the output thread. A slow Icecast server, or a filesystem frozen by a VM backup, dropped audio on every output sharing that thread.",
       "A slow disk or network output holding everything up.",
       "The host is overloaded.",
     ],
     fixes: [
-      "Run the bundled rtl_airband (fork v7.2.0 or newer) and leave the device's USB transfer size blank.",
+      "Run the bundled rtl_airband (fork v7.4.1 or newer) and leave the device's USB transfer size blank.",
       "Look for file-write or streaming errors at the same time: they're usually the cause.",
       "Check host load and disk speed.",
     ],
