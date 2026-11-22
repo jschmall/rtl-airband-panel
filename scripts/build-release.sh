@@ -70,6 +70,10 @@ install -m 0644 "$build/bin/THIRD-PARTY-LICENSES" "$stage/"
 install -m 0644 vendor/RTLSDR-Airband/LICENSE "$stage/LICENSE.rtl_airband"
 mkdir -p "$stage/source"
 install -m 0644 packaging/airband-static-drivers.patch "$stage/source/"
+# The fork's full source, which install.sh --build-rtl-airband builds from.
+# The directory name gives the fork's version script its version without .git.
+tar -C "$build/airband-src" --owner=0 --group=0 -czf "$stage/source/RTLSDR-Airband-$airband_version.tar.gz" \
+  "RTLSDR-Airband-$airband_version"
 cat > "$stage/SOURCE.txt" <<SOURCE
 Source code for the programs in this release
 ============================================
@@ -91,6 +95,11 @@ source/airband-static-drivers.patch (it lets the statically linked binary
 find its input drivers without dlsym()). The build recipe, including the
 pinned versions of the libraries it is statically linked with, is
 packaging/Dockerfile in the rtl-airband-panel source below.
+
+That source, unchanged, is also included as
+source/RTLSDR-Airband-$airband_version.tar.gz. \`install.sh --build-rtl-airband\`
+builds rtl_airband from it on your machine, with the features you choose,
+instead of installing bin/rtl_airband (see \`install.sh --help\`).
 
 bin/rtl-airband-panel
 ---------------------

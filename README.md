@@ -111,6 +111,14 @@ Then open <http://localhost:3000> on that machine.
      kept as `rtl_airband.pre-fork`. Existing instances switch to the fork
      when they next restart. Only a copy under `/usr/local` is replaced,
      never one from your system's packages.
+4. **Prebuilt `rtl_airband`, or build it here with your own features?**
+   The prebuilt one has RTL-SDR, narrowband FM and rdio-scanner uploads.
+   Building it here lets you add SoapySDR (Airspy, SDRplay, HackRF and
+   other radios) or PulseAudio, or leave NFM or rdio-scanner out. The
+   installer offers to install the compiler and libraries it needs (apt or
+   dnf) and builds the fork from the source in the release, which takes a
+   few minutes. Your distribution's `librtlsdr` may not support RTL-SDR
+   Blog V4 dongles; the prebuilt one does.
 
 **It also sets up:**
 - access to SDR dongles without root (if the kernel's TV drivers already
@@ -132,6 +140,13 @@ Then open <http://localhost:3000> on that machine.
 | `--with-rtl-airband` | Install the bundled `rtl_airband` too, without asking |
 | `--replace-rtl-airband` | Install it in place of the `rtl_airband` you already have (keeping a `.pre-fork` backup) |
 | `--separate-rtl-airband` | Install it alongside the `rtl_airband` you already have (the default) |
+| `--build-rtl-airband` | Build `rtl_airband` here from the included source instead of using the prebuilt one |
+| `--with-soapysdr`, `--without-soapysdr` | Build with or without SoapySDR (off unless you turn it on) |
+| `--with-pulseaudio`, `--without-pulseaudio` | Build with or without PulseAudio output (off unless you turn it on) |
+| `--with-nfm`, `--without-nfm` | Build with or without narrowband FM (on unless you turn it off) |
+| `--with-rdio-scanner`, `--without-rdio-scanner` | Build with or without rdio-scanner uploads (on unless you turn it off) |
+| `--platform native\|generic\|rpiv2` | CPU optimization for the build (default `native`) |
+| `--prebuilt-rtl-airband` | Go back to the prebuilt `rtl_airband` |
 | `--yes` | Don't ask anything; take the defaults |
 | `--no-start` | Install but don't start the panel yet |
 
@@ -139,6 +154,8 @@ Then open <http://localhost:3000> on that machine.
 - It keeps your setup: `panel.env`, the account, instances folder and unit
   prefix stay as they are unless you pass an option to change them.
 - A service file you've edited by hand is left alone.
+- An `rtl_airband` built here is rebuilt with the same features (or left
+  as it is when nothing changed).
 - Running instances keep the old `rtl_airband` until each one is
   restarted.
 
@@ -197,8 +214,9 @@ logging) stop it from starting, so the panel blocks those.
 
 The bundled `rtl_airband` supports RTL-SDR dongles, with narrowband FM,
 rdio-scanner uploads and automatic PPM correction. It's built without
-PulseAudio and SoapySDR; if you need those, build the fork yourself and
-point the panel at it (`RTL_PANEL_RTL_AIRBAND_BIN`). Mirics dongles need an
+PulseAudio and SoapySDR; if you need those, run the installer with
+`--build-rtl-airband --with-soapysdr` (or `--with-pulseaudio`), or answer
+"build it here" when it asks. Mirics dongles need an
 `rtl_airband` older than upstream v7.0.0, which removed that driver; the
 panel flags a Mirics device on a build without it.
 
