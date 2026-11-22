@@ -35,9 +35,11 @@ itself tracks upstream rtl-airband/RTLSDR-Airband via periodic merges.
 - Releases: a tarball per architecture (amd64, arm64) with the static panel
   binary, a static `rtl_airband` built from the pinned fork, and
   `install.sh` (`scripts/build-release.sh`, `packaging/`, the Release
-  workflow). Bundled builds have PulseAudio and SoapySDR off (runtime
-  plugins/sound server); people who need those build rtl_airband themselves
-  and point `RTL_PANEL_RTL_AIRBAND_BIN` at it.
+  workflow). The prebuilt rtl_airband has PulseAudio and SoapySDR off
+  (runtime plugins/sound server); the tarball also carries the fork source,
+  and `install.sh --build-rtl-airband` (`--with-soapysdr`, etc.) builds it
+  on the target with chosen features. A new fork CMake option needs a flag
+  (and package names) in install.sh's build path.
 
 ## Architecture constraints (do not violate)
 - RTLSDR-Airband config is parsed once at process startup into

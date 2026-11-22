@@ -41,7 +41,29 @@
 #                        --uninstall). Existing instances that run it switch
 #                        to the fork when they next restart. Asked for when
 #                        run in a terminal without either option.
-#   --no-start           Install everything but don't (re)start the panel
+#   --build-rtl-airband  Build rtl_airband here from the fork source in this
+#                        release instead of using the prebuilt one, with the
+#                        features chosen below. Offers to install the build
+#                        tools and libraries it needs. An upgrade rebuilds with
+#                        the same features. Asked for when run in a terminal
+#                        without a build option. Needs apt or dnf to install
+#                        what it needs, or those packages already installed.
+#                        Your distribution's librtlsdr may not support RTL-SDR
+#                        Blog V4 dongles; the prebuilt one does.
+#   --prebuilt-rtl-airband
+#                        Use the prebuilt rtl_airband (the default; it has NFM
+#                        and rdio-scanner upload, not SoapySDR or PulseAudio)
+#   --with-nfm, --without-nfm
+#   --with-rdio-scanner, --without-rdio-scanner
+#   --with-soapysdr, --without-soapysdr
+#   --with-pulseaudio, --without-pulseaudio
+#                        Features for --build-rtl-airband (each implies it).
+#                        Defaults: the previous build's, else those of the
+#                        prebuilt one. SoapySDR device modules (e.g.
+#                        soapysdr-module-airspy) are installed separately.
+#   --platform P         CPU optimization for the build: native (default),
+#                        generic or rpiv2
+#   --no-start          Install everything but don't (re)start the panel
 #   -y, --yes            Don't ask anything; take the defaults
 #   --uninstall          Remove the panel; keep configs, settings and stats
 #   -h, --help           Show this help
@@ -56,6 +78,8 @@ UNIT_FILE=/etc/systemd/system/rtl-airband-panel.service
 SUDOERS_FILE=/etc/sudoers.d/rtl-airband-panel
 UDEV_FILE=/etc/udev/rules.d/60-rtl-airband-panel.rules
 BLACKLIST_FILE=/etc/modprobe.d/rtl-airband-panel-blacklist.conf
+# The features a source-built rtl_airband was built with (--build-rtl-airband).
+BUILD_FILE="$LIB_DIR/rtl_airband.build"
 
 # Empty until an option or the existing install sets them; see "Existing
 # install" below for the fallbacks.
@@ -68,6 +92,17 @@ assume_yes=0
 bundle=""
 # replace | separate: what the bundled rtl_airband does to one already installed.
 airband_mode=""
+panel_only_given=0
+# 1: build rtl_airband from source/, 0: the prebuilt bin/rtl_airband.
+airband_build=""
+build_opt_given=0
+# ON | OFF for each fork CMake feature; empty until an option or the previous
+# build sets it.
+feat_nfm=""
+feat_rdio=""
+feat_soapy=""
+feat_pulse=""
+platform=""
 start=1
 action=install
 
@@ -89,7 +124,27 @@ while [ $# -gt 0 ]; do
     --listen-all) listen_all=1; shift ;;
     --no-start) start=0; shift ;;
     -y | --yes) assume_yes=1; shift ;;
-    --panel-only) bundle=0; shift ;;
+    --panel-only) bundle=0; panel_only_given=1; shift ;;
+    --build-rtl-airband) airband_build=1; build_opt_given=1; shift ;;
+    --prebuilt-rtl-airband)
+      [ "$airband_build" != 1 ] || die "--prebuilt-rtl-airband can't be combined with build options"
+      airband_build=0; build_opt_given=1; shift ;;
+    --with-nfm | --without-nfm | --with-rdio-scanner | --without-rdio-scanner | \
+    --with-soapysdr | --without-soapysdr | --with-pulseaudio | --without-pulseaudio)
+      [ "$airband_build" != 0 ] || die "$1 needs a source build; drop --prebuilt-rtl-airband"
+      case "$1" in --with-*) value=ON ;; *) value=OFF ;; esac
+      case "$1" in
+        *nfm) feat_nfm=$value ;;
+        *rdio-scanner) feat_rdio=$value ;;
+        *soapysdr) feat_soapy=$value ;;
+        *pulseaudio) feat_pulse=$value ;;
+      esac
+      airband_build=1; build_opt_given=1; shift ;;
+    --platform)
+      [ $# -ge 2 ] || die "--platform needs a value"
+      [ "$airband_build" != 0 ] || die "--platform needs a source build; drop --prebuilt-rtl-airband"
+      case "$2" in native | generic | rpiv2) platform="$2" ;; *) die "--platform must be native, generic or rpiv2 (got '$2')" ;; esac
+      airband_build=1; build_opt_given=1; shift 2 ;;
     --with-rtl-airband) bundle=1; shift ;;
     --replace-rtl-airband) bundle=1; airband_mode=replace; shift ;;
     --separate-rtl-airband) bundle=1; airband_mode=separate; shift ;;
@@ -98,6 +153,10 @@ while [ $# -gt 0 ]; do
     *) die "unknown option: $1 (see --help)" ;;
   esac
 done
+if [ "$build_opt_given" -eq 1 ]; then
+  [ "$panel_only_given" -eq 0 ] || die "--panel-only doesn't install rtl_airband, so it can't be combined with build options"
+  bundle=1
+fi
 
 [ "$(id -u)" -eq 0 ] || die "run as root: sudo $0"
 command -v systemctl >/dev/null 2>&1 || die "systemd is required"
@@ -256,6 +315,12 @@ current_fork() {
 }
 bundled_version=""
 if [ -x "$here/bin/rtl_airband" ]; then bundled_version="$(airband_version "$here/bin/rtl_airband" || true)"; fi
+# The fork's source, for --build-rtl-airband: source/RTLSDR-Airband-<version>.tar.gz.
+source_tar=""
+for f in "$here"/source/RTLSDR-Airband-*.tar.gz; do [ -f "$f" ] && source_tar="$f"; done
+source_version=""
+[ -z "$source_tar" ] || source_version="$(basename "$source_tar" .tar.gz | sed 's/^RTLSDR-Airband-//')"
+[ -n "$bundled_version" ] || bundled_version="$source_version"
 # What an earlier install bundled, which this one would upgrade.
 prev_bundled=""
 if [ -x "$LIB_DIR/rtl_airband" ]; then prev_bundled="$LIB_DIR/rtl_airband"; fi
@@ -311,8 +376,64 @@ if [ -z "$bundle" ]; then
     case "$answer" in [Yy]*) bundle=1 ;; [Nn]*) bundle=0 ;; esac
   fi
 fi
+
+# Prebuilt, or built here with chosen features? An upgrade keeps building
+# from source, with the same features, when the earlier install did.
+on_off() { case "$1" in ON) echo yes ;; *) echo no ;; esac; }
+ask_feature() { # ask_feature VAR "question"
+  current=""
+  eval "current=\$$1"
+  if [ "$current" = ON ]; then printf '%s [Y/n]: ' "$2"; else printf '%s [y/N]: ' "$2"; fi
+  read -r answer || answer=""
+  case "$answer" in [Yy]*) eval "$1=ON" ;; [Nn]*) eval "$1=OFF" ;; esac
+}
+build_features() { # the chosen features, in words
+  list=""
+  [ "$feat_nfm" = OFF ] || list="$list, NFM"
+  [ "$feat_rdio" = OFF ] || list="$list, rdio-scanner upload"
+  [ "$feat_soapy" = OFF ] || list="$list, SoapySDR"
+  [ "$feat_pulse" = OFF ] || list="$list, PulseAudio"
+  list="${list#, }"
+  echo "RTL-SDR${list:+, $list} (platform $platform)"
+}
 if [ "$bundle" -eq 1 ]; then
-  [ -x "$here/bin/rtl_airband" ] || die "bin/rtl_airband is missing from this release folder; use --panel-only"
+  if [ -z "$airband_build" ]; then
+    airband_build=0
+    [ ! -f "$BUILD_FILE" ] || airband_build=1
+    if [ "$assume_yes" -eq 0 ] && [ -t 0 ] && [ -n "$source_tar" ] && [ -x "$here/bin/rtl_airband" ]; then
+      step "Prebuilt rtl_airband, or build it with your own features?"
+      say "  1) Prebuilt: RTL-SDR, NFM and rdio-scanner upload (no SoapySDR, no PulseAudio)"
+      say "  2) Build it here from the source in this release, choosing the features"
+      say "     (a few minutes; installs build tools and libraries from your distribution)"
+      say "     Note: your distribution's librtlsdr may not support RTL-SDR Blog V4 dongles."
+      [ ! -f "$BUILD_FILE" ] || say "     Your current one was built here."
+      printf 'Choice [%s]: ' "$((airband_build + 1))"
+      read -r answer || answer=""
+      case "$answer" in 1 | [Pp]*) airband_build=0 ;; 2 | [Bb]*) airband_build=1 ;; esac
+      ask_features=$airband_build
+    fi
+  fi
+  if [ "$airband_build" -eq 1 ]; then
+    [ -n "$source_tar" ] || die "source/RTLSDR-Airband-*.tar.gz is missing from this release folder; can't build rtl_airband"
+    # Options first, then the previous build's, then the prebuilt one's.
+    [ -n "$feat_nfm" ] || feat_nfm="$(file_value NFM "$BUILD_FILE")"
+    [ -n "$feat_rdio" ] || feat_rdio="$(file_value RDIO_SCANNER "$BUILD_FILE")"
+    [ -n "$feat_soapy" ] || feat_soapy="$(file_value SOAPYSDR "$BUILD_FILE")"
+    [ -n "$feat_pulse" ] || feat_pulse="$(file_value PULSEAUDIO "$BUILD_FILE")"
+    [ -n "$platform" ] || platform="$(file_value PLATFORM "$BUILD_FILE")"
+    : "${feat_nfm:=ON}" "${feat_rdio:=ON}" "${feat_soapy:=OFF}" "${feat_pulse:=OFF}" "${platform:=native}"
+    if [ "${ask_features:-0}" -eq 1 ]; then
+      step "Features to build in"
+      ask_feature feat_nfm "NFM (narrowband FM channels)?"
+      ask_feature feat_rdio "rdio-scanner call upload?"
+      say "SoapySDR adds Airspy, SDRplay, HackRF and other radios; their SoapySDR device"
+      say "modules (e.g. soapysdr-module-airspy) are installed separately."
+      ask_feature feat_soapy "SoapySDR?"
+      ask_feature feat_pulse "PulseAudio output?"
+    fi
+  else
+    [ -x "$here/bin/rtl_airband" ] || die "bin/rtl_airband is missing from this release folder; use --panel-only"
+  fi
 fi
 
 # The bundled rtl_airband and one already installed: replace it, or alongside?
@@ -335,10 +456,144 @@ if [ "$bundle" -eq 1 ] && [ -n "$other_airband" ]; then
   [ -n "$airband_mode" ] || airband_mode=separate
 fi
 
+# The build tools and -dev packages a source build needs, from apt or dnf.
+# Sets $pkg_tool (empty for any other package manager) and $missing.
+find_missing_build_packages() {
+  missing=""
+  if command -v apt-get >/dev/null 2>&1 && command -v dpkg-query >/dev/null 2>&1; then
+    pkg_tool=apt
+    want="build-essential cmake pkg-config libconfig++-dev libmp3lame-dev libshout3-dev libfftw3-dev libusb-1.0-0-dev librtlsdr-dev"
+    [ "$feat_rdio" = OFF ] || want="$want libcurl4-openssl-dev"
+    [ "$feat_soapy" = OFF ] || want="$want libsoapysdr-dev"
+    [ "$feat_pulse" = OFF ] || want="$want libpulse-dev"
+    for p in $want; do
+      dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing="$missing $p"
+    done
+  elif command -v dnf >/dev/null 2>&1 && command -v rpm >/dev/null 2>&1; then
+    pkg_tool=dnf
+    want="gcc-c++ make cmake pkgconf-pkg-config libconfig-devel lame-devel libshout-devel fftw-devel libusb1-devel rtl-sdr-devel"
+    [ "$feat_rdio" = OFF ] || want="$want libcurl-devel"
+    [ "$feat_soapy" = OFF ] || want="$want SoapySDR-devel"
+    [ "$feat_pulse" = OFF ] || want="$want pulseaudio-libs-devel"
+    for p in $want; do
+      rpm -q --whatprovides "$p" >/dev/null 2>&1 || missing="$missing $p"
+    done
+  else
+    pkg_tool=""
+  fi
+  missing="${missing# }"
+}
+install_build_packages() {
+  step "Build tools and libraries for rtl_airband"
+  find_missing_build_packages
+  if [ -z "$pkg_tool" ]; then
+    say "This installer can install them only with apt (Debian, Ubuntu, Raspberry Pi OS) or dnf"
+    say "(Fedora, RHEL). It needs a C++ compiler, cmake, pkg-config and the development packages"
+    say "for libconfig++, lame, libshout, fftw3, libusb-1.0 and librtlsdr$( [ "$feat_rdio" = OFF ] || printf ', libcurl')$( [ "$feat_soapy" = OFF ] || printf ', SoapySDR')$( [ "$feat_pulse" = OFF ] || printf ', libpulse');"
+    say "the build below stops if any are missing."
+    return 0
+  fi
+  if [ -z "$missing" ]; then
+    say "all installed"
+    return 0
+  fi
+  case "$pkg_tool" in
+    apt) install_cmd="apt-get install --no-install-recommends $missing" ;;
+    dnf) install_cmd="dnf install $missing" ;;
+  esac
+  say "Missing: $missing"
+  if [ "$assume_yes" -eq 0 ] && [ -t 0 ]; then
+    printf 'Install them? [Y/n]: '
+    read -r answer || answer=""
+    case "$answer" in
+      [Nn]*) die "not building rtl_airband without them; install them (sudo $install_cmd) and run this again, or use --prebuilt-rtl-airband" ;;
+    esac
+  fi
+  say "installing them..."
+  pkg_log="$(mktemp /var/tmp/rtl-airband-packages.XXXXXX)"
+  # shellcheck disable=SC2086 # one word per package
+  if [ "$pkg_tool" = apt ]; then
+    { DEBIAN_FRONTEND=noninteractive apt-get update || true
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $missing; } >"$pkg_log" 2>&1
+  else
+    dnf install -y $missing >"$pkg_log" 2>&1
+  fi || {
+    tail -n 20 "$pkg_log" >&2
+    die "couldn't install the build packages (full log: $pkg_log); try: sudo $install_cmd"
+  }
+  rm -f "$pkg_log"
+  say "installed"
+}
+
+# Builds the fork from $source_tar with the chosen features into $build_dir,
+# and leaves the binary as $airband_src_bin. Nothing is installed if it fails.
+build_airband() {
+  step "Building rtl_airband $source_version: $(build_features)"
+  build_dir="$(mktemp -d /var/tmp/rtl-airband-build.XXXXXX)"
+  log="$build_dir/build.log"
+  tar -xzf "$source_tar" -C "$build_dir"
+  src="$build_dir/RTLSDR-Airband-$source_version"
+  [ -d "$src" ] || die "$source_tar doesn't contain RTLSDR-Airband-$source_version/"
+  say "(log: $log)"
+  if ! { cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DPLATFORM="$platform" \
+          -DRTLSDR=ON -DNFM="$feat_nfm" -DRDIO_SCANNER="$feat_rdio" \
+          -DSOAPYSDR="$feat_soapy" -DPULSEAUDIO="$feat_pulse" \
+        && cmake --build "$src/build" -j"$(nproc 2>/dev/null || echo 2)"; } >"$log" 2>&1; then
+    tail -n 30 "$log" >&2
+    die "the rtl_airband build failed (full log: $log); nothing was installed"
+  fi
+  built="$src/build/src/rtl_airband"
+  "$built" -v >/dev/null 2>&1 || die "the built rtl_airband doesn't run (log: $log); nothing was installed"
+  features="$("$built" -v 2>&1 | sed -n 's/^Features://p')"
+  for want in "nfm:$feat_nfm" "rdio_scanner:$feat_rdio" "soapysdr:$feat_soapy" "pulseaudio:$feat_pulse"; do
+    [ "${want#*:}" = ON ] || continue
+    printf ' %s ' "$features" | grep -q " ${want%%:*} " \
+      || die "the build left out ${want%%:*} (is its development package installed? see $log); nothing was installed"
+  done
+  strip "$built" 2>/dev/null || true
+  airband_src_bin="$built"
+  say "built: $("$built" -v 2>&1 | head -1)"
+}
+
+airband_src_bin="$here/bin/rtl_airband"
+build_dir=""
+if [ "$bundle" -eq 1 ] && [ "$airband_build" -eq 1 ]; then
+  for v in "$feat_nfm" "$feat_rdio" "$feat_soapy" "$feat_pulse"; do
+    case "$v" in ON | OFF) ;; *) die "$BUILD_FILE has an invalid feature value ($v); delete it or pass the feature options" ;; esac
+  done
+  case "$platform" in native | generic | rpiv2) ;; *) die "$BUILD_FILE has an invalid PLATFORM ($platform); delete it or pass --platform" ;; esac
+  wanted_build="VERSION=$source_version
+NFM=$feat_nfm
+RDIO_SCANNER=$feat_rdio
+SOAPYSDR=$feat_soapy
+PULSEAUDIO=$feat_pulse
+PLATFORM=$platform"
+  if [ -x "$LIB_DIR/rtl_airband" ] && [ -f "$BUILD_FILE" ] && [ "$(cat "$BUILD_FILE")" = "$wanted_build" ]; then
+    step "rtl_airband $source_version: already built here with $(build_features)"
+    say "unchanged"
+    build_dir="$(mktemp -d /var/tmp/rtl-airband-build.XXXXXX)"
+    cp "$LIB_DIR/rtl_airband" "$build_dir/rtl_airband"
+    airband_src_bin="$build_dir/rtl_airband"
+  else
+    install_build_packages
+    build_airband
+  fi
+fi
+
 panel_version="$("$here/bin/rtl-airband-panel" --version | awk '{print $2}')"
 if [ "$bundle" -eq 1 ]; then
-  say "Installing rtl-airband-panel $panel_version with rtl_airband $bundled_version"
-  if [ -n "$prev_bundled" ]; then
+  if [ "$airband_build" -eq 1 ]; then
+    say "Installing rtl-airband-panel $panel_version with rtl_airband $bundled_version, built here with $(build_features)"
+  else
+    say "Installing rtl-airband-panel $panel_version with the prebuilt rtl_airband $bundled_version"
+  fi
+  if [ -n "$prev_bundled" ] && [ -f "$BUILD_FILE" ] && [ "$airband_build" -eq 0 ]; then
+    say "(replacing the bundled $prev_bundled, which was built here, with the prebuilt one)"
+  elif [ -n "$prev_bundled" ] && [ ! -f "$BUILD_FILE" ] && [ "$airband_build" -eq 1 ]; then
+    say "(replacing the prebuilt $prev_bundled with the one built here)"
+  elif [ -n "$prev_bundled" ] && [ "$airband_build" -eq 1 ] && [ "$(cat "$BUILD_FILE")" != "$wanted_build" ]; then
+    say "(replacing the bundled $prev_bundled, built here with different features or an older version)"
+  elif [ -n "$prev_bundled" ]; then
     prev_version="$(airband_version "$prev_bundled" || true)"
     if [ "$(airband_kind "$prev_bundled")" = fork ] && [ "$(version_cmp "$prev_version" "$bundled_version")" -eq 0 ]; then
       say "(the bundled $prev_bundled is already $prev_version: unchanged)"
@@ -381,7 +636,12 @@ if [ "$bundle" -eq 0 ]; then
     say "panel only: no bundled rtl_airband installed"
   fi
 else
-  install -m 0755 "$here/bin/rtl_airband" "$LIB_DIR/rtl_airband"
+  install -m 0755 "$airband_src_bin" "$LIB_DIR/rtl_airband"
+  if [ "$airband_build" -eq 1 ]; then
+    printf '%s\n' "$wanted_build" > "$BUILD_FILE"
+  else
+    rm -f "$BUILD_FILE"
+  fi
   if [ "$airband_mode" = replace ]; then
     if [ -e "$other_airband.pre-fork" ]; then
       say "replaced $other_airband with the fork again (your original is still $other_airband.pre-fork)"
@@ -389,7 +649,7 @@ else
       mv "$other_airband" "$other_airband.pre-fork"
       say "replaced $other_airband with the fork; your original is now $other_airband.pre-fork"
     fi
-    install -m 0755 "$here/bin/rtl_airband" "$other_airband"
+    install -m 0755 "$airband_src_bin" "$other_airband"
     say "instances that run $other_airband switch to the fork when they next restart"
   elif [ -e "$PREFIX/bin/rtl_airband" ] && [ "$(readlink "$PREFIX/bin/rtl_airband" 2>/dev/null)" != "$LIB_DIR/rtl_airband" ]; then
     say "left your existing $PREFIX/bin/rtl_airband alone; the bundled one is $LIB_DIR/rtl_airband"
@@ -397,6 +657,7 @@ else
     ln -sf "$LIB_DIR/rtl_airband" "$PREFIX/bin/rtl_airband"
   fi
 fi
+[ -z "$build_dir" ] || rm -rf "$build_dir"
 
 step "SDR dongle access (udev rule, DVB driver blacklist)"
 install -m 0644 "$here/deploy/60-rtl-airband-panel.rules" "$UDEV_FILE"

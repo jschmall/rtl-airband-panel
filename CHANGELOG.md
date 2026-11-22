@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.56] - 2026-11-22
+
+### Added
+
+- **install.sh can build rtl_airband on your machine with the features you
+  choose.** `--build-rtl-airband` (or answering "build it here" when the
+  installer asks) builds the pinned fork from source instead of installing the
+  prebuilt static binary. `--with-`/`--without-` `nfm`, `rdio-scanner`,
+  `soapysdr` and `pulseaudio` pick the features, and `--platform` sets the CPU
+  optimization (`native` by default). This is how to get SoapySDR (Airspy,
+  SDRplay, HackRF and other radios) or PulseAudio output, which the prebuilt
+  binary can't include. The installer lists the compiler and libraries it
+  needs and offers to install them with apt or dnf. It checks that the built
+  binary reports each feature you asked for. A failed build installs nothing
+  and leaves the current rtl_airband in place.
+- An upgrade rebuilds with the same features, and skips the build when the
+  version and features haven't changed. The choice is kept in
+  `/usr/local/lib/rtl-airband-panel/rtl_airband.build`.
+  `--prebuilt-rtl-airband` switches back to the prebuilt binary.
+- Release tarballs now include the fork's full source,
+  `source/RTLSDR-Airband-<version>.tar.gz`, which the source build uses.
+  `SOURCE.txt` points to it.
+
 ## [0.6.55] - 2026-11-05
 
 ### Changed

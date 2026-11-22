@@ -208,7 +208,19 @@ with the dependency layers already cached.
 `LICENSE` (the panel, GPL-3.0), `THIRD-PARTY-LICENSES`,
 `LICENSE.rtl_airband` (the fork's GPL-2.0 license), and `SOURCE.txt`, which
 names the fork tag and commit the bundled `rtl_airband` was built from. The
-static-drivers patch is included as `source/airband-static-drivers.patch`.
+static-drivers patch is included as `source/airband-static-drivers.patch`,
+and the fork's full source (a `git archive` of the pin) as
+`source/RTLSDR-Airband-<version>.tar.gz`.
+
+`install.sh --build-rtl-airband` (or answering "build it here") builds from
+that tarball on the target machine, dynamically linked against the
+distribution's libraries, without the static-drivers patch. It installs the
+build packages with apt or dnf after asking, passes the chosen `NFM`,
+`RDIO_SCANNER`, `SOAPYSDR`, `PULSEAUDIO` and `PLATFORM` to CMake, checks the
+binary's `Features:` line names each one requested, and records them in
+`/usr/local/lib/rtl-airband-panel/rtl_airband.build`, so an upgrade
+rebuilds with the same features (and skips the build when version and
+features are unchanged). A failed build installs nothing.
 
 Bundled rtl_airband has NFM, rdio-scanner and RTL-SDR support (no Mirics:
 upstream v7.0.0 removed the driver); PulseAudio and SoapySDR are off (they need a sound server or runtime
