@@ -11,8 +11,12 @@ fn fixture(name: &str) -> String {
 
 /// Relative to this crate. tests/data holds fixtures newer than the frozen
 /// parity goldens, which cover every file in fixtures/.
-const FIXTURES: &[&str] =
-    &["../../fixtures/151719.conf", "../../fixtures/fork-features.conf", "tests/data/fork-v7.conf"];
+const FIXTURES: &[&str] = &[
+    "../../fixtures/151719.conf",
+    "../../fixtures/fork-features.conf",
+    "tests/data/fork-v7.conf",
+    "tests/data/fm-demod.conf",
+];
 
 #[test]
 fn parses_fixtures() {

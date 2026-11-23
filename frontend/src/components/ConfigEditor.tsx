@@ -5,6 +5,7 @@ import { Collapsible } from "./Collapsible.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
 import { addButtonClass, inputClass } from "./styles.js";
+import { DEFAULT_FM_DEMOD, FM_DEMOD_VALUES } from "../generated/constants.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultDevice, defaultMixer } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
@@ -199,6 +200,31 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
               value={config.tau ?? ""}
               onChange={(e) => onChange({ ...config, tau: numberOrUndefined(e.target.value) })}
             />
+          </Field>
+          <Field
+            label="FM demodulator (optional; all NFM channels, fork build only)"
+            tooltip={GLOBAL_TOOLTIPS.fmDemod}
+            requires="fm_demod"
+            hasValue={config.fm_demod !== undefined}
+          >
+            <select
+              className={inputClass}
+              value={config.fm_demod === undefined ? "default" : `set:${config.fm_demod}`}
+              onChange={(e) =>
+                onChange({ ...config, fm_demod: e.target.value === "default" ? undefined : e.target.value.slice("set:".length) })
+              }
+            >
+              <option value="default">{`(default: ${DEFAULT_FM_DEMOD})`}</option>
+              {FM_DEMOD_VALUES.map((value) => (
+                <option key={value} value={`set:${value}`}>
+                  {value}
+                </option>
+              ))}
+              {/* A value from the file that rtl_airband won't accept: shown, not hidden. */}
+              {config.fm_demod !== undefined && !(FM_DEMOD_VALUES as readonly string[]).includes(config.fm_demod) && (
+                <option value={`set:${config.fm_demod}`}>{`"${config.fm_demod}" (invalid)`}</option>
+              )}
+            </select>
           </Field>
           <Field
             label="Stats HTTP address (optional, fork build only)"

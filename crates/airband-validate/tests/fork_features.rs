@@ -188,3 +188,24 @@ fn buffer_size_needs_fork_v7_2() {
     v7_2.push("usb_chunk_sizing".into());
     assert!(fork_issues(&validate_config_for(&config, Some(&v7_2))).is_empty());
 }
+
+#[test]
+fn fm_demod_needs_a_build_that_lists_it() {
+    let mut config = devices_config(&format!(r#"{{ type = "rtlsdr"; serial = "1"; gain = 29; {CHANNELS} }}"#));
+    let without: Vec<String> = BUNDLED_V7_1.iter().map(|s| s.to_string()).collect();
+    assert_eq!(fork_issues(&validate_config_for(&config, Some(&without))), []);
+
+    config.fm_demod = Some("atan2".into());
+    let expected = [(Severity::Warning, "$.fm_demod".to_string())];
+    let result = validate_config_for(&config, Some(&without));
+    assert_eq!(fork_issues(&result), expected);
+    assert!(
+        result.warnings.iter().any(|i| i.message.starts_with("Needs jschmall RTLSDR-Airband fork v7.5.0 or newer")
+            && i.message.contains("NFM channels keep the default demodulator"))
+    );
+    assert_eq!(fork_issues(&validate_config_for(&config, Some(&[]))), expected, "stock");
+
+    let with: Vec<String> = without.into_iter().chain(std::iter::once("fm_demod".to_string())).collect();
+    assert_eq!(fork_issues(&validate_config_for(&config, Some(&with))), []);
+    assert_eq!(fork_issues(&validate_config_for(&config, None)), [], "unidentified build");
+}

@@ -33,6 +33,11 @@ pub const RTLSDR_COMMON_SAMPLE_RATES_HZ: [f64; 13] = [
 /// RTLSDR-Airband's soft usable-bandwidth threshold (warn_if_freq_not_in_range).
 pub const SOFT_BW_THRESHOLD: f64 = 0.9;
 
+/// fm_demod values (fork v7.5.0, fm_demod.cpp, parse_fm_demod), matched exactly. The
+/// first is what rtl_airband uses when the key is absent.
+pub const FM_DEMOD_VALUES: [&str; 3] = ["fast_atan2", "atan2", "quadri"];
+pub const DEFAULT_FM_DEMOD: &str = FM_DEMOD_VALUES[0];
+
 /// Defaults for the split-file settings (RTLSDR-Airband v5.5).
 pub const DEFAULT_SPLIT_MIN_FILE_TIME: f64 = 1.0;
 pub const DEFAULT_SPLIT_MAX_FILE_TIME: f64 = 3600.0;
@@ -110,7 +115,9 @@ mod tests {
              export const DEFAULT_AUTO_PPM_MIN_VOTERS = {};\n\
              export const AUTO_PPM_MIN_VOTERS_RANGE = {{ min: {}, max: {} }};\n\
              export const DEFAULT_AUTO_PPM_DEADBAND_HZ = {};\n\
-             export const AUTO_PPM_DEADBAND_HZ_RANGE = {{ min: {}, max: {} }};\n",
+             export const AUTO_PPM_DEADBAND_HZ_RANGE = {{ min: {}, max: {} }};\n\
+             export const FM_DEMOD_VALUES = {:?} as const;\n\
+             export const DEFAULT_FM_DEMOD = {:?};\n",
             js(DEFAULT_FFT_SIZE),
             js(MIN_FFT_SIZE),
             js(MAX_FFT_SIZE),
@@ -137,6 +144,8 @@ mod tests {
             js(DEFAULT_AUTO_PPM_DEADBAND_HZ),
             js(AUTO_PPM_DEADBAND_HZ_RANGE.0),
             js(AUTO_PPM_DEADBAND_HZ_RANGE.1),
+            FM_DEMOD_VALUES,
+            DEFAULT_FM_DEMOD,
         );
         let path = std::path::Path::new(&dir).join("constants.ts");
         std::fs::create_dir_all(&dir).unwrap();

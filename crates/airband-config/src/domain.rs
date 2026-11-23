@@ -55,6 +55,10 @@ pub struct RtlAirbandConfig {
     pub log_scan_activity: Option<bool>,
     pub shout_metadata_delay: Option<f64>,
     pub tau: Option<f64>,
+    /// FM demodulator for every NFM channel (fork v7.5.0): "fast_atan2", "atan2" or
+    /// "quadri". Defaults to "fast_atan2". A string rather than an enum so a
+    /// config with a bad value still opens, for validation to flag.
+    pub fm_demod: Option<String>,
     pub stats_http_address: Option<String>,
     pub stats_http_port: Option<f64>,
     pub rdio_scanner_queue_depth: Option<f64>,

@@ -271,6 +271,7 @@ pub fn to_domain(ast: &ConfigFile) -> Result<RtlAirbandConfig> {
         log_scan_activity: r.optional_bool("log_scan_activity")?,
         shout_metadata_delay: r.optional_number("shout_metadata_delay")?,
         tau: r.optional_number("tau")?,
+        fm_demod: r.optional_string("fm_demod")?,
         stats_http_address: r.optional_string("stats_http_address")?,
         stats_http_port: r.optional_number("stats_http_port")?,
         rdio_scanner_queue_depth: r.optional_number("rdio_scanner_queue_depth")?,
@@ -748,6 +749,7 @@ pub fn from_domain(config: &RtlAirbandConfig) -> ConfigFile {
         .opt_bool("log_scan_activity", config.log_scan_activity)
         .opt_int("shout_metadata_delay", config.shout_metadata_delay)
         .opt_int("tau", config.tau)
+        .opt_string("fm_demod", &config.fm_demod)
         .opt_string("stats_http_address", &config.stats_http_address)
         .opt_int("stats_http_port", config.stats_http_port)
         .opt_int("rdio_scanner_queue_depth", config.rdio_scanner_queue_depth)

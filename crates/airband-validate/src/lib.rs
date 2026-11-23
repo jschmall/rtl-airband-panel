@@ -59,6 +59,7 @@ const CHECKS: &[Check] = &[
     fork_v6::unknown_settings,
     whole_numbers::whole_numbers,
     fork_v6::auto_ppm,
+    globals::fm_demod,
 ];
 
 pub fn validate_config(config: &RtlAirbandConfig) -> ValidationResult {

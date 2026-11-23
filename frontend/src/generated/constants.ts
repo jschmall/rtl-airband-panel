@@ -19,3 +19,5 @@ export const DEFAULT_AUTO_PPM_MIN_VOTERS = 1;
 export const AUTO_PPM_MIN_VOTERS_RANGE = { min: 1, max: 32 };
 export const DEFAULT_AUTO_PPM_DEADBAND_HZ = 100;
 export const AUTO_PPM_DEADBAND_HZ_RANGE = { min: 0, max: 1000 };
+export const FM_DEMOD_VALUES = ["fast_atan2", "atan2", "quadri"] as const;
+export const DEFAULT_FM_DEMOD = "fast_atan2";

@@ -69,6 +69,14 @@ pub fn check(config: &RtlAirbandConfig, features: &[String], issues: &mut Issues
     if config.rdio_scanner_queue_depth.is_some() {
         g.ignored("rdio_scanner", "$.rdio_scanner_queue_depth".into(), "nothing is uploaded");
     }
+    if config.fm_demod.is_some() {
+        g.ignored_needs(
+            "fm_demod",
+            "Needs jschmall RTLSDR-Airband fork v7.5.0 or newer, built with NFM.",
+            "$.fm_demod".into(),
+            "NFM channels keep the default demodulator",
+        );
+    }
 
     let is_fork_build = !g.missing("fork");
     for (di, device) in config.devices.iter().enumerate() {
