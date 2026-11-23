@@ -13,6 +13,8 @@ export const GLOBAL_TOOLTIPS = {
   shoutMetadataDelay:
     "Seconds to wait after switching frequency (in scan mode) before pushing the Icecast metadata update, to give streaming clients time to buffer the new audio before the title changes.",
   tau: "NFM de-emphasis time constant in microseconds. Higher values attenuate high audio frequencies more aggressively, reducing hiss. 0 disables de-emphasis. Applies globally unless overridden per device or channel.",
+  fmDemod:
+    "How NFM audio is recovered, for every NFM channel of this instance. fast_atan2 (the default) is a quick approximation that adds a faint third harmonic to CTCSS tones; the harmonic can land on a paging tone (136.5 Hz gives about 410 Hz) and trigger false detections in decoders fed by UDP stream. atan2 is exact and avoids that, but quiet audio comes out up to about 4 dB lower while loud peaks stay about the same, so check anything downstream that depends on level. quadri (rtl_airband's -Q option) gets quieter and distorts on weak signals; prefer atan2. Changing it needs a restart of this instance. Requires jschmall/RTLSDR-Airband v7.5.0 or newer built with NFM; other builds ignore it.",
   multipleDemodThreads: "Runs demodulation for each device on its own thread instead of one shared thread. Improves throughput on multi-core systems with several busy devices.",
   multipleOutputThreads: "Runs each output (MP3 encode, Icecast stream, etc.) on its own thread instead of one shared thread. Improves throughput when several outputs are active.",
   localtime: "Use the local timezone for output filename timestamps and logs instead of UTC.",

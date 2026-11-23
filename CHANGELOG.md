@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.59] - 2026-11-23
+
+### Added
+
+- **FM demodulator setting (`fm_demod`).** Instance settings has a selector
+  for the demodulator used by every NFM channel of an instance: `fast_atan2`
+  (what rtl_airband uses when the key is absent), `atan2` (exact) or `quadri`
+  (quieter and distorted on weak signals; prefer `atan2`). The default is an
+  approximation that adds a third harmonic to CTCSS tones, which can set off
+  false paging-tone detections in decoders fed by `udp_stream`; `atan2` avoids
+  that, but quiet audio comes out up to about 4 dB lower (loud peaks stay
+  about the same). Any other value is an error. Changing it always restarts
+  the instance, since live reload doesn't cover it. The key used to be kept as
+  an unknown setting.
+- It needs fork v7.5.0 or newer (the bundled build) with NFM. Builds whose
+  `rtl_airband -v` Features line doesn't list `fm_demod` ignore the key: the
+  panel locks the selector and warns if the key is already set. Upgrade an
+  instance's rtl_airband before setting it.
+
 ## [0.6.58] - 2026-11-23
 
 ### Changed

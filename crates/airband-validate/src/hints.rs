@@ -35,6 +35,11 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
         "The delay is capped by the size of rtl_airband's tag queue, and it won't start with a value outside 0-32.",
     ),
     h(
+        "fm-demod-invalid",
+        "Leave FM demodulator on the default, or choose atan2 (or fast_atan2 or quadri).",
+        "rtl_airband builds that support fm_demod refuse to start with any other value, and the spelling must match exactly (lowercase). Leaving it out uses fast_atan2. quadri gets quieter and distorts on weak signals, so prefer atan2 over it.",
+    ),
+    h(
         "stats-http-address-and-port-must-be-set-together",
         "Fill in both Stats HTTP address and Stats HTTP port, or clear both.",
         "The stats HTTP endpoint needs an address to bind and a port to listen on, so rtl_airband rejects a config that sets only one. Use 0.0.0.0 to listen on every interface, or 127.0.0.1 for this machine only. The endpoint serves the stats file, so Stats filepath must also be set.",

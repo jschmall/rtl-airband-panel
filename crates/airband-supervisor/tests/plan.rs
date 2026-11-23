@@ -417,3 +417,22 @@ fn split_tx_drop_follows_the_usual_global_and_channel_rules() {
     assert_eq!(p.method(), ApplyMethod::Live, "{p:?}");
     assert!(!p.interrupts.is_empty(), "the channel is re-created: {p:?}");
 }
+
+// --- fm_demod ---
+
+#[test]
+fn fm_demod_changes_need_a_restart() {
+    // Read once at startup; reload_diff neither applies nor reports it.
+    let with = |value: &str| conf(&format!("{HEAD} fm_demod = \"{value}\";"), &[device("", &base_channels())], "");
+    let without = conf(HEAD, &[device("", &base_channels())], "");
+    for (old, new) in [(&without, &with("atan2")), (&with("atan2"), &without), (&with("atan2"), &with("quadri"))] {
+        let p = plan(old, new);
+        assert_eq!((p.method(), p.restart.as_slice()), (ApplyMethod::Restart, &["fm_demod changed".to_string()][..]));
+    }
+    assert_eq!(plan(&with("atan2"), &with("atan2")).method(), ApplyMethod::NoChange);
+
+    // A live-applicable edit alongside it doesn't make the change live.
+    let p = plan(&without, &with("atan2").replace("gain = 29", "gain = 30"));
+    assert_eq!(p.method(), ApplyMethod::Restart);
+    assert_eq!(p.live, ["device[0]: gain -> 30"]);
+}

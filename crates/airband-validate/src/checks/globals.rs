@@ -2,7 +2,7 @@
 
 use airband_config::domain::RtlAirbandConfig;
 
-use crate::constants::{MAX_FFT_SIZE, MIN_FFT_SIZE};
+use crate::constants::{FM_DEMOD_VALUES, MAX_FFT_SIZE, MIN_FFT_SIZE};
 use crate::types::Issues;
 use crate::view::js;
 
@@ -68,6 +68,19 @@ pub fn control_socket_path(config: &RtlAirbandConfig, issues: &mut Issues) {
             "control-socket-path-empty",
             "$.control_socket_path",
             "control_socket_path, if set, must not be empty",
+        );
+    }
+}
+
+/// fm_demod, if set, must be one of the demodulators rtl_airband knows.
+pub fn fm_demod(config: &RtlAirbandConfig, issues: &mut Issues) {
+    let Some(value) = config.fm_demod.as_deref() else { return };
+    if !FM_DEMOD_VALUES.contains(&value) {
+        let [a, b, c] = FM_DEMOD_VALUES;
+        issues.error(
+            "fm-demod-invalid",
+            "$.fm_demod",
+            format!("fm_demod \"{value}\" is invalid (must be \"{a}\", \"{b}\" or \"{c}\")"),
         );
     }
 }

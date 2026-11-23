@@ -417,3 +417,21 @@ fn rtlsdr_buffer_size_follows_the_fork_rule() {
     let got = device_issues(r#"type = "soapysdr"; device_string = "driver=airspy"; buffer_size = 1000;"#);
     assert!(got.is_empty(), "{got:?}");
 }
+
+#[test]
+fn fm_demod_must_be_a_known_demodulator() {
+    let flagged = |globals: &str| -> Vec<ValidationIssue> {
+        issues(globals, PULSE, "").into_iter().filter(|i| i.code == "fm-demod-invalid").collect()
+    };
+    for globals in ["", r#"fm_demod = "fast_atan2";"#, r#"fm_demod = "atan2";"#, r#"fm_demod = "quadri";"#] {
+        assert!(flagged(globals).is_empty(), "{globals}");
+    }
+    // The fork compares with strcmp: case and spaces count.
+    for value in ["", "ATAN2", " atan2", "fast_atan", "atan2f"] {
+        let got = flagged(&format!("fm_demod = \"{value}\";"));
+        assert_eq!(codes(&got), [("fm-demod-invalid", "$.fm_demod", Severity::Error)], "{value:?}");
+        for allowed in ["\"fast_atan2\"", "\"atan2\"", "\"quadri\""] {
+            assert!(got[0].message.contains(allowed), "{}", got[0].message);
+        }
+    }
+}

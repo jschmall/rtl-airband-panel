@@ -288,3 +288,53 @@ fn fork_v7_fields_survive_json() {
     assert_eq!(d1, d2);
     assert_eq!(serialize_config_file(&d1), serialize_config_file(&d2));
 }
+
+fn fm_demod_source() -> String {
+    std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/fm-demod.conf")).unwrap()
+}
+
+#[test]
+fn fm_demod_round_trips() {
+    let with_key = fm_demod_source();
+    for value in ["fast_atan2", "atan2", "quadri"] {
+        let line = format!("fm_demod = \"{value}\";");
+        let (d1, text, d2) = round_trip(&with_key.replace("fm_demod = \"atan2\";", &line));
+        assert_eq!(d1.fm_demod.as_deref(), Some(value));
+        assert!(d1.unknown_settings.is_empty(), "modeled, not carried along: {:?}", d1.unknown_settings);
+        assert_eq!(d1, d2);
+        assert_eq!(text.matches("fm_demod").count(), 1, "{text}");
+        assert!(text.contains(&line), "{text}");
+        assert_eq!(serialize_config_file(&d2), text, "a second write is byte-identical");
+
+        let json: RtlAirbandConfig = serde_json::from_str(&serde_json::to_string(&d1).unwrap()).unwrap();
+        assert_eq!(json, d1);
+    }
+}
+
+#[test]
+fn absent_fm_demod_stays_absent() {
+    let source = fm_demod_source().replace("fm_demod = \"atan2\";", "");
+    let (d1, text, d2) = round_trip(&source);
+    assert_eq!((&d1.fm_demod, &d1), (&None, &d2));
+    assert!(!text.contains("fm_demod"), "{text}");
+    assert!(!serde_json::to_string(&d1).unwrap().contains("fm_demod"));
+
+    // Clearing it removes the line and changes nothing else.
+    let mut cleared = parse_config_file(&fm_demod_source()).unwrap();
+    cleared.fm_demod = None;
+    assert_eq!(serialize_config_file(&cleared), text);
+}
+
+#[test]
+fn invalid_fm_demod_is_kept_for_validation_to_flag() {
+    let (d1, text, _) = round_trip(&fm_demod_source().replace("\"atan2\"", "\"ATAN2\""));
+    assert_eq!(d1.fm_demod.as_deref(), Some("ATAN2"));
+    assert!(text.contains("fm_demod = \"ATAN2\";"));
+
+    // rtl_airband won't start with a non-string; neither will the panel read one.
+    for bad in ["1", "true", "(\"atan2\")"] {
+        let source = fm_demod_source().replace("fm_demod = \"atan2\"", &format!("fm_demod = {bad}"));
+        let err = parse_config_file(&source).unwrap_err().to_string();
+        assert!(err.contains("fm_demod"), "{bad}: {err}");
+    }
+}

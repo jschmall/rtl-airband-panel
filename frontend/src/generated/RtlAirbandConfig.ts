@@ -3,7 +3,13 @@ import type { Device } from "./Device";
 import type { Mixer } from "./Mixer";
 import type { Setting } from "./Setting";
 
-export type RtlAirbandConfig = { multiple_demod_threads: boolean, multiple_output_threads: boolean, stats_filepath: string, localtime: boolean, fft_size?: number, pidfile?: string, log_scan_activity?: boolean, shout_metadata_delay?: number, tau?: number, stats_http_address?: string, stats_http_port?: number, rdio_scanner_queue_depth?: number, control_socket_path?: string, 
+export type RtlAirbandConfig = { multiple_demod_threads: boolean, multiple_output_threads: boolean, stats_filepath: string, localtime: boolean, fft_size?: number, pidfile?: string, log_scan_activity?: boolean, shout_metadata_delay?: number, tau?: number, 
+/**
+ * FM demodulator for every NFM channel (fork v7.5.0): "fast_atan2", "atan2" or
+ * "quadri". Defaults to "fast_atan2". A string rather than an enum so a
+ * config with a bad value still opens, for validation to flag.
+ */
+fm_demod?: string, stats_http_address?: string, stats_http_port?: number, rdio_scanner_queue_depth?: number, control_socket_path?: string, 
 /**
  * Seconds between stats_filepath rewrites; must be > 0. Defaults to 15.
  */
