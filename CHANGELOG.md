@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.58] - 2026-11-23
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.4.1 to v7.5.0.** It adds one global
+  config key, `fm_demod`, which selects the FM demodulator for NFM channels, and
+  a matching `fm_demod` name on the `rtl_airband -v` Features line of NFM builds.
+  Without the key nothing changes. There are no new CMake options or
+  dependencies. The panel keeps the key as an unknown setting until 0.6.59
+  models it.
+
 ## [0.6.57] - 2026-11-22
 
 ### Changed
