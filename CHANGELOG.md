@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.68] - 2026-11-24
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.5.0 to v7.6.1.** There are no new config
+  keys, CMake options or dependencies.
+  - Each channel uses the nearest FFT bin. Signal and noise levels rise by up to 1.9 dB
+    on channels that were a full bin off, so a manual `squelch_threshold` may need
+    adjusting. The panel's bin collision check follows in 0.6.69.
+  - A mixer no longer loses audio from its other inputs while one input is stopped, as
+    when a `mixer_remote` sender restarts.
+  - A channel `bandwidth` at or above the sample rate (16000 in this build) leaves the
+    lowpass filter off and logs a warning. The filter used to become unstable.
+  - A restarted `mixer_remote` sender is counted once, as `reason="seq_restart"`.
+  - `rtl_airband -v` and the startup log name the librtlsdr in use.
+
 ## [0.6.67] - 2026-11-24
 
 ### Fixed
