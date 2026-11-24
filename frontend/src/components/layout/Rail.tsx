@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { errorLog, unseenProblems, useErrorLog } from "../../lib/error-log.js";
+import { errorLog, unacknowledgedProblems, useErrorLog } from "../../lib/error-log.js";
 import { useInstanceList, type Connection } from "../../state/InstanceListContext.js";
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
@@ -50,18 +50,18 @@ function ErrorsIcon() {
   );
 }
 
-/** Errors and warnings logged since this browser last opened the Errors page. */
+/** Errors and warnings nobody has acknowledged yet; the same in every browser. */
 function ErrorsBadge() {
   const log = useErrorLog();
   // Pushes keep it current while live; otherwise InstanceListContext's background poll reloads it.
   useEffect(() => {
     void errorLog.ensureLoaded();
   }, []);
-  const { count, anyError } = unseenProblems(log);
+  const { count, anyError } = unacknowledgedProblems(log);
   if (count === 0) return null;
   return (
     <span
-      title={`${count} new error${count === 1 ? "" : "s"} or warning${count === 1 ? "" : "s"} since you last looked`}
+      title={`${count} unacknowledged error${count === 1 ? "" : "s"} or warning${count === 1 ? "" : "s"}`}
       className={`ml-auto rounded-full border px-1.5 text-[10px] font-semibold tabular-nums ${
         anyError ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-amber-500/40 bg-amber-500/10 text-amber-300"
       }`}

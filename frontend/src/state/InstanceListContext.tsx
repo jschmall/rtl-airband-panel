@@ -97,8 +97,9 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
 
   // Push channel: unit status changes arrive as "health" events (merged in
   // place, no refetch), Overview counters as "stats-summary" (replaced
-  // whole), error-log entries as "event" (into lib/error-log), and any mutation from any client as "instance-changed" (refetch
-  // the list). Reconnects with backoff; against a
+  // whole), error-log entries as "event" and their acknowledgement as
+  // "events-acknowledged" (both into lib/error-log), and any mutation from
+  // any client as "instance-changed" (refetch the list). Reconnects with backoff; against a
   // backend without /api/ws this just keeps failing quietly and the poll
   // below carries on at its normal cadence.
   useEffect(() => {
@@ -136,6 +137,8 @@ export function InstanceListProvider({ children }: { children: ReactNode }) {
           setStatsSummaries(msg.data as Record<string, InstanceStatsSummary>);
         } else if (msg.type === "event" && msg.data) {
           errorLog.push(msg.data as unknown as ErrorLogEvent);
+        } else if (msg.type === "events-acknowledged" && typeof msg.data?.id === "number") {
+          errorLog.setAcknowledged(msg.data.id);
         } else if (msg.type === "instance-changed") {
           void refresh();
         }

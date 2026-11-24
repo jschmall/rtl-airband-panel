@@ -67,6 +67,10 @@ const SCHEMA: &str = "
     );
     CREATE INDEX IF NOT EXISTS idx_events_instance_id ON events(instance, id);
     CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+    CREATE TABLE IF NOT EXISTS events_ack (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      event_id INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS summary_baselines (
       instance TEXT PRIMARY KEY,
       set_at INTEGER NOT NULL,
@@ -613,6 +617,25 @@ impl StatsDb {
         rows.collect()
     }
 
+    /// Error-log entries up to this id have been acknowledged; 0 when none have.
+    pub fn acknowledged_event(&self) -> rusqlite::Result<i64> {
+        acknowledged_event(&self.conn.lock().unwrap())
+    }
+
+    /// Acknowledges the error log up to `through` and returns the id it is now
+    /// acknowledged up to. Never moves back, and never past the newest entry:
+    /// an id from the future would hide errors that haven't happened yet.
+    pub fn acknowledge_events(&self, through: i64) -> rusqlite::Result<i64> {
+        let conn = self.conn.lock().unwrap();
+        let current = acknowledged_event(&conn)?;
+        let newest: i64 = conn.query_row("SELECT COALESCE(MAX(id), 0) FROM events", [], |r| r.get(0))?;
+        let acknowledged = through.min(newest).max(current);
+        if acknowledged > current {
+            conn.execute("INSERT OR REPLACE INTO events_ack (id, event_id) VALUES (1, ?)", [acknowledged])?;
+        }
+        Ok(acknowledged)
+    }
+
     pub fn ping(&self) -> rusqlite::Result<()> {
         self.conn.lock().unwrap().query_row("SELECT 1", [], |_| Ok(()))
     }
@@ -624,6 +647,10 @@ impl Drop for StatsDb {
             tracing::warn!(error = %e, "couldn't write out held stats");
         }
     }
+}
+
+fn acknowledged_event(conn: &Connection) -> rusqlite::Result<i64> {
+    Ok(conn.query_row("SELECT event_id FROM events_ack WHERE id = 1", [], |r| r.get(0)).optional()?.unwrap_or(0))
 }
 
 /// One series' stored samples in one bucket. A damaged chunk reads as empty:
@@ -1150,6 +1177,67 @@ mod tests {
         assert!(!has_table(&conn, "main", "samples").unwrap());
         let vacuum: i32 = conn.pragma_query_value(None, "auto_vacuum", |r| r.get(0)).unwrap();
         assert_eq!(vacuum, 0, "the old file's auto_vacuum pointer pages don't carry over");
+    }
+
+    fn an_event(db: &StatsDb, ts: i64) -> i64 {
+        db.insert_event(&NewEvent {
+            instance: "a".into(),
+            ts,
+            kind: "log".into(),
+            severity: "error".into(),
+            message: "x".into(),
+            detail: None,
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn acknowledging_moves_forward_only_and_survives_reopening() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("stats.db");
+        let db = StatsDb::open(&path).unwrap();
+        assert_eq!(db.acknowledged_event().unwrap(), 0);
+        assert_eq!(db.acknowledge_events(5).unwrap(), 0, "nothing logged to acknowledge");
+
+        let first = an_event(&db, 1000);
+        let second = an_event(&db, 2000);
+        let third = an_event(&db, 3000);
+        assert_eq!(db.acknowledge_events(second).unwrap(), second);
+        assert_eq!(db.acknowledge_events(first).unwrap(), second, "never moves back");
+        drop(db);
+
+        let db = StatsDb::open(&path).unwrap();
+        assert_eq!(db.acknowledged_event().unwrap(), second);
+        assert_eq!(db.acknowledge_events(i64::MAX).unwrap(), third, "no further than the newest entry");
+        assert_eq!(db.list_events(None, None, 10).unwrap().len(), 3, "nothing is deleted");
+    }
+
+    #[test]
+    fn the_acknowledgement_outlives_pruned_events() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = StatsDb::open(&dir.path().join("stats.db")).unwrap();
+        let old = an_event(&db, 1000);
+        db.acknowledge_events(old).unwrap();
+        db.prune_before(5000).unwrap();
+        assert!(db.list_events(None, None, 10).unwrap().is_empty());
+        assert_eq!(db.acknowledge_events(old).unwrap(), old);
+        assert!(an_event(&db, 6000) > db.acknowledged_event().unwrap(), "a later error is unacknowledged");
+    }
+
+    #[test]
+    fn a_file_from_before_acknowledging_gains_it_and_keeps_everything() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("stats.db");
+        let db = StatsDb::open(&path).unwrap();
+        cpu_at(&db, T0, 1.0);
+        let id = an_event(&db, T0);
+        drop(db);
+        Connection::open(&path).unwrap().execute_batch("DROP TABLE events_ack").unwrap();
+
+        let db = StatsDb::open(&path).unwrap();
+        assert_eq!(db.acknowledged_event().unwrap(), 0);
+        assert_eq!(db.acknowledge_events(id).unwrap(), id);
+        assert_eq!(cpu_history(&db).len(), 1);
     }
 
     #[test]

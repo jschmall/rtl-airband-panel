@@ -5,6 +5,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.61] - 2026-11-24
+
+### Added
+
+- **Acknowledge all, on the Errors page.** The button clears the list and the
+  count next to Errors, for every instance and in every browser: open ones
+  follow at once, and it survives reloads and panel restarts. Only what is
+  logged afterwards shows up again. Nothing is deleted: **Show acknowledged**
+  brings earlier entries back, dimmed, until stats retention removes them. With
+  an instance or Show filter on, it asks first, since it also covers what the
+  filter hides.
+- `POST /api/events/acknowledge`, `acknowledgedId` in `GET /api/events`, and an
+  `events-acknowledged` websocket message.
+
+### Changed
+
+- **The count next to Errors is now the unacknowledged errors and warnings**, the
+  same in every browser. Opening the page no longer clears it. After upgrading it
+  counts everything still in the log until the first Acknowledge all. Opening the
+  page still moves the blue "new" bar, per browser.
+
 ## [0.6.60] - 2026-11-23
 
 ### Changed

@@ -451,6 +451,14 @@ Producers:
   trusts `-j` levels and keyword-matches the rest (`heuristic: true` in
   the event's detail).
 
+Acknowledging is a single event id in stats.db (`events_ack`), so every
+browser agrees. Entries up to it stay stored but are left out of the
+Errors page (restart markers included) and the sidebar count. The id never
+moves back and never passes the newest event. The client sends the newest
+id it has loaded, so an event that arrives meanwhile stays unacknowledged.
+The Hardware page's recent-problems reading ignores it. The per-browser
+`rtl-panel:errors-seen-id` only drives the "new since you last looked" bar.
+
 ### Hardware page
 
 `crates/panel/src/hardware.rs` builds one `HardwareSnapshot` across all
@@ -530,7 +538,10 @@ and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - `GET /api/instances/:name/airband` (an `AirbandBuild`, see
   "Fork or stock rtl_airband" below);
 - `GET /api/events?instance=&before=&limit=` (the error log, newest first,
-  `before` an event id to page back; see "Error log" above).
+  `before` an event id to page back, plus `acknowledgedId`; see "Error log"
+  above);
+- `POST /api/events/acknowledge` with `{"through": id}` (returns
+  `acknowledgedId`).
 
 Errors are `{ error }` with 400/404/409/422 (with `errors`)/502 (failed
 systemd command, with `exitCode` and `stderr`).
@@ -542,6 +553,7 @@ systemd command, with `exitCode` and `stderr`).
 - `stats-summary` (the Overview counters) whenever they change, and right
   after a restart or live apply resets them;
 - `event` (one error-log entry) as each is recorded;
+- `events-acknowledged` (`{id}`) when the error log is acknowledged;
 - `hardware` (a `HardwareSnapshot`) every `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`,
   only to clients that sent `{"type":"subscribe","topic":"hardware"}`. A new
   subscriber gets a frame right away. While nobody is subscribed, the
