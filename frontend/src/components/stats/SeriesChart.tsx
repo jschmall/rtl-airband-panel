@@ -50,7 +50,7 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <h3 className="font-medium text-slate-200">
           {tooltip ? (
             <InfoTooltip content={tooltip} className="cursor-help underline decoration-dotted decoration-slate-600 underline-offset-2">
@@ -61,7 +61,7 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
           )}
         </h3>
         {hasData && (
-          <button type="button" onClick={() => setShowTable((v) => !v)} className="text-xs text-sky-400 hover:text-sky-300">
+          <button type="button" onClick={() => setShowTable((v) => !v)} className="flex-shrink-0 py-2 text-xs text-sky-400 hover:text-sky-300 lg:py-0">
             {showTable ? "View chart" : "View table"}
           </button>
         )}
@@ -110,6 +110,8 @@ export function SeriesChart({ title, series, emptyMessage = "No data in this tim
             <YAxis stroke={CHART_CHROME.axis} tick={{ fill: CHART_CHROME.muted, fontSize: 11 }} width={48} />
             <Tooltip
               labelFormatter={formatTooltipLabel}
+              // Unrounded, a derived value is wide enough to push the box off a phone's screen.
+              formatter={(v) => (typeof v === "number" ? Math.round(v * 100) / 100 : v)}
               contentStyle={{ background: CHART_CHROME.surface, border: `1px solid ${CHART_CHROME.gridline}`, fontSize: 12 }}
               labelStyle={{ color: CHART_CHROME.textSecondary }}
               itemStyle={{ color: CHART_CHROME.textPrimary }}

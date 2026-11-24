@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ErrorLogEvent } from "../../src/api/client.js";
 import { ErrorsPage } from "../../src/pages/ErrorsPage.js";
@@ -8,6 +8,7 @@ import { renderPage } from "./harness.js";
 const api = vi.hoisted(() => ({
   listInstances: vi.fn(),
   listEvents: vi.fn(),
+  acknowledgeEvents: vi.fn(),
 }));
 
 vi.mock("../../src/api/client.js", async (importOriginal) => {
@@ -55,7 +56,7 @@ beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("WebSocket", undefined);
   api.listInstances.mockResolvedValue([]);
-  api.listEvents.mockResolvedValue(EVENTS);
+  api.listEvents.mockResolvedValue({ events: EVENTS, acknowledgedId: 0 });
 });
 
 afterEach(() => {
@@ -139,5 +140,109 @@ describe("ErrorsPage Show filter", () => {
     await user.selectOptions(showSelect(), "warning");
     expect(showSelect().value).toBe("warning");
     expect(visibleRows()).toEqual([WARNING]);
+  });
+});
+
+describe("ErrorsPage acknowledging", () => {
+  // The error log is module state and an acknowledgement never moves back, so
+  // each test loads its own copy, as a separate browser would.
+  async function openFresh() {
+    vi.resetModules();
+    const { renderPage: renderFresh } = await import("./harness.js");
+    const { ErrorsPage: Page } = await import("../../src/pages/ErrorsPage.js");
+    const log = await import("../../src/lib/error-log.js");
+    const view = renderFresh("/errors", "/errors", <Page />);
+    await waitFor(() => expect(log.errorLog.get().events).not.toBeNull());
+    return { view, log, badge: () => log.unacknowledgedProblems(log.errorLog.get()).count };
+  }
+  const button = () => screen.findByRole("button", { name: "Acknowledge all" });
+  const toggle = () => screen.getByRole("checkbox", { name: "Show acknowledged" });
+
+  beforeEach(() => {
+    api.acknowledgeEvents.mockReset();
+    api.acknowledgeEvents.mockImplementation((through: number) => Promise.resolve({ acknowledgedId: through }));
+  });
+
+  it("leaves the count alone when the page is only opened", async () => {
+    const { badge } = await openFresh();
+    await screen.findByText(ERROR);
+    expect(badge()).toBe(2);
+    expect(api.acknowledgeEvents).not.toHaveBeenCalled();
+  });
+
+  it("clears the list and the count, without asking when nothing is filtered", async () => {
+    const confirm = vi.spyOn(window, "confirm");
+    const user = userEvent.setup();
+    const { badge } = await openFresh();
+    await user.click(await button());
+    expect(api.acknowledgeEvents).toHaveBeenCalledExactlyOnceWith(5);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(await screen.findByText(/^No new errors/)).toBeInTheDocument();
+    expect(visibleRows()).toEqual([]);
+    expect(screen.queryByText(RESTART)).not.toBeInTheDocument();
+    expect(badge()).toBe(0);
+    expect(await button()).toBeDisabled();
+  });
+
+  it("starts empty in another browser, and the toggle brings entries back", async () => {
+    api.listEvents.mockResolvedValue({ events: EVENTS, acknowledgedId: 5 });
+    const user = userEvent.setup();
+    const { badge } = await openFresh();
+    expect(await screen.findByText(/^No new errors/)).toBeInTheDocument();
+    expect(badge()).toBe(0);
+    expect(await button()).toBeDisabled();
+    await user.click(toggle());
+    expect(visibleRows()).toEqual([ERROR, WARNING, INFO]);
+    expect(screen.getByText(RESTART)).toBeInTheDocument();
+  });
+
+  it("shows only what came after the acknowledgement", async () => {
+    api.listEvents.mockResolvedValue({ events: EVENTS, acknowledgedId: 4 });
+    const { badge } = await openFresh();
+    await screen.findByText(ERROR);
+    expect(visibleRows()).toEqual([ERROR]);
+    expect(badge()).toBe(1);
+  });
+
+  it("follows an acknowledgement pushed from another browser", async () => {
+    const { log } = await openFresh();
+    await screen.findByText(ERROR);
+    act(() => log.errorLog.setAcknowledged(5));
+    expect(visibleRows()).toEqual([]);
+  });
+
+  it("asks first when a filter is hiding entries", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    await openFresh();
+    await user.selectOptions(showSelect(), "warning");
+    await user.click(await button());
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(api.acknowledgeEvents).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    await user.click(await button());
+    expect(api.acknowledgeEvents).toHaveBeenCalledExactlyOnceWith(5);
+  });
+
+  it("keeps the list and says why when the request fails", async () => {
+    api.acknowledgeEvents.mockRejectedValue(new Error("disk is full"));
+    const user = userEvent.setup();
+    const { badge } = await openFresh();
+    await user.click(await button());
+    expect(await screen.findByText("disk is full")).toBeInTheDocument();
+    expect(visibleRows()).toEqual([ERROR, WARNING, INFO]);
+    expect(badge()).toBe(2);
+    expect(await button()).toBeEnabled();
+  });
+
+  it("offers older pages only when they could have something to show", async () => {
+    const page = Array.from({ length: 200 }, (_, i) => event(400 - i, "log", "error", `row ${400 - i}`));
+    api.listEvents.mockResolvedValue({ events: page, acknowledgedId: 300 });
+    const user = userEvent.setup();
+    await openFresh();
+    await screen.findByText("row 400");
+    expect(screen.queryByRole("button", { name: "Load older" })).not.toBeInTheDocument();
+    await user.click(toggle());
+    expect(screen.getByRole("button", { name: "Load older" })).toBeInTheDocument();
   });
 });

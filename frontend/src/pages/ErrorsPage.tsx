@@ -76,14 +76,24 @@ function InstanceName({ name }: { name: string }) {
 }
 
 /** A restart or live apply: a divider across the timeline, so what came before and after it is easy to tell apart. */
-function MarkerRow({ event, showInstance, onOpenGuide }: { event: ErrorLogEvent; showInstance: boolean; onOpenGuide: (id: string) => void }) {
+function MarkerRow({
+  event,
+  showInstance,
+  acknowledged,
+  onOpenGuide,
+}: {
+  event: ErrorLogEvent;
+  showInstance: boolean;
+  acknowledged: boolean;
+  onOpenGuide: (id: string) => void;
+}) {
   const guide = guideFor(event);
   const style = MARKER_STYLE[event.kind] ?? MARKER_STYLE.restart!;
   const skipped = (event.detail?.skippedRequiresRestart as string[] | undefined) ?? [];
   const applied = (event.detail?.applied as string[] | undefined) ?? [];
   const title = [new Date(event.ts).toISOString(), ...applied.map((a) => `applied: ${a}`), ...skipped.map((s) => `needs restart: ${s}`)].join("\n");
   return (
-    <li className="flex items-center gap-2 py-2" title={title} data-kind={event.kind}>
+    <li className={`flex items-center gap-2 py-2 ${acknowledged ? "opacity-60" : ""}`} title={title} data-kind={event.kind}>
       <span aria-hidden="true" className={`w-3 flex-shrink-0 border-t-2 sm:w-8 ${style.line}`} />
       <span className={`flex min-w-0 flex-wrap items-center gap-x-1.5 rounded-lg border px-2.5 py-0.5 text-xs ${style.pill}`}>
         <span aria-hidden="true">{style.icon}</span>
@@ -110,11 +120,13 @@ function EventRow({
   event,
   showInstance,
   isNew,
+  acknowledged,
   onOpenGuide,
 }: {
   event: ErrorLogEvent;
   showInstance: boolean;
   isNew: boolean;
+  acknowledged: boolean;
   onOpenGuide: (id: string) => void;
 }) {
   const d = event.detail ?? {};
@@ -125,7 +137,7 @@ function EventRow({
   const sourceTip = SOURCE_TOOLTIP[event.kind];
   return (
     <li
-      className={`grid grid-cols-[4.5rem_1fr] gap-x-3 border-l-2 py-1.5 pl-2 text-sm ${isNew ? "border-sky-500" : "border-transparent"}`}
+      className={`grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-2 border-l-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-x-3 py-1.5 pl-2 text-sm ${isNew ? "border-sky-500" : "border-transparent"} ${acknowledged ? "opacity-60" : ""}`}
       data-kind={event.kind}
     >
       <span className="pt-0.5 text-xs tabular-nums text-slate-500" title={new Date(event.ts).toISOString()}>
@@ -162,7 +174,7 @@ function EventRow({
               content={guide.summary}
               onClick={() => setOpen((o) => !o)}
               expanded={open}
-              className="rounded border border-sky-500/40 px-1.5 text-[10px] font-medium text-sky-300 hover:bg-sky-500/10 focus-visible:bg-sky-500/10"
+              className="rounded border border-sky-500/40 px-2 py-1.5 text-[11px] font-medium text-sky-300 lg:px-1.5 lg:py-0 lg:text-[10px] hover:bg-sky-500/10 focus-visible:bg-sky-500/10"
             >
               {open ? "Hide fix" : "How to fix"}
             </Tooltip>
@@ -193,6 +205,8 @@ export function ErrorsPage() {
   const [instance, setInstance] = useState("");
   const [level, setLevel] = useState<Level>(loadLevel);
   const [showMarkers, setShowMarkers] = useState(true);
+  const [showAcknowledged, setShowAcknowledged] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   // What was already seen when the page opened: newer rows get highlighted.
   const [seenAtOpen] = useState(() => errorLog.get().seenId);
@@ -202,7 +216,7 @@ export function ErrorsPage() {
   useEffect(() => {
     void errorLog.ensureLoaded();
   }, []);
-  // Viewing the page clears the sidebar badge, including for events that arrive while it's open.
+  // Only for the "new since you last looked" mark; the sidebar badge clears when someone acknowledges.
   useEffect(() => {
     errorLog.markSeen();
   }, [log.events]);
@@ -213,20 +227,37 @@ export function ErrorsPage() {
     return [...all].sort();
   }, [instances, log.events]);
 
+  // Acknowledging covers everything up to an id, restart markers included.
+  const listed = useMemo(
+    () => (log.events ?? []).filter((e) => showAcknowledged || e.id > log.ackId),
+    [log.events, log.ackId, showAcknowledged]
+  );
+
   const rows = useMemo(
     () =>
-      (log.events ?? []).filter((e) => {
+      listed.filter((e) => {
         if (instance && e.instance !== instance) return false;
         if (isMarker(e)) return showMarkers;
         return level === "all" || e.severity === level;
       }),
-    [log.events, instance, level, showMarkers]
+    [listed, instance, level, showMarkers]
   );
 
-  const counts = useMemo(() => guideCounts(log.events ?? []), [log.events]);
+  const counts = useMemo(() => guideCounts(listed), [listed]);
+
+  const anyUnacknowledged = (log.events?.[0]?.id ?? 0) > log.ackId;
+  // Older pages hold nothing to show once even the oldest loaded event is acknowledged.
+  const canLoadOlder = log.hasMore && (showAcknowledged || (log.events?.at(-1)?.id ?? 0) > log.ackId);
+
+  function acknowledgeAll() {
+    const filtered = instance !== "" || level !== "all";
+    if (filtered && !window.confirm("Acknowledge everything? This also covers entries your filters are hiding, on every instance.")) return;
+    setAcknowledging(true);
+    void errorLog.acknowledgeAll().finally(() => setAcknowledging(false));
+  }
 
   const selectClass =
-    "h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none";
+    "h-10 min-w-0 rounded-md border border-slate-700 bg-slate-950 px-2 text-base lg:h-8 lg:text-sm text-slate-100 focus:border-sky-500 focus:outline-none";
 
   return (
     <div className="space-y-4">
@@ -273,6 +304,19 @@ export function ErrorsPage() {
           <input type="checkbox" checked={showMarkers} onChange={(e) => setShowMarkers(e.target.checked)} className="accent-sky-500" />
           Restart markers
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-400">
+          <input type="checkbox" checked={showAcknowledged} onChange={(e) => setShowAcknowledged(e.target.checked)} className="accent-sky-500" />
+          Show acknowledged
+        </label>
+        <button
+          type="button"
+          disabled={!anyUnacknowledged || acknowledging}
+          onClick={acknowledgeAll}
+          title="Clears this list and the count next to Errors, for every instance and in every browser. Nothing is deleted: Show acknowledged brings entries back."
+          className="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50 sm:ml-auto"
+        >
+          {acknowledging ? "Acknowledging…" : "Acknowledge all"}
+        </button>
       </div>
 
       {log.error && <p className="rounded bg-red-500/10 px-3 py-2 text-sm text-red-300">{log.error}</p>}
@@ -280,7 +324,13 @@ export function ErrorsPage() {
       {log.events === null ? (
         !log.error && <p className="text-sm text-slate-400">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-400">{log.events.length === 0 ? "Nothing logged yet." : "Nothing matches these filters."}</p>
+        <p className="text-sm text-slate-400">
+          {log.events.length === 0
+            ? "Nothing logged yet."
+            : listed.length === 0
+              ? "No new errors. Earlier entries are acknowledged; tick Show acknowledged to see them."
+              : "Nothing matches these filters."}
+        </p>
       ) : (
         <ol className="rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 sm:px-4">
           {rows.map((e, i) => {
@@ -292,9 +342,15 @@ export function ErrorsPage() {
                   <li className={`pb-1 text-xs font-medium uppercase tracking-wide text-slate-500 ${i === 0 ? "pt-1" : "pt-4"}`}>{day}</li>
                 )}
                 {isMarker(e) ? (
-                  <MarkerRow event={e} showInstance={!instance} onOpenGuide={openGuide} />
+                  <MarkerRow event={e} showInstance={!instance} acknowledged={e.id <= log.ackId} onOpenGuide={openGuide} />
                 ) : (
-                  <EventRow event={e} showInstance={!instance} isNew={e.id > seenAtOpen} onOpenGuide={openGuide} />
+                  <EventRow
+                    event={e}
+                    showInstance={!instance}
+                    isNew={e.id > seenAtOpen}
+                    acknowledged={e.id <= log.ackId}
+                    onOpenGuide={openGuide}
+                  />
                 )}
               </Fragment>
             );
@@ -302,7 +358,7 @@ export function ErrorsPage() {
         </ol>
       )}
 
-      {log.hasMore && (
+      {canLoadOlder && (
         <button
           type="button"
           disabled={loadingOlder}

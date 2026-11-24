@@ -18,6 +18,7 @@ import { getValueAtPath } from "../lib/validation-path.js";
 import { classifySkippedRequiresRestart } from "../lib/live-apply.js";
 import { formatUptime } from "../lib/time-format.js";
 import { ChangePreview, usePlanPreview } from "../components/ChangePreview.js";
+import { useCompact } from "../lib/use-media.js";
 import { useLiveValidation } from "../lib/live-validation.js";
 import { HealthStatus } from "../components/HealthLight.js";
 import { InstanceActions } from "../components/InstanceActions.js";
@@ -32,6 +33,7 @@ interface LoadError {
 
 export function InstanceEditPage() {
   const { name } = useParams<{ name: string }>();
+  const compact = useCompact();
   const { instances, refresh: refreshInstanceList, pollBriefly } = useInstanceList();
   const { setDirty } = useUnsavedChanges();
   const [config, setConfig] = useState<RtlAirbandConfig | null>(null);
@@ -448,13 +450,13 @@ export function InstanceEditPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold text-slate-50">{name}</h1>
+        <div className="min-w-0 max-w-full">
+          <h1 className="break-words text-xl font-semibold lg:truncate text-slate-50">{name}</h1>
           {summary && (
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
               <HealthStatus state={summary.status.activeState} subState={summary.status.subState} />
               {summary.status.activeState === "active" && <span>up {formatUptime(summary.status.activeEnterTimestamp)}</span>}
-              <span className="font-mono text-xs text-slate-500">{summary.unit}</span>
+              <span className="min-w-0 break-words font-mono text-xs text-slate-500">{summary.unit}</span>
               {airband && <span className="text-xs text-slate-500">{buildLabel(airband)}</span>}
               {summary.pendingRestart && (
                 <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] font-medium uppercase tracking-wide text-amber-300">
@@ -518,7 +520,7 @@ export function InstanceEditPage() {
         />
       </AirbandBuildProvider>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-800 bg-slate-950/95 px-4 py-2 backdrop-blur lg:-mx-6 lg:gap-3 lg:bg-slate-950/90 lg:px-6 lg:py-3">
         {liveErrors.length > 0 && (
           <button
             type="button"
@@ -530,52 +532,57 @@ export function InstanceEditPage() {
           </button>
         )}
         {plan && <ChangePreview plan={plan} />}
-        <button
-          type="button"
-          disabled={pendingAction !== null}
-          onClick={() => void handleCheck()}
-          className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-        >
-          {pendingAction === "check" ? "Checking…" : "Check config"}
-        </button>
-        <button
-          type="button"
-          disabled={pendingAction !== null}
-          onClick={() => void handleSave(false)}
-          className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
-        >
-          {pendingAction === "save" ? "Saving…" : "Save"}
-        </button>
-        {savedConfig?.control_socket_path !== undefined && liveCapable && (
+        <div className="flex w-full flex-wrap gap-1.5 sm:w-auto sm:gap-2 lg:gap-3">
           <button
             type="button"
             disabled={pendingAction !== null}
-            onClick={() => void handleApplyLive()}
+            onClick={() => void handleCheck()}
+            className={`${barButton} border border-slate-600 text-slate-200 hover:bg-slate-800`}
+          >
+            {pendingAction === "check" ? "Checking…" : compact ? "Check" : "Check config"}
+          </button>
+          <button
+            type="button"
+            disabled={pendingAction !== null}
+            onClick={() => void handleSave(false)}
+            className={`${barButton} bg-sky-600 text-white hover:bg-sky-500`}
+          >
+            {pendingAction === "save" ? "Saving…" : "Save"}
+          </button>
+          {savedConfig?.control_socket_path !== undefined && liveCapable && (
+            <button
+              type="button"
+              disabled={pendingAction !== null}
+              onClick={() => void handleApplyLive()}
+              className={
+                plan?.method === "restart"
+                  ? `${barButton} border border-emerald-600/60 text-emerald-300 hover:bg-emerald-600/10`
+                  : `${barButton} bg-emerald-600 text-white hover:bg-emerald-500`
+              }
+            >
+              {pendingAction === "apply-live" ? "Applying…" : "Apply live"}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={pendingAction !== null}
+            onClick={() => void handleSave(true)}
             className={
-              plan?.method === "restart"
-                ? "rounded border border-emerald-600/60 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-600/10 disabled:opacity-50"
-                : "rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              plan?.method === "live"
+                ? `${barButton} border border-red-600/60 text-red-300 hover:bg-red-600/10`
+                : `${barButton} bg-red-600 text-white hover:bg-red-500`
             }
           >
-            {pendingAction === "apply-live" ? "Applying…" : "Apply live"}
+            {pendingAction === "restart" ? "Restarting…" : compact ? "Save & restart" : "Save and restart"}
           </button>
-        )}
-        <button
-          type="button"
-          disabled={pendingAction !== null}
-          onClick={() => void handleSave(true)}
-          className={
-            plan?.method === "live"
-              ? "rounded border border-red-600/60 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-600/10 disabled:opacity-50"
-              : "rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
-          }
-        >
-          {pendingAction === "restart" ? "Restarting…" : "Save and restart"}
-        </button>
+        </div>
       </div>
     </div>
   );
 }
+
+/** The save bar's buttons: on a phone they share one row, evenly. */
+const barButton = "flex-auto whitespace-nowrap rounded px-1.5 py-2 text-[13px] font-medium sm:px-2 sm:text-sm disabled:opacity-50 lg:flex-none lg:px-4";
 
 /** Renders the result of the most recent "Apply live" click -- see handleApplyLive above. */
 function LiveApplyBanner({ name, outcome }: { name: string | undefined; outcome: LiveApplyOutcome }) {

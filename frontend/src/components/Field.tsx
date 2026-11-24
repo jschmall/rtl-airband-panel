@@ -35,7 +35,8 @@ export function Field({
 }) {
   const locked = !useForkFeature(requires);
   const field = (
-    <label className="flex flex-col gap-1">
+    // justify-end: on a compact screen labels wrap differently, so line up the inputs.
+    <label className="flex min-w-0 flex-col justify-end gap-1 lg:justify-start">
       <span>
         {tooltip ? (
           <Tooltip content={tooltip} className="cursor-help text-xs text-slate-300 underline decoration-dotted decoration-slate-600 underline-offset-2">
@@ -81,7 +82,7 @@ export function BoolField({
   const locked = !useForkFeature(requires);
   const value = checked ?? defaultValue;
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-300">
+    <label className="flex min-h-[2.25rem] items-center gap-2 text-sm text-slate-300 lg:min-h-0">
       <input
         type="checkbox"
         className={checkboxClass}

@@ -232,14 +232,30 @@ default). It collects:
 
 Restarts and live applies are drawn as dividers across the list, so you
 can tell whether a problem started before or after a change. Filter by
-instance or show errors only. The **Errors** link in the left-hand menu
-counts new errors and warnings since you last opened the page.
+instance or show errors only. A blue bar marks entries that are new since
+you last opened the page in this browser.
+
+The **Errors** link in the left-hand menu counts the errors and warnings
+nobody has acknowledged yet. **Acknowledge all** clears the list and the
+count, for every instance and in every browser; only what happens
+afterwards shows up again. Nothing is deleted: tick **Show acknowledged**
+to see earlier entries, dimmed.
 
 ## Themes and phones
 
 The bottom of the left-hand list switches between automatic (follows your
-system), dark and light. On a phone, the list moves behind the menu button
-and every page fits the screen.
+system), dark and light.
+
+On a phone or a small tablet the layout changes:
+- **Overview, Stats, Hardware and Errors** are tabs along the bottom, or a
+  strip on the left when the phone is on its side. The instances, and the
+  theme switch, are behind the **☰** button.
+- In the editor, devices, channels and outputs open as full-width sections.
+  Their actions (Disable, Enabled, Duplicate, Copy to channel, Remove) are
+  behind the **⋯** button at the end of each row; a row that's switched off
+  says so beside its name.
+- Hardware channel readings and Stats device counters are lists instead of
+  tables on an upright phone.
 
 <p>
   <img src="./screenshots/overview-light.png" alt="Overview in the light theme" width="68%">

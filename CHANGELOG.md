@@ -5,6 +5,63 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.63] - 2026-11-24
+
+### Changed
+
+- **Merged the `errors-acknowledge` and `mobile-layout` branches into `master`
+  (0.6.61 and 0.6.62).** The Errors page gains Acknowledge all, shared by every
+  browser, and phones and small tablets get their own layout. See those entries
+  for details.
+
+## [0.6.62] - 2026-11-24
+
+### Added
+
+- **A layout for phones and small tablets (below 1024px wide), upright or on their
+  side.** Overview, Stats, Hardware and Errors are tabs along the bottom, or a slim
+  strip on the left in landscape, with the error count on the Errors tab; instances
+  are behind ☰. In the editor, devices, channels and outputs are full-width sections
+  instead of boxes inside boxes, and their actions are in a ⋯ menu per row. A row
+  that's disabled or not enabled says so beside its name. On an upright phone,
+  Hardware's channel readings and Stats' device counters are lists, not tables.
+  Inputs, checkboxes and buttons are bigger, and inputs are 16px so iOS doesn't zoom
+  the page in. Nothing typed is lost when the screen turns.
+
+### Fixed
+
+- **Text printed over other fields:** a file output's checkboxes landed on each other
+  on a phone, the save bar's change preview ran under its buttons, and a tapped-open
+  tooltip stayed over its neighbours (it now closes on a scroll or a tap elsewhere).
+- **Only the first few characters showing:** titles squeezed by the buttons beside
+  them (channels, mixers, output stats, instance names), and fields a few characters
+  wide inside nested boxes.
+- **Content off the right edge:** Remove channel, Remove output and the Stats channel
+  selector.
+- The bottom of the page no longer hides behind a phone browser's own bars.
+- The Stats chart's tooltip rounds its values to two decimals.
+
+## [0.6.61] - 2026-11-24
+
+### Added
+
+- **Acknowledge all, on the Errors page.** The button clears the list and the
+  count next to Errors, for every instance and in every browser: open ones
+  follow at once, and it survives reloads and panel restarts. Only what is
+  logged afterwards shows up again. Nothing is deleted: **Show acknowledged**
+  brings earlier entries back, dimmed, until stats retention removes them. With
+  an instance or Show filter on, it asks first, since it also covers what the
+  filter hides.
+- `POST /api/events/acknowledge`, `acknowledgedId` in `GET /api/events`, and an
+  `events-acknowledged` websocket message.
+
+### Changed
+
+- **The count next to Errors is now the unacknowledged errors and warnings**, the
+  same in every browser. Opening the page no longer clears it. After upgrading it
+  counts everything still in the log until the first Acknowledge all. Opening the
+  page still moves the blue "new" bar, per browser.
+
 ## [0.6.60] - 2026-11-23
 
 ### Changed

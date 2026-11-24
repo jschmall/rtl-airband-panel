@@ -4,7 +4,8 @@ import { BoolField, Field, NeedsFork } from "./Field.js";
 import { useForkFeature } from "../state/AirbandBuildContext.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2, responsiveGrid3 } from "./styles.js";
+import { OffBadge, RowActions } from "./RowActions.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2, responsiveGrid3, nestedCardClass, sectionCardClass } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultIcecastOutput, defaultMixerRemoteInput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
@@ -83,11 +84,16 @@ export const MixerEditor = memo(function MixerEditor({
     <Collapsible
       openSignal={openSignal}
       persistKey={persistKey}
-      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      className={`${sectionCardClass} bg-slate-900`}
       titleClassName="text-lg font-semibold text-slate-100"
-      title={`Mixer — ${mixer.name || "(unnamed)"}`}
+      title={
+        <>
+          Mixer — {mixer.name || "(unnamed)"}
+          <OffBadge disable={mixer.disable} enabled={mixer.enabled} />
+        </>
+      }
       headerActions={
-        <div className="flex items-center gap-3">
+        <RowActions label={`mixer ${mixer.name || "(unnamed)"}`}>
           <BoolField label="Disable" tooltip={MIXER_TOOLTIPS.disable} checked={mixer.disable} onChange={(v) => emitChange({ ...mixer, disable: v })} />
           <BoolField
             label="Enabled"
@@ -109,7 +115,7 @@ export const MixerEditor = memo(function MixerEditor({
           >
             Remove mixer
           </button>
-        </div>
+        </RowActions>
       }
     >
       <div className={responsiveGrid3}>
@@ -216,7 +222,7 @@ function MixerRemoteInputFields({
   onRemove: () => void;
 }) {
   return (
-    <div className="space-y-2 rounded border border-slate-700 bg-slate-800 p-3">
+    <div className={`${nestedCardClass} space-y-2 bg-slate-800`}>
       <div className={responsiveGrid2}>
         <Field label="Listen path" tooltip={MIXER_TOOLTIPS.remoteInputListenPath}>
           <input className={inputClass} value={input.listen_path} onChange={(e) => onChange({ ...input, listen_path: e.target.value })} />

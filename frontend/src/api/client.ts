@@ -142,6 +142,12 @@ export interface ErrorLogEvent {
   detail?: Record<string, unknown>;
 }
 
+export interface ErrorLogPage {
+  events: ErrorLogEvent[];
+  /** Entries up to this id have been acknowledged (0: none). */
+  acknowledgedId: number;
+}
+
 export interface InstanceStatsSummary {
   bufferOverflowTotal: number;
   outputOverrunTotal: number;
@@ -313,14 +319,18 @@ export const api = {
   getInstanceStatsSummary: (): Promise<Record<string, InstanceStatsSummary>> => request("/instances/stats-summary"),
 
   /** The error log, newest first; `before` pages back by id. */
-  listEvents: async (params: { instance?: string; before?: number; limit?: number } = {}): Promise<ErrorLogEvent[]> => {
+  listEvents: (params: { instance?: string; before?: number; limit?: number } = {}): Promise<ErrorLogPage> => {
     const query = new URLSearchParams();
     if (params.instance) query.set("instance", params.instance);
     if (params.before !== undefined) query.set("before", String(params.before));
     if (params.limit !== undefined) query.set("limit", String(params.limit));
     const qs = query.toString();
-    return (await request<{ events: ErrorLogEvent[] }>(`/events${qs ? `?${qs}` : ""}`)).events;
+    return request(`/events${qs ? `?${qs}` : ""}`);
   },
+
+  /** Acknowledges error-log entries up to this id, for every browser. */
+  acknowledgeEvents: (through: number): Promise<{ acknowledgedId: number }> =>
+    request("/events/acknowledge", { method: "POST", body: JSON.stringify({ through }) }),
 
   getStatsHistory: (name: string, params: HistoryParams): Promise<HistoryPoint[]> => {
     const query = new URLSearchParams({ metric: params.metric });

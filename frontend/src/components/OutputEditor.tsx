@@ -13,7 +13,9 @@ import type {
 import { BoolField, Field } from "./Field.js";
 import { useForkFeature } from "../state/AirbandBuildContext.js";
 import { Collapsible } from "./Collapsible.js";
-import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
+import { OffBadge, RowActions } from "./RowActions.js";
+import { addButtonClass, inputClass, nestedCardClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
+import { useCompact } from "../lib/use-media.js";
 import { PasswordInput } from "./PasswordInput.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { OUTPUT_TOOLTIPS } from "../lib/config-descriptions.js";
@@ -85,6 +87,10 @@ export const OutputEditor = memo(function OutputEditor({
   const [copyTargetKey, setCopyTargetKey] = useState<string>(() => (channelTargets?.[0] ? channelTargetKey(channelTargets[0]) : ""));
   const copyActionsRef = useRef<HTMLDivElement>(null);
   const copyTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const compact = useCompact();
+  // On a compact screen "Copy to channel…" is in the ⋯ menu, gone once that closes.
+  const focusCopyTrigger = () => (copyTriggerRef.current ?? menuRef.current)?.focus();
 
   // Standard popover conventions: Escape closes and returns
   // focus to the trigger (otherwise a keyboard user closing this loses their place),
@@ -97,7 +103,7 @@ export const OutputEditor = memo(function OutputEditor({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       setCopyOpen(false);
-      copyTriggerRef.current?.focus();
+      focusCopyTrigger();
     }
     document.addEventListener("mousedown", onClickOutside);
     document.addEventListener("keydown", onKeyDown);
@@ -135,23 +141,29 @@ export const OutputEditor = memo(function OutputEditor({
     const target = channelTargets?.find((t) => channelTargetKey(t) === copyTargetKey);
     if (target && onCopyOutputToChannel) onCopyOutputToChannel(output, target);
     setCopyOpen(false);
-    copyTriggerRef.current?.focus();
+    focusCopyTrigger();
   }
 
   function handleCancelCopy() {
     setCopyOpen(false);
-    copyTriggerRef.current?.focus();
+    focusCopyTrigger();
   }
 
   return (
     <Collapsible
       openSignal={openSignal}
-      className="rounded border border-slate-600 bg-slate-700 p-3"
+      className={`${nestedCardClass} bg-slate-700`}
       titleClassName="text-sm font-medium text-slate-200"
-      title={`Output — ${output.type}`}
+      title={
+        <>
+          Output — {output.type}
+          <OffBadge disable={output.disable} />
+        </>
+      }
       headerActions={
-        <div ref={copyActionsRef} className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
+        // "contents": the copy row below is then its own full-width line under the header.
+        <div ref={copyActionsRef} className={compact ? "contents" : "flex flex-col gap-2"}>
+          <RowActions label={`${output.type} output`} triggerRef={menuRef}>
             <BoolField
               label="Disable"
               tooltip={OUTPUT_TOOLTIPS.disable}
@@ -182,10 +194,10 @@ export const OutputEditor = memo(function OutputEditor({
             >
               Remove output
             </button>
-          </div>
+          </RowActions>
           {copyOpen && hasCopyTargets && (
-            <div role="group" aria-label="Copy this output to another channel" className="flex items-center gap-2">
-              <select className={`${inputClass} w-64`} value={copyTargetKey} onChange={(e) => setCopyTargetKey(e.target.value)}>
+            <div role="group" aria-label="Copy this output to another channel" className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1 lg:basis-auto lg:gap-2">
+              <select className={`${inputClass} w-full lg:w-64`} value={copyTargetKey} onChange={(e) => setCopyTargetKey(e.target.value)}>
                 {channelTargets.map((target) => (
                   <option key={channelTargetKey(target)} value={channelTargetKey(target)}>
                     {target.label}
@@ -378,7 +390,7 @@ function FileFields({
         />
       </Field>
       <FileLikeCheckboxFields output={output} onChange={onChange} />
-      <div className="col-span-2 space-y-2 rounded border border-slate-600 bg-slate-800 p-3">
+      <div className="col-span-full space-y-2 border-t border-slate-500 pt-1 lg:rounded lg:border lg:border-slate-600 lg:bg-slate-800 lg:p-3">
         <BoolField
           label="Upload to rdio-scanner"
           tooltip={OUTPUT_TOOLTIPS.rdioScannerEnabled}
@@ -599,7 +611,7 @@ function IcecastFields({
           ))}
         </select>
       </Field>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3">
         <BoolField
           label="Send tx tags"
           tooltip={OUTPUT_TOOLTIPS.sendTxTags}

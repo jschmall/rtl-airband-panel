@@ -21,7 +21,8 @@ import { Collapsible } from "./Collapsible.js";
 import { DraftInput } from "./DraftInput.js";
 import { ChannelEditor } from "./ChannelEditor.js";
 import { ScanChannelEditor } from "./ScanChannelEditor.js";
-import { addButtonClass, inputClass, removeButtonClass, responsiveGrid3 } from "./styles.js";
+import { OffBadge, RowActions } from "./RowActions.js";
+import { addButtonClass, inputClass, removeButtonClass, responsiveGrid3, sectionCardClass } from "./styles.js";
 import { appendItem, duplicateAt, moveAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultChannel, defaultScanChannel, restoreModeFields, restoreTypeFields } from "../lib/defaults.js";
 import { formatMsps, numberOrUndefined } from "../lib/number-utils.js";
@@ -37,7 +38,7 @@ function SortableChannelRow({ id, children }: { id: string | number; children: R
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className="flex items-start gap-2">
+    <div ref={setNodeRef} style={style} className="relative flex items-start gap-2">
       <button
         type="button"
         {...attributes}
@@ -45,7 +46,9 @@ function SortableChannelRow({ id, children }: { id: string | number; children: R
         // p-3 (not p-2) brings this closer to the ~44px touch-target guideline that
         // matters now that touch-drag (TouchSensor, below) is a real, tuned input path,
         // not just tolerated incidentally by the pointer sensor.
-        className="mt-1.5 cursor-grab select-none rounded p-3 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing"
+        // Compact: laid over the start of the row's own header (which leaves room for it)
+        // rather than taking a column of width from everything in the channel.
+        className="absolute -left-3 top-2 z-[1] cursor-grab select-none rounded p-3 text-lg leading-none text-slate-500 hover:text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 active:cursor-grabbing lg:static lg:mt-1.5"
         aria-label="Drag to reorder channel, or focus and use arrow keys"
         title="Drag to reorder (or focus and use arrow keys)"
       >
@@ -341,16 +344,17 @@ export const DeviceEditor = memo(function DeviceEditor({
     <Collapsible
       openSignal={openSignal}
       persistKey={persistKey}
-      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      className={`${sectionCardClass} bg-slate-900`}
       titleClassName="text-lg font-semibold text-slate-100"
       title={
         <>
           Device — {device.type}
           {device.centerfreq !== undefined ? ` (${(device.centerfreq / 1e6).toFixed(3)} MHz)` : ""}
+          <OffBadge disable={device.disable} />
         </>
       }
       headerActions={
-        <div className="flex items-center gap-3">
+        <RowActions label={`device ${device.type}`}>
           <BoolField label="Disable" tooltip={DEVICE_TOOLTIPS.disable} checked={device.disable} onChange={(v) => emitChange({ ...device, disable: v })} />
           <button type="button" onClick={() => onDuplicate(deviceKey)} className={addButtonClass}>
             Duplicate device
@@ -364,7 +368,7 @@ export const DeviceEditor = memo(function DeviceEditor({
           >
             Remove device
           </button>
-        </div>
+        </RowActions>
       }
     >
       <div className={responsiveGrid3}>
@@ -607,7 +611,7 @@ export const DeviceEditor = memo(function DeviceEditor({
             {!isScan && (
               <input
                 type="search"
-                className={`${inputClass} w-full sm:w-56`}
+                className={`${inputClass} w-full sm:w-72 lg:w-56`}
                 placeholder="Filter by frequency or label…"
                 value={channelFilter}
                 onChange={(e) => setChannelFilter(e.target.value)}

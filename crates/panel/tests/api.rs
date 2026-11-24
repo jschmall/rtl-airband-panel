@@ -288,6 +288,35 @@ async fn restarts_and_live_applies_zero_the_overview_counters() {
 }
 
 #[tokio::test]
+async fn acknowledging_the_error_log_is_stored_for_every_client() {
+    let h = harness(&[]);
+    let record = |m: &str| h.events.record("alpha", "log", "error", m.into(), None);
+    record("one");
+    record("two");
+    let (_, _, list) = send(&h.router, get("/api/events")).await;
+    assert_eq!(list["acknowledgedId"], 0);
+    let newest = list["events"][0]["id"].as_i64().unwrap();
+
+    const URI: &str = "/api/events/acknowledge";
+    for bad in [json!({}), json!({ "through": "2" }), json!({ "through": -1 }), json!({ "through": 1.5 }), json!([])] {
+        assert_eq!(send(&h.router, json_req("POST", URI, &bad)).await.0, StatusCode::BAD_REQUEST, "{bad}");
+    }
+    let mut cross = json_req("POST", URI, &json!({ "through": newest }));
+    cross.headers_mut().insert(header::ORIGIN, "http://evil.example".parse().unwrap());
+    assert_eq!(send(&h.router, cross).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(send(&h.router, get("/api/events")).await.2["acknowledgedId"], 0);
+
+    record("while the button was being pressed");
+    let (status, _, r) = send(&h.router, json_req("POST", URI, &json!({ "through": newest }))).await;
+    assert_eq!((status, &r["acknowledgedId"]), (StatusCode::OK, &json!(newest)));
+    let (_, _, list) = send(&h.router, get("/api/events")).await;
+    assert_eq!(list["acknowledgedId"], newest);
+    let ids: Vec<i64> = list["events"].as_array().unwrap().iter().map(|e| e["id"].as_i64().unwrap()).collect();
+    assert_eq!(ids.iter().filter(|id| **id > newest).count(), 1, "the late one stays unacknowledged");
+    assert_eq!(ids.len(), 3, "acknowledged entries are kept");
+}
+
+#[tokio::test]
 async fn reserve_channels_capacity_comes_from_the_start_baseline() {
     let h = harness(&[]);
     let _sock = fake_socket(&h.socket, "{\"ok\":true,\"applied\":[\"added\"],\"skipped_requires_restart\":[]}\n");

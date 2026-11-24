@@ -5,15 +5,15 @@ interface MobileNavContextValue {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
-  /** The hamburger button attaches this, so the drawer can return focus to it on Escape. */
+  /** The ☰ button attaches this, so the drawer can return focus to it on Escape. */
   triggerRef: RefObject<HTMLButtonElement>;
 }
 
 const MobileNavContext = createContext<MobileNavContextValue | null>(null);
 
 /**
- * Whether the below-md: navigation drawer is open, shared between the
- * hamburger button and the drawer (both in AppShell.tsx) and anything else
+ * Whether the compact layout's instance drawer is open, shared between the
+ * ☰ button and the drawer (both in AppShell.tsx) and anything else
  * that needs to close it.
  */
 export function MobileNavProvider({ children }: { children: ReactNode }) {

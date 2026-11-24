@@ -6,13 +6,13 @@ const PRESETS = [
 
 export function TimeRangePicker({ value, onChange }: { value: number; onChange: (ms: number) => void }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex w-full gap-2 sm:w-auto">
       {PRESETS.map((preset) => (
         <button
           key={preset.ms}
           type="button"
           onClick={() => onChange(preset.ms)}
-          className={`rounded px-3 py-1.5 text-sm ${
+          className={`flex-auto whitespace-nowrap rounded px-2 py-2 text-sm sm:flex-none sm:px-3 lg:py-1.5 ${
             value === preset.ms ? "bg-sky-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
           }`}
         >

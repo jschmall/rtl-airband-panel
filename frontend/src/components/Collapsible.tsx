@@ -5,6 +5,8 @@ import { loadSectionOpen, saveSectionOpen } from "../lib/section-memory.js";
 interface CollapsibleProps {
   title: ReactNode;
   headerActions?: ReactNode;
+  /** Extra classes for the header row. */
+  headerClassName?: string;
   defaultOpen?: boolean;
   className?: string;
   titleClassName?: string;
@@ -35,6 +37,7 @@ interface CollapsibleProps {
 export function Collapsible({
   title,
   headerActions,
+  headerClassName = "",
   defaultOpen = false,
   className,
   titleClassName,
@@ -84,22 +87,21 @@ export function Collapsible({
 
   return (
     <div ref={rootRef} className={className} style={{ scrollMarginTop: 16 }}>
-      {/* flex-wrap: without it, a headerActions cluster (Disable/Duplicate/Remove, etc.)
-          that doesn't fit next to the title on a narrow viewport squeezes the title
-          button's flex-1 all the way to zero width instead of just wrapping below --
-          found empirically while testing this component's many callers at phone widths. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* flex-wrap with a 10rem basis (not flex-1's 0): a headerActions cluster that
+          would leave the title less than that moves below it, instead of squeezing it
+          down to its first few characters. */}
+      <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 lg:gap-3 ${headerClassName}`}>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-h-[2.75rem] min-w-0 flex-[1_1_10rem] items-center gap-2 text-left lg:min-h-0"
           aria-expanded={open}
           aria-controls={contentId}
         >
           <span className={`inline-block flex-shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
             ▶
           </span>
-          <span className={`min-w-0 ${titleClassName ?? ""}`}>{title}</span>
+          <span className={`min-w-0 break-words ${titleClassName ?? ""}`}>{title}</span>
         </button>
         {headerActions}
       </div>

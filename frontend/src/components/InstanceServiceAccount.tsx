@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Collapsible } from "./Collapsible.js";
 import { Field } from "./Field.js";
-import { inputClass, responsiveGrid2 } from "./styles.js";
+import { inputClass, responsiveGrid2, sectionCardClass } from "./styles.js";
 import { INSTANCE_OPTIONS_TOOLTIPS } from "../lib/config-descriptions.js";
 
 interface InstanceServiceAccountProps {
@@ -41,7 +41,7 @@ export function InstanceServiceAccount({ name, serviceUser, serviceGroup, contro
     <Collapsible
       defaultOpen
       persistKey={`instance:${name}:service-account`}
-      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      className={`${sectionCardClass} bg-slate-900`}
       titleClassName="text-lg font-semibold text-slate-100"
       title="Service account"
     >

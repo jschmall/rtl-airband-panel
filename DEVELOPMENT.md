@@ -429,6 +429,24 @@ busy:
   matched by `(metric, freq)` when that's unambiguous, so a channel
   relabelled in a live apply keeps its zero point.
 
+### Compact layout
+
+Below `lg:` (1024px) the frontend switches to the phone layout. Classes do
+most of it; `useCompact()` / `useNarrow()` (`frontend/src/lib/use-media.ts`)
+cover what needs different markup, at the same widths as `lg:` and `sm:`.
+- `AppShell` shows `TabNav` (bottom tabs, or a left strip with Tailwind's
+  `landscape:`) instead of the `Rail`, which becomes the instances-only
+  drawer. `<main>` keeps its place in the tree across the switch, so turning
+  the screen doesn't remount a page with unsaved edits.
+- `RowActions` puts a row's actions inline or behind ⋯; `OffBadge` shows the
+  state the menu hides.
+- `sectionCardClass` / `nestedCardClass` (`components/styles.ts`) turn the
+  editor's nested boxes into full-width bands: each level's negative margin
+  undoes its parent's `px-4`, so keep the two in step.
+- In a field grid, span a whole row with `col-span-full`. `col-span-2` adds
+  an implicit second column to a one-column grid, which is what made fields
+  overlap.
+
 ### Error log
 
 `crates/panel/src/events.rs`; rows in stats.db's `events` table.
@@ -450,6 +468,14 @@ Producers:
   to 5 min), and lines in the gap are missed. `airband_supervisor::classify_log_line`
   trusts `-j` levels and keyword-matches the rest (`heuristic: true` in
   the event's detail).
+
+Acknowledging is a single event id in stats.db (`events_ack`), so every
+browser agrees. Entries up to it stay stored but are left out of the
+Errors page (restart markers included) and the sidebar count. The id never
+moves back and never passes the newest event. The client sends the newest
+id it has loaded, so an event that arrives meanwhile stays unacknowledged.
+The Hardware page's recent-problems reading ignores it. The per-browser
+`rtl-panel:errors-seen-id` only drives the "new since you last looked" bar.
 
 ### Hardware page
 
@@ -530,7 +556,10 @@ and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - `GET /api/instances/:name/airband` (an `AirbandBuild`, see
   "Fork or stock rtl_airband" below);
 - `GET /api/events?instance=&before=&limit=` (the error log, newest first,
-  `before` an event id to page back; see "Error log" above).
+  `before` an event id to page back, plus `acknowledgedId`; see "Error log"
+  above);
+- `POST /api/events/acknowledge` with `{"through": id}` (returns
+  `acknowledgedId`).
 
 Errors are `{ error }` with 400/404/409/422 (with `errors`)/502 (failed
 systemd command, with `exitCode` and `stderr`).
@@ -542,6 +571,7 @@ systemd command, with `exitCode` and `stderr`).
 - `stats-summary` (the Overview counters) whenever they change, and right
   after a restart or live apply resets them;
 - `event` (one error-log entry) as each is recorded;
+- `events-acknowledged` (`{id}`) when the error log is acknowledged;
 - `hardware` (a `HardwareSnapshot`) every `RTL_PANEL_HARDWARE_POLL_INTERVAL_MS`,
   only to clients that sent `{"type":"subscribe","topic":"hardware"}`. A new
   subscriber gets a frame right away. While nobody is subscribed, the

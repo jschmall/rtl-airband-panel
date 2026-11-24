@@ -4,7 +4,7 @@ import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { DraftInput } from "./DraftInput.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
+import { addButtonClass, inputClass, nestedCardClass, removeButtonClass, responsiveGrid2 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import {
@@ -94,7 +94,7 @@ export const ScanChannelEditor = memo(function ScanChannelEditor({
   return (
     <Collapsible
       openSignal={openSignal}
-      className="rounded border border-slate-600 bg-slate-800 p-3"
+      className={`${nestedCardClass} bg-slate-800`}
       titleClassName="font-medium text-slate-200"
       title={`Scan channel — ${channel.freqs.length} frequencies`}
       headerActions={

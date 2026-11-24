@@ -13,6 +13,8 @@
 //!
 //! Rows live in stats.db (`events`), pruned with the stats retention, and
 //! each new one is pushed to websocket clients as `{"type":"event","data":Event}`.
+//! Acknowledging is one id, shared by every browser: entries up to it are
+//! kept but hidden, and it's pushed as `{"type":"events-acknowledged"}`.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
@@ -193,6 +195,19 @@ impl EventLog {
     pub fn list(&self, instance: Option<&str>, before: Option<i64>, limit: u32) -> Result<Vec<Event>, ApiError> {
         let rows = self.db.list_events(instance, before, limit).map_err(|e| ApiError::Internal(e.to_string()))?;
         Ok(rows.into_iter().map(|(id, e)| Event::from_row(id, e)).collect())
+    }
+
+    /// Entries up to this id have been acknowledged (hidden on the Errors page).
+    pub fn acknowledged(&self) -> Result<i64, ApiError> {
+        self.db.acknowledged_event().map_err(|e| ApiError::Internal(e.to_string()))
+    }
+
+    /// Acknowledges everything up to `through`, for every browser, and tells
+    /// websocket clients. Returns the id it's now acknowledged up to.
+    pub fn acknowledge(&self, through: i64) -> Result<i64, ApiError> {
+        let id = self.db.acknowledge_events(through).map_err(|e| ApiError::Internal(e.to_string()))?;
+        let _ = self.tx.send(json!({ "type": "events-acknowledged", "data": { "id": id } }));
+        Ok(id)
     }
 
     fn restarted_by_panel_recently(&self, name: &str) -> bool {
@@ -462,6 +477,17 @@ mod tests {
         let pushed = rx.try_recv().unwrap();
         assert_eq!(pushed["type"], "event");
         assert_eq!(pushed["data"]["message"], "one");
+    }
+
+    #[test]
+    fn acknowledging_is_pushed() {
+        let (_d, log, mut rx) = log();
+        log.record("a", kind::LOG, severity::ERROR, "one".into(), None);
+        let id = log.list(None, None, 1).unwrap()[0].id;
+        rx.try_recv().unwrap();
+        assert_eq!(log.acknowledge(id).unwrap(), id);
+        assert_eq!(log.acknowledged().unwrap(), id);
+        assert_eq!(rx.try_recv().unwrap(), json!({ "type": "events-acknowledged", "data": { "id": id } }));
     }
 
     #[test]

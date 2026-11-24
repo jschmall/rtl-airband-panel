@@ -3,11 +3,13 @@ import type { MultichannelChannel, Output } from "../types/config.js";
 import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { OutputEditor } from "./OutputEditor.js";
-import { addButtonClass, inputClass, removeButtonClass, responsiveGrid4 } from "./styles.js";
+import { OffBadge, RowActions } from "./RowActions.js";
+import { addButtonClass, inputClass, nestedCardClass, removeButtonClass, responsiveGrid4 } from "./styles.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultPulseOutput } from "../lib/defaults.js";
 import { numberOrUndefined } from "../lib/number-utils.js";
 import { CHANNEL_TOOLTIPS } from "../lib/config-descriptions.js";
+import { useCompact } from "../lib/use-media.js";
 import { cloneWithNewUiKeys, uiKeyOf } from "../lib/keys.js";
 import { pathStartsWith } from "../lib/validation-path.js";
 import type { ChannelTarget } from "../lib/channel-targets.js";
@@ -89,13 +91,24 @@ export const ChannelEditor = memo(function ChannelEditor({
     [channelTargets, deviceIndex, channelIndex]
   );
   const openSignal = jumpTarget && pathStartsWith(jumpTarget.path, pathPrefix) ? jumpTarget.nonce : undefined;
-  const channelTitle = `Channel ${(channel.freq / 1e6).toFixed(4)} MHz${channel.label ? ` — ${channel.label}` : ""}`;
+  const compact = useCompact();
+  const channelName = `Channel ${(channel.freq / 1e6).toFixed(4)} MHz`;
+  const channelTitle = `${channelName}${channel.label ? ` — ${channel.label}` : ""}`;
   return (
     <Collapsible
       openSignal={openSignal}
-      className={`rounded border border-slate-600 bg-slate-800 p-3 transition-shadow duration-700 ${highlighted ? "ring-2 ring-sky-400" : ""}`}
+      className={`${nestedCardClass} bg-slate-800 transition-shadow duration-700 ${highlighted ? "ring-2 ring-sky-400" : ""}`}
+      // Room for the row's drag handle (see DeviceEditor's SortableChannelRow).
+      headerClassName="pl-7 lg:pl-0"
       titleClassName="font-medium text-slate-200"
       title={
+        compact ? (
+          <span className="block">
+            {channelName}
+            <OffBadge disable={channel.disable} enabled={channel.enabled} />
+            {channel.label && <span className="block text-sm font-normal text-slate-400">{channel.label}</span>}
+          </span>
+        ) : (
         // Truncates with an ellipsis when the header is too narrow for the full
         // frequency + label; hovering swaps to a horizontally scrollable view
         // instead of just clipping, so the full title is still reachable.
@@ -105,9 +118,10 @@ export const ChannelEditor = memo(function ChannelEditor({
         >
           {channelTitle}
         </span>
+        )
       }
       headerActions={
-        <div className="flex items-center gap-3">
+        <RowActions label={channelName}>
           <BoolField label="Disable" tooltip={CHANNEL_TOOLTIPS.disable} checked={channel.disable} onChange={(v) => emitChange({ ...channel, disable: v })} />
           <BoolField
             label="Enabled"
@@ -129,7 +143,7 @@ export const ChannelEditor = memo(function ChannelEditor({
           >
             Remove channel
           </button>
-        </div>
+        </RowActions>
       }
     >
       <div className={responsiveGrid4}>
@@ -214,13 +228,16 @@ export const ChannelEditor = memo(function ChannelEditor({
             onChange={(e) => emitChange({ ...channel, squelch_threshold: numberOrUndefined(e.target.value) })}
           />
         </Field>
-        <Field label="Label (optional)" tooltip={CHANNEL_TOOLTIPS.label}>
-          <input
-            className={inputClass}
-            value={channel.label ?? ""}
-            onChange={(e) => emitChange({ ...channel, label: e.target.value || undefined })}
-          />
-        </Field>
+        {/* Full width and first on a compact screen: the one free-text field here. */}
+        <div className="order-first col-span-full flex flex-col lg:order-none lg:col-span-1">
+          <Field label="Label (optional)" tooltip={CHANNEL_TOOLTIPS.label}>
+            <input
+              className={inputClass}
+              value={channel.label ?? ""}
+              onChange={(e) => emitChange({ ...channel, label: e.target.value || undefined })}
+            />
+          </Field>
+        </div>
         <Field label="Notch Q (optional, default 10.0)" tooltip={CHANNEL_TOOLTIPS.notchQ}>
           <input
             type="number"
