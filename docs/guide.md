@@ -38,7 +38,10 @@ service of the same name, `<name>.service`. Pick any names you like.
 
   The tiles at the top count instances that are running, failed, or have
   saved changes waiting for a restart.
-- **The left-hand list** shows every instance with its status light. Type
+- **The left-hand list** shows every instance with its status light, its
+  SDR's serial number and center frequency in MHz (*name - serial - center*).
+  A long name is shortened to fit them; without room for all three, the
+  frequency is left out. Hover over a row for the full details. Type
   in the filter box to find an instance by name, channel label, frequency
   or modulation.
 - **+ New** creates an instance (config file and service). Rename, restart

@@ -5,6 +5,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.64] - 2026-11-24
+
+### Added
+
+- **The left-hand instance list shows each SDR's serial number and center
+  frequency**, as *name - serial - center frequency* (MHz). A long name is cut short
+  so they still show; when that would leave only a few characters of it, the
+  frequency is left out. A scan device has no center frequency, and an instance with
+  several SDRs shows its first and how many more (*+1*). Hovering over a row gives
+  the full name and every SDR.
+- `devices` (serial and `centerFreqHz`) on each instance in `GET /api/instances`.
+
 ## [0.6.63] - 2026-11-24
 
 ### Changed

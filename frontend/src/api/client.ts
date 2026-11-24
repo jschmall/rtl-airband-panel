@@ -31,6 +31,14 @@ export interface InstanceSummary {
   frequencies?: number[];
   /** Each enabled, non-scan device's usable capture window: where a new channel fits (Rust panel only). */
   deviceWindows?: DeviceWindow[];
+  /** Each enabled device, in file order (Rust panel only). */
+  devices?: DeviceSummary[];
+}
+
+export interface DeviceSummary {
+  serial?: string;
+  /** Absent on a scan device. */
+  centerFreqHz?: number;
 }
 
 export interface DeviceWindow {

@@ -3,6 +3,7 @@ import { useInstanceList, type Connection } from "../../state/InstanceListContex
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
 import { HealthLight, healthLabel } from "../HealthLight.js";
+import { InstanceLabel, instanceDescription } from "./InstanceLabel.js";
 import { ErrorsBadge, NAV_ITEMS } from "./nav.js";
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -112,14 +113,14 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
               <GuardedNavLink
                 key={instance.name}
                 to={`/instances/${encodeURIComponent(instance.name)}`}
-                title={`${healthLabel(instance.status.activeState)} (${instance.status.subState})${instance.pendingRestart ? " -- saved config not running yet" : ""}`}
+                title={`${instanceDescription(instance.name, instance.devices ?? [])}\n${healthLabel(instance.status.activeState)} (${instance.status.subState})${instance.pendingRestart ? " -- saved config not running yet" : ""}`}
                 className={({ isActive }) =>
                   `block rounded-md px-2.5 py-2.5 text-sm lg:py-1.5 ${isActive ? "bg-slate-800 text-slate-50" : "text-slate-300 hover:bg-slate-800/60 hover:text-slate-50"}`
                 }
               >
                 <span className="flex items-center gap-2">
                   <HealthLight state={instance.status.activeState} />
-                  <span className="min-w-0 flex-1 break-words lg:truncate">{instance.name}</span>
+                  <InstanceLabel name={instance.name} devices={instance.devices ?? []} />
                   {instance.pendingRestart && (
                     <span className="rounded border border-amber-500/40 px-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
                       pending
