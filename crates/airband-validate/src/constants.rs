@@ -70,16 +70,15 @@ pub const STANDARD_CTCSS_TONES: [f64; 51] = [
     254.1,
 ];
 
-/// FFT bin a channel's carrier lands on, replicating RTLSDR-Airband's own
-/// formula (config.cpp, parse_channels()):
-///
-///   bin = ceil((freq + sample_rate - centerfreq) / (sample_rate / fft_size) - 1) % fft_size
+/// FFT bin nearest a channel's carrier, as the fork computes it (v7.6.0,
+/// live_reconfig.cpp, compute_channel_bin(): lround of the same expression,
+/// halfway cases away from zero). Stock rtl_airband and older fork releases
+/// take the bin below, and one lower still when the carrier is exactly on one.
 ///
 /// `correction` is deliberately not factored in: it is applied at the
 /// tuner/driver level and doesn't shift this software-side bin math.
 pub fn compute_bin(freq_hz: f64, centerfreq_hz: f64, sample_rate_hz: f64, fft_size: f64) -> f64 {
-    let bin_width_hz = sample_rate_hz / fft_size;
-    let raw = ((freq_hz + sample_rate_hz - centerfreq_hz) / bin_width_hz - 1.0).ceil();
+    let raw = ((freq_hz - centerfreq_hz) * fft_size / sample_rate_hz).round();
     ((raw % fft_size) + fft_size) % fft_size
 }
 
@@ -153,12 +152,28 @@ mod tests {
     }
 
     #[test]
-    fn bin_formula_wraps_into_range() {
-        // The `+ sample_rate` offset puts a carrier exactly at centerfreq in the last bin.
-        assert_eq!(compute_bin(100_000_000.0, 100_000_000.0, 2_560_000.0, 512.0), 511.0);
-        // One bin width (5 kHz) above centerfreq wraps to bin 0.
-        assert_eq!(compute_bin(100_005_000.0, 100_000_000.0, 2_560_000.0, 512.0), 0.0);
-        let below = compute_bin(99_000_000.0, 100_000_000.0, 2_560_000.0, 512.0);
-        assert!((0.0..512.0).contains(&below));
+    fn bin_is_the_nearest_one() {
+        let bin = |offset: f64, rate: f64, fft: f64| compute_bin(100_000_000.0 + offset, 100_000_000.0, rate, fft);
+        // A carrier exactly on a bin gets that bin, on either side of centerfreq.
+        assert_eq!(bin(0.0, 2_560_000.0, 512.0), 0.0);
+        assert_eq!(bin(5_000.0, 2_560_000.0, 512.0), 1.0);
+        assert_eq!(bin(-5_000.0, 2_560_000.0, 512.0), 511.0);
+        assert_eq!(bin(-1_000_000.0, 2_560_000.0, 512.0), 312.0);
+        assert_eq!(bin(2_499.0, 2_560_000.0, 512.0), 0.0);
+        assert_eq!(bin(2_501.0, 2_560_000.0, 512.0), 1.0);
+        // Halfway between two bins, the one further from centerfreq.
+        assert_eq!(bin(2_500.0, 2_560_000.0, 512.0), 1.0);
+        assert_eq!(bin(-2_500.0, 2_560_000.0, 512.0), 511.0);
+        // The bin width isn't a whole number of Hz here, and isn't truncated to one.
+        assert_eq!(bin(1_000_000.0, 2_400_000.0, 8192.0), 3413.0);
+    }
+
+    #[test]
+    fn bin_zero_has_one_bit_pattern() {
+        // bin_collisions() keys on to_bits(), so a -0.0 here would hide a collision.
+        for offset in [-2_499.0, -1.0, 0.0, 1.0, 2_499.0] {
+            let bin = compute_bin(100_000_000.0 + offset, 100_000_000.0, 2_560_000.0, 512.0);
+            assert_eq!(bin.to_bits(), 0.0_f64.to_bits(), "offset {offset}");
+        }
     }
 }

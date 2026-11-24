@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 use airband_config::parse_config_file;
 use airband_validate::{ValidationResult, validate_config};
 
+/// Inputs whose recorded result no longer applies, each covered by an ordinary test instead.
+/// bin-collision*: the fork picks the nearest FFT bin since v7.6.0 (tests/fork_v7_6.rs).
+const SUPERSEDED: [&str; 2] = ["bin-collision", "bin-collision-fft-size"];
+
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -33,6 +37,9 @@ fn inputs() -> Vec<PathBuf> {
 
 fn check(input: &Path) -> Result<bool, String> {
     let name = input.file_stem().unwrap().to_string_lossy().to_string();
+    if SUPERSEDED.contains(&name.as_str()) {
+        return Ok(false);
+    }
     let Ok(domain) = parse_config_file(&std::fs::read_to_string(input).unwrap()) else {
         return Ok(false); // parse errors are the parser goldens' business
     };
@@ -62,7 +69,7 @@ fn matches_typescript_goldens() {
         }
     }
     assert!(failures.is_empty(), "{} parity failure(s):\n\n{}", failures.len(), failures.join("\n\n"));
-    assert!(checked >= 75, "only {checked} inputs checked");
+    assert!(checked + SUPERSEDED.len() >= 75, "only {checked} inputs checked");
 }
 
 #[test]

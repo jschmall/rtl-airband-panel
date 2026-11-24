@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.69] - 2026-11-24
+
+### Changed
+
+- **The FFT bin collision check uses the nearest bin, as fork v7.6.0 does.** It used to
+  round down, and one bin further for a channel exactly on a bin, matching older
+  rtl_airband. Only channels less than one bin width apart (5 kHz at the defaults) are
+  affected: some pairs that were blocked are now allowed, and some that were allowed
+  are now blocked. An instance still running stock rtl_airband or an older fork release
+  is checked with the new rule too.
+
 ## [0.6.68] - 2026-11-24
 
 ### Changed
