@@ -548,7 +548,9 @@ The REST API is what the TypeScript backend served (same routes, shapes
 and status codes; see `crates/panel/src/http/mod.rs`), plus:
 - `POST /api/instances/:name/plan`;
 - a `plan` field on save and apply-live results;
-- `frequencies` on each instance in the list;
+- `frequencies` and `devices` (each enabled SDR's `serial` and
+  `centerFreqHz`, the latter absent on a scan device) on each instance in
+  the list;
 - `GET /api/hardware` (a `HardwareSnapshot`, see below);
 - `GET /api/hardware/history?windowMs=` (a `HardwareHistory`: each SDR's
   recorded readings from the last `windowMs`, default 5 minutes, at most a

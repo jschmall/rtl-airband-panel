@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { INSTANCE_SORT_LABEL, loadInstanceSort, saveInstanceSort, sortInstances, type InstanceSort } from "../../lib/instance-sort.js";
 import { useInstanceList, type Connection } from "../../state/InstanceListContext.js";
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
 import { HealthLight, healthLabel } from "../HealthLight.js";
+import { InstanceLabel, instanceDescription } from "./InstanceLabel.js";
 import { ErrorsBadge, NAV_ITEMS } from "./nav.js";
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -52,7 +54,9 @@ function RailFooter() {
  */
 export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
   const { instances, filteredInstances, searchQuery, setSearchQuery, error } = useInstanceList();
-  const shown = filteredInstances ?? instances;
+  const [sort, setSort] = useState<InstanceSort>(loadInstanceSort);
+  const listed = filteredInstances ?? instances;
+  const shown = useMemo(() => listed && sortInstances(listed, sort), [listed, sort]);
   const query = searchQuery.trim().toLowerCase();
 
   return (
@@ -93,6 +97,24 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
           aria-label="Search instances"
           className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-base lg:h-7 lg:text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
         />
+        <label className="mt-1.5 flex items-center gap-2 whitespace-nowrap text-xs text-slate-500">
+          Sort by
+          <select
+            value={sort}
+            onChange={(e) => {
+              const v = e.target.value as InstanceSort;
+              setSort(v);
+              saveInstanceSort(v);
+            }}
+            className="h-10 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-base text-slate-100 focus:border-sky-500 focus:outline-none lg:h-7 lg:px-1 lg:text-xs"
+          >
+            {(Object.keys(INSTANCE_SORT_LABEL) as InstanceSort[]).map((k) => (
+              <option key={k} value={k}>
+                {INSTANCE_SORT_LABEL[k]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && <p className="mx-3 mb-2 rounded bg-red-500/10 px-2 py-1 text-xs text-red-300">{error}</p>}
@@ -112,14 +134,14 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
               <GuardedNavLink
                 key={instance.name}
                 to={`/instances/${encodeURIComponent(instance.name)}`}
-                title={`${healthLabel(instance.status.activeState)} (${instance.status.subState})${instance.pendingRestart ? " -- saved config not running yet" : ""}`}
+                title={`${instanceDescription(instance.name, instance.devices ?? [])}\n${healthLabel(instance.status.activeState)} (${instance.status.subState})${instance.pendingRestart ? " -- saved config not running yet" : ""}`}
                 className={({ isActive }) =>
                   `block rounded-md px-2.5 py-2.5 text-sm lg:py-1.5 ${isActive ? "bg-slate-800 text-slate-50" : "text-slate-300 hover:bg-slate-800/60 hover:text-slate-50"}`
                 }
               >
                 <span className="flex items-center gap-2">
                   <HealthLight state={instance.status.activeState} />
-                  <span className="min-w-0 flex-1 break-words lg:truncate">{instance.name}</span>
+                  <InstanceLabel name={instance.name} devices={instance.devices ?? []} />
                   {instance.pendingRestart && (
                     <span className="rounded border border-amber-500/40 px-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
                       pending

@@ -424,6 +424,25 @@ async fn instance_list_reports_active_frequencies() {
     assert_eq!(list[0]["frequencies"], json!([151100000.0, 151200000.0]));
     // 151 MHz at the default 2.56 Msps, 90% of the Nyquist half-width either side.
     assert_eq!(list[0]["deviceWindows"], json!([{ "serial": "1", "lowHz": 149848000.0, "highHz": 152152000.0 }]));
+    assert_eq!(list[0]["devices"], json!([{ "serial": "1", "centerFreqHz": 151000000.0 }]));
+}
+
+#[tokio::test]
+async fn instance_list_names_each_enabled_device() {
+    let h = harness(&[]);
+    let (_, _, mut config) = send(&h.router, get("/api/instances/alpha")).await;
+    let first = config["devices"][0].clone();
+    let mut disabled = first.clone();
+    disabled["serial"] = json!("2");
+    disabled["disable"] = json!(true);
+    // A scan device with a leftover centerfreq, and no serial (opened by index).
+    let scan = json!({ "type": "rtlsdr", "index": 1, "gain": 20, "mode": "scan", "centerfreq": 120000000,
+        "channels": [{ "freqs": [118100000, 118200000], "outputs": [{ "type": "pulse" }] }] });
+    config["devices"] = json!([first, disabled, scan]);
+    let (status, _, r) = send(&h.router, json_req("PUT", "/api/instances/alpha?restart=false", &config)).await;
+    assert_eq!(status, StatusCode::OK, "{r}");
+    let (_, _, list) = send(&h.router, get("/api/instances")).await;
+    assert_eq!(list[0]["devices"], json!([{ "serial": "1", "centerFreqHz": 151000000.0 }, {}]));
 }
 
 #[tokio::test]
