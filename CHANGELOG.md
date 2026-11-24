@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.65] - 2026-11-24
+
+### Added
+
+- **Sort by for the left-hand instance list: name, serial or center frequency.** The
+  choice is remembered per browser, like the Hardware page's. Numbers sort in order
+  (9 before 10), an instance with several SDRs sorts by the one shown, ties go by
+  name, and instances without a serial or center frequency (scan SDRs) go last.
+
 ## [0.6.64] - 2026-11-24
 
 ### Added

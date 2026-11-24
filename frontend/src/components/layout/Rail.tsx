@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { INSTANCE_SORT_LABEL, loadInstanceSort, saveInstanceSort, sortInstances, type InstanceSort } from "../../lib/instance-sort.js";
 import { useInstanceList, type Connection } from "../../state/InstanceListContext.js";
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
@@ -53,7 +54,9 @@ function RailFooter() {
  */
 export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
   const { instances, filteredInstances, searchQuery, setSearchQuery, error } = useInstanceList();
-  const shown = filteredInstances ?? instances;
+  const [sort, setSort] = useState<InstanceSort>(loadInstanceSort);
+  const listed = filteredInstances ?? instances;
+  const shown = useMemo(() => listed && sortInstances(listed, sort), [listed, sort]);
   const query = searchQuery.trim().toLowerCase();
 
   return (
@@ -94,6 +97,24 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
           aria-label="Search instances"
           className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-base lg:h-7 lg:text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
         />
+        <label className="mt-1.5 flex items-center gap-2 whitespace-nowrap text-xs text-slate-500">
+          Sort by
+          <select
+            value={sort}
+            onChange={(e) => {
+              const v = e.target.value as InstanceSort;
+              setSort(v);
+              saveInstanceSort(v);
+            }}
+            className="h-10 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-950 px-2 text-base text-slate-100 focus:border-sky-500 focus:outline-none lg:h-7 lg:px-1 lg:text-xs"
+          >
+            {(Object.keys(INSTANCE_SORT_LABEL) as InstanceSort[]).map((k) => (
+              <option key={k} value={k}>
+                {INSTANCE_SORT_LABEL[k]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && <p className="mx-3 mb-2 rounded bg-red-500/10 px-2 py-1 text-xs text-red-300">{error}</p>}
