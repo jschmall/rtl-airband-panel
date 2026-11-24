@@ -1,75 +1,14 @@
-import { useEffect, useState } from "react";
-import { errorLog, unacknowledgedProblems, useErrorLog } from "../../lib/error-log.js";
+import { useState } from "react";
 import { useInstanceList, type Connection } from "../../state/InstanceListContext.js";
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
 import { HealthLight, healthLabel } from "../HealthLight.js";
+import { ErrorsBadge, NAV_ITEMS } from "./nav.js";
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm ${
     isActive ? "bg-slate-800 text-slate-50" : "text-slate-300 hover:bg-slate-800/60 hover:text-slate-50"
   }`;
-
-function OverviewIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current opacity-80">
-      <rect x="1" y="1" width="6" height="6" rx="1" />
-      <rect x="9" y="1" width="6" height="6" rx="1" />
-      <rect x="1" y="9" width="6" height="6" rx="1" />
-      <rect x="9" y="9" width="6" height="6" rx="1" />
-    </svg>
-  );
-}
-
-function StatsIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-current opacity-80" strokeWidth="1.6">
-      <polyline points="1,13 5,8 8,10 12,4 15,6" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function HardwareIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-current opacity-80" strokeWidth="1.5" strokeLinecap="round">
-      <rect x="1.5" y="6" width="13" height="8" rx="1.5" />
-      <path d="M11 6 13.5 1.5" />
-      <circle cx="5" cy="10" r="1.6" />
-      <path d="M9 9h3M9 11h3" />
-    </svg>
-  );
-}
-
-function ErrorsIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-none stroke-current opacity-80" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M8 1.5 15 14H1z" />
-      <path d="M8 6v3.5" />
-      <circle cx="8" cy="11.8" r="0.4" className="fill-current" />
-    </svg>
-  );
-}
-
-/** Errors and warnings nobody has acknowledged yet; the same in every browser. */
-function ErrorsBadge() {
-  const log = useErrorLog();
-  // Pushes keep it current while live; otherwise InstanceListContext's background poll reloads it.
-  useEffect(() => {
-    void errorLog.ensureLoaded();
-  }, []);
-  const { count, anyError } = unacknowledgedProblems(log);
-  if (count === 0) return null;
-  return (
-    <span
-      title={`${count} unacknowledged error${count === 1 ? "" : "s"} or warning${count === 1 ? "" : "s"}`}
-      className={`ml-auto rounded-full border px-1.5 text-[10px] font-semibold tabular-nums ${
-        anyError ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-amber-500/40 bg-amber-500/10 text-amber-300"
-      }`}
-    >
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}
 
 const CONNECTION: Record<Connection, { label: string; light: string; title: string }> = {
   live: { label: "Live", light: "bg-emerald-500", title: "Receiving live updates from the panel server" },
@@ -106,14 +45,18 @@ function RailFooter() {
   );
 }
 
-/** Left navigation: app sections, then every instance with its status light. */
-export function Rail() {
+/**
+ * Left navigation: app sections, then every instance with its status light.
+ * `instancesOnly` leaves the sections out, for the compact layout's drawer,
+ * where TabNav has them.
+ */
+export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
   const { instances, filteredInstances, searchQuery, setSearchQuery, error } = useInstanceList();
   const shown = filteredInstances ?? instances;
   const query = searchQuery.trim().toLowerCase();
 
   return (
-    <nav aria-label="Main" className="flex h-full flex-col bg-slate-900/40">
+    <nav aria-label={instancesOnly ? "Instances" : "Main"} className="flex h-full flex-col bg-slate-900/40">
       <GuardedLink to="/" className="flex items-center gap-2 px-4 pb-3 pt-4">
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 fill-none stroke-sky-400" strokeWidth="1.8" strokeLinecap="round">
           <path d="M3 13a7 7 0 0 1 14 0" />
@@ -123,27 +66,19 @@ export function Rail() {
         <span className="text-sm font-semibold tracking-tight text-slate-50">RTLSDR-Airband Panel</span>
       </GuardedLink>
 
-      <div className="space-y-0.5 px-2">
-        <GuardedNavLink to="/" end className={navItemClass}>
-          <OverviewIcon />
-          Overview
-        </GuardedNavLink>
-        <GuardedNavLink to="/stats" className={navItemClass}>
-          <StatsIcon />
-          Stats
-        </GuardedNavLink>
-        <GuardedNavLink to="/hardware" className={navItemClass}>
-          <HardwareIcon />
-          Hardware
-        </GuardedNavLink>
-        <GuardedNavLink to="/errors" className={navItemClass}>
-          <ErrorsIcon />
-          Errors
-          <ErrorsBadge />
-        </GuardedNavLink>
-      </div>
+      {!instancesOnly && (
+        <div className="mb-4 space-y-0.5 px-2">
+          {NAV_ITEMS.map(({ to, end, label, Icon, badge }) => (
+            <GuardedNavLink key={to} to={to} end={end} className={navItemClass}>
+              <Icon />
+              {label}
+              {badge && <ErrorsBadge className="ml-auto" />}
+            </GuardedNavLink>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-4 flex items-center justify-between px-4">
+      <div className="flex items-center justify-between px-4">
         <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Instances</span>
         <GuardedNavLink to="/instances/new" title="New instance" className="rounded px-1.5 text-sm leading-6 text-sky-400 hover:bg-slate-800">
           + New
@@ -156,7 +91,7 @@ export function Rail() {
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Filter by name, label, MHz…"
           aria-label="Search instances"
-          className="h-7 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+          className="h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-2 text-base lg:h-7 lg:text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
         />
       </div>
 
@@ -179,19 +114,19 @@ export function Rail() {
                 to={`/instances/${encodeURIComponent(instance.name)}`}
                 title={`${healthLabel(instance.status.activeState)} (${instance.status.subState})${instance.pendingRestart ? " -- saved config not running yet" : ""}`}
                 className={({ isActive }) =>
-                  `block rounded-md px-2.5 py-1.5 text-sm ${isActive ? "bg-slate-800 text-slate-50" : "text-slate-300 hover:bg-slate-800/60 hover:text-slate-50"}`
+                  `block rounded-md px-2.5 py-2.5 text-sm lg:py-1.5 ${isActive ? "bg-slate-800 text-slate-50" : "text-slate-300 hover:bg-slate-800/60 hover:text-slate-50"}`
                 }
               >
                 <span className="flex items-center gap-2">
                   <HealthLight state={instance.status.activeState} />
-                  <span className="min-w-0 flex-1 truncate">{instance.name}</span>
+                  <span className="min-w-0 flex-1 break-words lg:truncate">{instance.name}</span>
                   {instance.pendingRestart && (
                     <span className="rounded border border-amber-500/40 px-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
                       pending
                     </span>
                   )}
                 </span>
-                {matched.length > 0 && <span className="ml-4 block truncate text-xs text-slate-500">{matched.join(", ")}</span>}
+                {matched.length > 0 && <span className="ml-4 block break-words text-xs text-slate-500 lg:truncate">{matched.join(", ")}</span>}
               </GuardedNavLink>
             );
           })

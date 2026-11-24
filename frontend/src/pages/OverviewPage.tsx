@@ -41,7 +41,7 @@ function InstanceCard({ instance, summary }: { instance: InstanceSummary; summar
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-slate-50">{instance.name}</p>
+          <p className="break-words font-medium text-slate-50 lg:truncate">{instance.name}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-400">
             <HealthLight state={state} />
             {healthLabel(state)}
@@ -160,7 +160,7 @@ export function OverviewPage() {
           right={{ label: "Pending restart", value: count((i) => i.pendingRestart), tone: "warn" }}
         />
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {instances.map((instance) => (
           <InstanceCard key={instance.name} instance={instance} summary={statsSummaries?.[instance.name]} />
         ))}

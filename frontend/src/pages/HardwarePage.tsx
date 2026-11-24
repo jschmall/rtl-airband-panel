@@ -189,7 +189,7 @@ export function HardwarePage() {
                 setSort(v);
                 saveSort(v);
               }}
-              className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
+              className="h-10 rounded-md border border-slate-700 bg-slate-950 px-2 text-base lg:h-8 lg:text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
             >
               {(Object.keys(HARDWARE_SORT_LABEL) as HardwareSort[]).map((k) => (
                 <option key={k} value={k}>
@@ -216,7 +216,7 @@ export function HardwarePage() {
           {sort === "severity" && (
             <p className="text-xs text-slate-500">
               Worst first: SDRs not receiving properly (down, clipping, dropping samples), then ones with something to change (gain, PPM correction,
-              auto_ppm, recent errors), then optional improvements. Hover a card's badge for its list.
+              auto_ppm, recent errors), then optional improvements. Hover or tap a card's badge for its list.
             </p>
           )}
           {flat!.map(({ instance, sdr }) => {

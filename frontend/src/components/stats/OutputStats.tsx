@@ -172,14 +172,12 @@ function OutputGroupCard({ group }: { group: OutputGroup }) {
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
       <Collapsible
-        // truncate (not the default wrapping text) keeps this on one line so the header
-        // row's own flex-wrap -- not this span's internal text-wrap -- is what decides
-        // whether the summary line moves below the title at narrow widths; letting the
-        // title wrap here instead let the summary vertically center into the gap between
-        // the title's wrapped lines and visually overlap it (found empirically at phone width).
-        title={<span className="block truncate font-medium text-slate-200">{group.title}</span>}
+        // On a compact screen the summary always takes its own line below (basis-full),
+        // so the title can have the whole width and wrap; beside it, from lg: up, the
+        // title stays on one line.
+        title={<span className="block font-medium text-slate-200 lg:truncate">{group.title}</span>}
         headerActions={
-          <span className="shrink-0 text-xs text-slate-400">
+          <span className="basis-full pl-5 text-xs text-slate-400 lg:shrink-0 lg:basis-auto lg:pl-0">
             {summaryParts.map((part, i) => (
               <span key={part.key}>
                 {i > 0 && ", "}

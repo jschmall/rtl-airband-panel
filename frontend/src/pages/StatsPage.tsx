@@ -209,9 +209,9 @@ export function StatsPage() {
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-slate-300">
+      <label className="flex min-w-0 flex-col gap-1 text-sm text-slate-300 sm:flex-row sm:items-center sm:gap-2">
         Device
-        <select className={inputClass} value={selectedInstanceName ?? ""} onChange={(e) => setSelectedInstanceName(e.target.value)}>
+        <select className={`${inputClass} sm:flex-none`} value={selectedInstanceName ?? ""} onChange={(e) => setSelectedInstanceName(e.target.value)}>
           {instances.map((instance) => (
             <option key={instance.name} value={instance.name}>
               {instance.name}
@@ -232,10 +232,10 @@ export function StatsPage() {
           <div className="space-y-4 border-t border-slate-800 pt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {channels.length > 0 && (
-                <label className="flex items-center gap-2 text-sm text-slate-300">
+                <label className="flex w-full min-w-0 flex-col gap-1 text-sm text-slate-300 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
                   Channel
                   <select
-                    className={inputClass}
+                    className={`${inputClass} sm:flex-none`}
                     value={selectedChannel?.key ?? ""}
                     onChange={(e) => setSelectedChannelKey(e.target.value)}
                   >

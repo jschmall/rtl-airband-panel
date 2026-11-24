@@ -1,6 +1,7 @@
 import type { StatSample } from "../../api/client.js";
 import { Collapsible } from "../Collapsible.js";
 import { Tooltip } from "../Tooltip.js";
+import { useNarrow } from "../../lib/use-media.js";
 import { deviceMetricTooltip } from "../../lib/stats-descriptions.js";
 import { formatCpuSeconds, friendlyMetricLabel } from "../../lib/stats-format.js";
 
@@ -43,9 +44,11 @@ function MetricHeader({ metric }: { metric: string }) {
  * old per-device tile grid (BufferHealthTile + StatTile), which got too busy
  * once a device had more than a couple of counters. Columns are derived from
  * whatever metrics are actually present rather than a hardcoded list, so a
- * new device metric just becomes a new trailing column.
+ * new device metric just becomes a new trailing column. On a phone held
+ * upright, where those columns don't fit, each device is a list instead.
  */
 export function DeviceCountersTable({ samples }: DeviceCountersTableProps) {
+  const narrow = useNarrow();
   const perDevice = samples.filter((s) => s.labels["device"] !== undefined);
   const processWide = samples.filter((s) => s.labels["device"] === undefined);
   if (perDevice.length === 0 && processWide.length === 0) return null;
@@ -56,7 +59,29 @@ export function DeviceCountersTable({ samples }: DeviceCountersTableProps) {
 
   return (
     <Collapsible title={<span className="text-sm font-medium text-slate-400">Device counters</span>} defaultOpen={false}>
-      {devices.length > 0 && (
+      {narrow &&
+        devices.map((device) => (
+          <div key={device} className="rounded-lg border border-slate-800 px-3 py-2 text-sm">
+            <p className="font-medium text-slate-200">Device {device}</p>
+            <dl>
+              {metrics.map((metric) => {
+                const value = valueByKey.get(`${device}:${metric}`);
+                return (
+                  <div key={metric} className="flex items-baseline justify-between gap-3 py-0.5">
+                    <dt className="text-xs text-slate-400">
+                      <MetricHeader metric={metric} />
+                    </dt>
+                    <dd className={`tabular-nums ${value !== undefined && value > 0 ? "font-semibold text-amber-300" : "text-slate-300"}`}>
+                      {value === undefined ? "—" : formatValue(metric, value)}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </div>
+        ))}
+
+      {!narrow && devices.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-slate-800">
           <table className="w-full text-left text-sm">
             <thead>

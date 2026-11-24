@@ -55,21 +55,21 @@ export function ChangePreview({ plan }: { plan: PlanReport }) {
   const s = SUMMARY[plan.method];
   const hasDetails = plan.live.length + plan.restart.length + plan.interrupts.length > 0 || !plan.baselineKnown;
   return (
-    <div className="min-w-0 flex-1 text-sm">
+    <div className="min-w-0 flex-[1_1_14rem] text-sm">
       <button
         type="button"
         disabled={!hasDetails}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex max-w-full items-center gap-2 text-left ${s.tone} disabled:cursor-default`}
+        className={`flex max-w-full flex-wrap items-center gap-x-2 text-left ${s.tone} disabled:cursor-default`}
       >
         <span aria-hidden="true" className={`h-2 w-2 flex-shrink-0 rounded-full ${s.light}`} />
-        <span className="truncate">{s.text}</span>
+        <span className="min-w-0">{s.text}</span>
         {plan.interrupts.length > 0 && <span className="flex-shrink-0 text-xs text-amber-300">· briefly interrupts audio</span>}
         {hasDetails && <span className="flex-shrink-0 text-xs text-slate-500">{open ? "Hide details" : "Details"}</span>}
       </button>
       {open && (
-        <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded border border-slate-800 bg-slate-950/60 p-2">
+        <div className="mt-2 max-h-[30vh] space-y-2 overflow-y-auto rounded border border-slate-800 bg-slate-950/60 p-2 lg:max-h-48">
           <Items title="Applied live" items={plan.live} tone="text-emerald-300" />
           <Items title="Needs a restart" items={plan.restart} tone="text-amber-300" />
           <Items title="Interruptions during a live apply" items={plan.interrupts} tone="text-amber-300" />

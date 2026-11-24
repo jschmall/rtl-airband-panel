@@ -79,8 +79,8 @@ function Tile({
           {label}
         </Tooltip>
       </p>
-      <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-slate-100">{value}</p>
-      {sub && <div className="truncate text-xs text-slate-400">{sub}</div>}
+      <p className="mt-0.5 break-words text-lg font-semibold tabular-nums text-slate-100">{value}</p>
+      {sub && <div className="break-words text-xs text-slate-400">{sub}</div>}
       {advice && <AdviceLine advice={advice} />}
       {children && <div className="mt-2">{children}</div>}
     </div>
@@ -159,7 +159,7 @@ function AutoPpmRow({ instance, sdr }: { instance: string; sdr: SdrHealth }) {
         {unsaved !== null && (
           <GuardedLink
             to={saveCorrectionHref(instance, sdr, unsaved)}
-            className="ml-auto rounded border border-sky-500/50 px-2 py-0.5 font-medium text-sky-300 hover:bg-sky-500/10"
+            className="rounded border border-sky-500/50 lg:ml-auto px-2 py-0.5 font-medium text-sky-300 hover:bg-sky-500/10"
             title="Opens the editor with this correction filled in, to review and save. auto_ppm starts from the config's correction after every restart."
           >
             Save {unsaved} ppm to config…
@@ -178,7 +178,7 @@ function SdrCardImpl({ instance, sdr, live, history, issues, notLive }: SdrCardP
   const stateBad = sdr.state !== null && sdr.state !== "running";
 
   return (
-    <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4" aria-label={`${instance} ${sdrTitle(sdr)}`}>
+    <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-3 lg:p-4" aria-label={`${instance} ${sdrTitle(sdr)}`}>
       <header className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
         <h3 className="font-medium text-slate-100">
           <GuardedLink to={sdrEditorHref(instance, sdr)} className="hover:text-sky-300 hover:underline decoration-slate-500 underline-offset-2" title="Edit this device's settings">
@@ -264,7 +264,7 @@ function SdrCardImpl({ instance, sdr, live, history, issues, notLive }: SdrCardP
         type="button"
         onClick={() => setShowChannels((v) => !v)}
         aria-expanded={showChannels}
-        className="mt-3 text-xs text-sky-400 hover:text-sky-300"
+        className="mt-1 py-2 text-xs text-sky-400 hover:text-sky-300 lg:mt-3 lg:py-0"
       >
         {showChannels ? "Hide channels" : `Show channels (${sdr.channels.length})`}
       </button>

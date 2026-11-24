@@ -5,7 +5,7 @@ import { useInstanceList } from "../state/InstanceListContext.js";
 import { inputClass } from "./styles.js";
 
 const actionClass =
-  "rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:border-slate-500 hover:bg-slate-800 disabled:opacity-50";
+  "rounded border border-slate-700 px-3 py-2 text-sm lg:py-1.5 text-slate-200 hover:border-slate-500 hover:bg-slate-800 disabled:opacity-50";
 
 /** Restart / rename / delete for one instance (shown in its page header). */
 export function InstanceActions({ name }: { name: string }) {
@@ -65,9 +65,9 @@ export function InstanceActions({ name }: { name: string }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1 lg:items-end">
       {renaming ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
             aria-label={`New name for ${name}`}
@@ -107,7 +107,7 @@ export function InstanceActions({ name }: { name: string }) {
             type="button"
             disabled={busy !== null}
             onClick={remove}
-            className="rounded border border-red-500/40 px-3 py-1.5 text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+            className="rounded border border-red-500/40 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10 lg:py-1.5 disabled:opacity-50"
           >
             {busy === "delete" ? "Deleting…" : "Delete"}
           </button>

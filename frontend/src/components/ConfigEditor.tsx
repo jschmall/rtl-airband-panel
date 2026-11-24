@@ -4,7 +4,7 @@ import { BoolField, Field } from "./Field.js";
 import { Collapsible } from "./Collapsible.js";
 import { DeviceEditor } from "./DeviceEditor.js";
 import { MixerEditor } from "./MixerEditor.js";
-import { addButtonClass, inputClass } from "./styles.js";
+import { addButtonClass, inputClass, sectionCardClass } from "./styles.js";
 import { DEFAULT_FM_DEMOD, FM_DEMOD_VALUES } from "../generated/constants.js";
 import { appendItem, duplicateAt, removeAt, updateAt } from "../lib/array-utils.js";
 import { defaultDevice, defaultMixer } from "../lib/defaults.js";
@@ -27,7 +27,7 @@ interface ConfigEditorProps {
   persistPrefix?: string;
 }
 
-const sectionClass = "rounded-lg border border-slate-700 bg-slate-900/60 p-4";
+const sectionClass = `${sectionCardClass} bg-slate-900/60`;
 const sectionTitleClass = "text-lg font-semibold text-slate-100";
 
 /** Which top-level section a validation path (or `?device=` jump) lands in, to force it open. */
@@ -160,7 +160,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
       {before}
 
       <Collapsible defaultOpen className={sectionClass} titleClassName={sectionTitleClass} title="Instance settings" openSignal={signalFor("settings")} persistKey={persist("settings")}>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Stats filepath" tooltip={GLOBAL_TOOLTIPS.statsFilepath}>
             <input
               className={inputClass}
@@ -279,7 +279,7 @@ export function ConfigEditor({ config, onChange, jumpTarget, onRevealSecret, bef
               onChange={(e) => onChange({ ...config, control_socket_path: e.target.value || undefined })}
             />
           </Field>
-          <div className="grid grid-cols-1 gap-x-4 gap-y-2 self-end md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-4 self-end lg:grid-cols-2 lg:gap-y-2">
             <BoolField
               label="Multiple demod threads"
               tooltip={GLOBAL_TOOLTIPS.multipleDemodThreads}

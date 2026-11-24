@@ -137,7 +137,7 @@ function EventRow({
   const sourceTip = SOURCE_TOOLTIP[event.kind];
   return (
     <li
-      className={`grid grid-cols-[4.5rem_1fr] gap-x-3 border-l-2 py-1.5 pl-2 text-sm ${isNew ? "border-sky-500" : "border-transparent"} ${acknowledged ? "opacity-60" : ""}`}
+      className={`grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-2 border-l-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-x-3 py-1.5 pl-2 text-sm ${isNew ? "border-sky-500" : "border-transparent"} ${acknowledged ? "opacity-60" : ""}`}
       data-kind={event.kind}
     >
       <span className="pt-0.5 text-xs tabular-nums text-slate-500" title={new Date(event.ts).toISOString()}>
@@ -174,7 +174,7 @@ function EventRow({
               content={guide.summary}
               onClick={() => setOpen((o) => !o)}
               expanded={open}
-              className="rounded border border-sky-500/40 px-1.5 text-[10px] font-medium text-sky-300 hover:bg-sky-500/10 focus-visible:bg-sky-500/10"
+              className="rounded border border-sky-500/40 px-2 py-1.5 text-[11px] font-medium text-sky-300 lg:px-1.5 lg:py-0 lg:text-[10px] hover:bg-sky-500/10 focus-visible:bg-sky-500/10"
             >
               {open ? "Hide fix" : "How to fix"}
             </Tooltip>
@@ -257,7 +257,7 @@ export function ErrorsPage() {
   }
 
   const selectClass =
-    "h-8 rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none";
+    "h-10 min-w-0 rounded-md border border-slate-700 bg-slate-950 px-2 text-base lg:h-8 lg:text-sm text-slate-100 focus:border-sky-500 focus:outline-none";
 
   return (
     <div className="space-y-4">

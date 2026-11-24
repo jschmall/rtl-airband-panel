@@ -24,7 +24,7 @@ async function openOutputStats(user: ReturnType<typeof userEvent.setup>): Promis
  * summary span's textContent instead and match against that directly.
  */
 function summaryText(groupButton: HTMLElement): string {
-  return groupButton.parentElement!.querySelector(".shrink-0")?.textContent ?? "";
+  return groupButton.nextElementSibling?.textContent ?? "";
 }
 
 describe("isOutputCounterSample", () => {

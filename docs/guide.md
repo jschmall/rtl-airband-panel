@@ -244,8 +244,18 @@ to see earlier entries, dimmed.
 ## Themes and phones
 
 The bottom of the left-hand list switches between automatic (follows your
-system), dark and light. On a phone, the list moves behind the menu button
-and every page fits the screen.
+system), dark and light.
+
+On a phone or a small tablet the layout changes:
+- **Overview, Stats, Hardware and Errors** are tabs along the bottom, or a
+  strip on the left when the phone is on its side. The instances, and the
+  theme switch, are behind the **☰** button.
+- In the editor, devices, channels and outputs open as full-width sections.
+  Their actions (Disable, Enabled, Duplicate, Copy to channel, Remove) are
+  behind the **⋯** button at the end of each row; a row that's switched off
+  says so beside its name.
+- Hardware channel readings and Stats device counters are lists instead of
+  tables on an upright phone.
 
 <p>
   <img src="./screenshots/overview-light.png" alt="Overview in the light theme" width="68%">

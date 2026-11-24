@@ -429,6 +429,24 @@ busy:
   matched by `(metric, freq)` when that's unambiguous, so a channel
   relabelled in a live apply keeps its zero point.
 
+### Compact layout
+
+Below `lg:` (1024px) the frontend switches to the phone layout. Classes do
+most of it; `useCompact()` / `useNarrow()` (`frontend/src/lib/use-media.ts`)
+cover what needs different markup, at the same widths as `lg:` and `sm:`.
+- `AppShell` shows `TabNav` (bottom tabs, or a left strip with Tailwind's
+  `landscape:`) instead of the `Rail`, which becomes the instances-only
+  drawer. `<main>` keeps its place in the tree across the switch, so turning
+  the screen doesn't remount a page with unsaved edits.
+- `RowActions` puts a row's actions inline or behind ⋯; `OffBadge` shows the
+  state the menu hides.
+- `sectionCardClass` / `nestedCardClass` (`components/styles.ts`) turn the
+  editor's nested boxes into full-width bands: each level's negative margin
+  undoes its parent's `px-4`, so keep the two in step.
+- In a field grid, span a whole row with `col-span-full`. `col-span-2` adds
+  an implicit second column to a one-column grid, which is what made fields
+  overlap.
+
 ### Error log
 
 `crates/panel/src/events.rs`; rows in stats.db's `events` table.

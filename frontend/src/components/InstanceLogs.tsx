@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { logsStreamUrl, type LogLine } from "../api/client.js";
 import { Collapsible } from "./Collapsible.js";
 import { BoolField } from "./Field.js";
+import { sectionCardClass } from "./styles.js";
 import { INSTANCE_OPTIONS_TOOLTIPS } from "../lib/config-descriptions.js";
 
 type ConnState = "closed" | "connecting" | "live" | "reconnecting" | "error";
@@ -99,7 +100,7 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
 
   return (
     <Collapsible
-      className="rounded-lg border border-slate-700 bg-slate-900 p-4"
+      className={`${sectionCardClass} bg-slate-900`}
       titleClassName="text-lg font-semibold text-slate-100"
       title="Logs"
       onOpenChange={setOpen}
@@ -125,7 +126,7 @@ export function InstanceLogs({ name, jsonLogging, jsonLoggingPending, onToggleJs
         ref={preRef}
         onScroll={handleScroll}
         aria-label="Live log output"
-        className="max-h-96 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-300"
+        className="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 [overflow-wrap:anywhere] lg:whitespace-pre text-xs text-slate-300"
       >
         {lines.map((l) => formatLine(l, jsonLogging)).join("\n")}
       </pre>

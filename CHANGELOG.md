@@ -5,6 +5,33 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.62] - 2026-11-24
+
+### Added
+
+- **A layout for phones and small tablets (below 1024px wide), upright or on their
+  side.** Overview, Stats, Hardware and Errors are tabs along the bottom, or a slim
+  strip on the left in landscape, with the error count on the Errors tab; instances
+  are behind ☰. In the editor, devices, channels and outputs are full-width sections
+  instead of boxes inside boxes, and their actions are in a ⋯ menu per row. A row
+  that's disabled or not enabled says so beside its name. On an upright phone,
+  Hardware's channel readings and Stats' device counters are lists, not tables.
+  Inputs, checkboxes and buttons are bigger, and inputs are 16px so iOS doesn't zoom
+  the page in. Nothing typed is lost when the screen turns.
+
+### Fixed
+
+- **Text printed over other fields:** a file output's checkboxes landed on each other
+  on a phone, the save bar's change preview ran under its buttons, and a tapped-open
+  tooltip stayed over its neighbours (it now closes on a scroll or a tap elsewhere).
+- **Only the first few characters showing:** titles squeezed by the buttons beside
+  them (channels, mixers, output stats, instance names), and fields a few characters
+  wide inside nested boxes.
+- **Content off the right edge:** Remove channel, Remove output and the Stats channel
+  selector.
+- The bottom of the page no longer hides behind a phone browser's own bars.
+- The Stats chart's tooltip rounds its values to two decimals.
+
 ## [0.6.61] - 2026-11-24
 
 ### Added

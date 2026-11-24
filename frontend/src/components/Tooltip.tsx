@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 interface TooltipProps {
   content: string;
@@ -27,6 +27,23 @@ export function Tooltip({ content, children, className, onClick, expanded, label
   // near an edge, and never wider than the window allows.
   const [place, setPlace] = useState<{ left: number; maxWidth: number } | null>(null);
   const id = useId();
+  const rootRef = useRef<HTMLSpanElement>(null);
+
+  // A touch screen has no mouseleave: without this a tapped-open tooltip
+  // stays, covering its neighbours, until something else happens to take focus.
+  useEffect(() => {
+    if (!visible) return;
+    const hide = () => setVisible(false);
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) hide();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("scroll", hide, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("scroll", hide, { capture: true });
+    };
+  }, [visible]);
 
   const show = (e: { currentTarget: Element }) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -51,7 +68,7 @@ export function Tooltip({ content, children, className, onClick, expanded, label
   };
 
   return (
-    <span className="relative inline-flex">
+    <span ref={rootRef} className="relative inline-flex">
       {onClick ? (
         <button type="button" {...triggerProps} onClick={onClick} aria-expanded={expanded} aria-label={label}>
           {children}
