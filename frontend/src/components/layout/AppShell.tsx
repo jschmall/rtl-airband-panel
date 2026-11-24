@@ -49,7 +49,7 @@ export function AppShell() {
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 portrait:flex-col supports-[height:100dvh]:h-dvh lg:!flex-row">
       {compact ? (
-        <div className="flex flex-shrink-0 items-center portrait:border-b portrait:border-slate-800 portrait:px-2 portrait:py-1 landscape:w-16 landscape:flex-col landscape:overflow-y-auto landscape:border-r landscape:border-slate-800 landscape:pt-1">
+        <div className="flex flex-shrink-0 items-center portrait:border-b portrait:border-slate-800 portrait:px-2 portrait:py-1 landscape:w-20 landscape:flex-col landscape:overflow-y-auto landscape:border-r landscape:border-slate-800 landscape:pt-1">
           {menuButton}
           <span className="ml-1 text-sm font-semibold landscape:hidden">RTLSDR-Airband Panel</span>
           <div className="hidden w-full landscape:block">

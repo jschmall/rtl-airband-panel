@@ -24,7 +24,8 @@ export function TabNav() {
         >
           <span className="relative">
             <Icon />
-            {badge && <ErrorsBadge className="absolute -right-5 -top-1.5 bg-slate-950" />}
+            {/* Anchored on its left, so a wide count ("99+") grows away from the icon, not over it. */}
+            {badge && <ErrorsBadge className="absolute -top-1.5 left-full -ml-1.5 bg-slate-950 !px-1" />}
           </span>
           {label}
         </GuardedNavLink>

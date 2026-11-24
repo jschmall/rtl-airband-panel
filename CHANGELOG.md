@@ -5,6 +5,13 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.67] - 2026-11-24
+
+### Fixed
+
+- On phones, a "99+" count on the Errors tab no longer covers its icon. The landscape
+  strip is 16px wider to fit it.
+
 ## [0.6.66] - 2026-11-24
 
 ### Changed
