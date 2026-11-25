@@ -5,6 +5,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.73] - 2026-11-25
+
+### Changed
+
+- **Merged the `serial-ellipsis` branch into `master` (0.6.72).** Serials that fit in
+  the side panel are no longer shown as "…". See that entry for details.
+
+## [0.6.72] - 2026-11-25
+
+### Fixed
+
+- **Serials shown as "…" in the side panel despite having room**, in Firefox at least.
+  It happened on rows whose name is narrow in the browser's font (*rtl_151*): a
+  rounding error left the serial a fraction of a pixel short.
+
 ## [0.6.71] - 2026-11-25
 
 ### Changed
