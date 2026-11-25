@@ -39,20 +39,23 @@ function labelParts(name: string, devices: readonly DeviceSummary[]) {
  * That's one wrapping flex line with the rest clipped: the frequency wraps out
  * of sight when it doesn't fit beside the first part's basis (the least name
  * plus the serial), and max-w-max keeps a short name from claiming more room
- * than it needs. Only a serial too long for the row by itself is cut.
+ * than it needs. Only a serial too long for the row by itself is cut: its
+ * limit is in terms of the row (cqi), not of the part it's in, which is only as
+ * wide as its text. There, a name narrower than its minimum left the serial a
+ * rounding error short, and the browser put "…" in its place.
  *
  * An instance with several SDRs shows its first and how many more there are.
  */
 export function InstanceLabel({ name, devices }: { name: string; devices: readonly DeviceSummary[] }) {
   const { nameMin, serialText, centerText } = labelParts(name, devices);
   return (
-    <span className="flex h-5 min-w-0 flex-1 flex-wrap overflow-hidden leading-5">
+    <span className="flex h-5 min-w-0 flex-1 flex-wrap overflow-hidden leading-5 [container-type:inline-size]">
       <span className="flex min-w-0 max-w-max flex-1 whitespace-pre" style={{ flexBasis: `${nameMin + serialText.length}ch` }}>
         <span className="truncate" style={{ minWidth: `${nameMin}ch` }}>
           {name}
         </span>
         {serialText && (
-          <span className="flex-shrink-0 truncate whitespace-pre tabular-nums text-slate-400" style={{ maxWidth: `calc(100% - ${nameMin}ch)` }}>
+          <span className="flex-shrink-0 truncate whitespace-pre tabular-nums text-slate-400" style={{ maxWidth: `calc(100cqi - ${nameMin}ch)` }}>
             {serialText}
           </span>
         )}
