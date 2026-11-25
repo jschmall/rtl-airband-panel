@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.70] - 2026-11-25
+
+### Added
+
+- **The side panel can be resized.** Drag its right edge to any width from 192px to
+  half the page; it's remembered per browser. Double-click the edge to go back to the
+  automatic width. With the edge focused, the arrow keys, Home, End and Enter (back to
+  automatic) work too.
+
+### Changed
+
+- **The side panel sizes itself to show each instance's name, serial and center
+  frequency in full**, up to a quarter of the page. It used to be 256px wide whatever
+  the content. Past a quarter, long names are shortened; the frequency is left out only
+  when less than five characters of the name would remain. Phones are unchanged.
+
 ## [0.6.69] - 2026-11-24
 
 ### Changed

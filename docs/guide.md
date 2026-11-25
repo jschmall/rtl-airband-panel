@@ -40,8 +40,12 @@ service of the same name, `<name>.service`. Pick any names you like.
   saved changes waiting for a restart.
 - **The left-hand list** shows every instance with its status light, its
   SDR's serial number and center frequency in MHz (*name - serial - center*).
-  A long name is shortened to fit them; without room for all three, the
-  frequency is left out. Hover over a row for the full details. **Sort
+  The panel is as wide as that needs, up to a quarter of the page; past
+  that, long names are shortened. Drag the panel's right edge to set the
+  width yourself (up to half the page), and double-click the edge to go
+  back to automatic. The width is remembered in that browser. In a panel too
+  narrow for all three, the frequency is left out. Hover over a row for the
+  full details. **Sort
   by** orders it by name, serial or center frequency, and is remembered in
   that browser. Type
   in the filter box to find an instance by name, channel label, frequency

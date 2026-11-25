@@ -4,7 +4,7 @@ import { useInstanceList, type Connection } from "../../state/InstanceListContex
 import { applyThemePreference, loadThemePreference, type ThemePreference } from "../../lib/theme.js";
 import { GuardedLink, GuardedNavLink } from "../GuardedLink.js";
 import { HealthLight, healthLabel } from "../HealthLight.js";
-import { InstanceLabel, instanceDescription } from "./InstanceLabel.js";
+import { InstanceLabel, InstanceLabelSizer, instanceDescription } from "./InstanceLabel.js";
 import { ErrorsBadge, NAV_ITEMS } from "./nav.js";
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -47,6 +47,12 @@ function RailFooter() {
   );
 }
 
+function PendingBadge() {
+  return (
+    <span className="flex-shrink-0 rounded border border-amber-500/40 px-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">pending</span>
+  );
+}
+
 /**
  * Left navigation: app sections, then every instance with its status light.
  * `instancesOnly` leaves the sections out, for the compact layout's drawer,
@@ -62,12 +68,12 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
   return (
     <nav aria-label={instancesOnly ? "Instances" : "Main"} className="flex h-full flex-col bg-slate-900/40">
       <GuardedLink to="/" className="flex items-center gap-2 px-4 pb-3 pt-4">
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 fill-none stroke-sky-400" strokeWidth="1.8" strokeLinecap="round">
+        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 flex-shrink-0 fill-none stroke-sky-400" strokeWidth="1.8" strokeLinecap="round">
           <path d="M3 13a7 7 0 0 1 14 0" />
           <path d="M6 13a4 4 0 0 1 8 0" />
           <circle cx="10" cy="13" r="1.2" className="fill-sky-400" />
         </svg>
-        <span className="text-sm font-semibold tracking-tight text-slate-50">RTLSDR-Airband Panel</span>
+        <span className="truncate text-sm font-semibold tracking-tight text-slate-50">RTLSDR-Airband Panel</span>
       </GuardedLink>
 
       {!instancesOnly && (
@@ -142,11 +148,7 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
                 <span className="flex items-center gap-2">
                   <HealthLight state={instance.status.activeState} />
                   <InstanceLabel name={instance.name} devices={instance.devices ?? []} />
-                  {instance.pendingRestart && (
-                    <span className="rounded border border-amber-500/40 px-1 text-[10px] font-medium uppercase tracking-wide text-amber-300">
-                      pending
-                    </span>
-                  )}
+                  {instance.pendingRestart && <PendingBadge />}
                 </span>
                 {matched.length > 0 && <span className="ml-4 block break-words text-xs text-slate-500 lg:truncate">{matched.join(", ")}</span>}
               </GuardedNavLink>
@@ -157,5 +159,26 @@ export function Rail({ instancesOnly = false }: { instancesOnly?: boolean }) {
 
       <RailFooter />
     </nav>
+  );
+}
+
+/**
+ * Takes no height and shows nothing, but is as wide as the Rail's instance
+ * list would like to be: a row for every instance, filtered out or not (so the
+ * panel doesn't jump while typing in the filter), with the list's paddings and
+ * room for its scrollbar. Keep the rows in step with the Rail's.
+ */
+export function RailSizer() {
+  const { instances } = useInstanceList();
+  return (
+    <div aria-hidden="true" className="invisible h-0 overflow-x-hidden overflow-y-scroll px-2">
+      {instances?.map((instance) => (
+        <div key={instance.name} className="flex w-max items-center gap-2 px-2.5 text-sm">
+          <HealthLight state={instance.status.activeState} />
+          <InstanceLabelSizer name={instance.name} devices={instance.devices ?? []} />
+          {instance.pendingRestart && <PendingBadge />}
+        </div>
+      ))}
+    </div>
   );
 }

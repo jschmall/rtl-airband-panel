@@ -447,6 +447,16 @@ cover what needs different markup, at the same widths as `lg:` and `sm:`.
   an implicit second column to a one-column grid, which is what made fields
   overlap.
 
+### Side panel width
+
+`SidePanel` (`components/layout`), above `lg:` only. The automatic width is
+CSS: the `Rail` is positioned absolutely, so only `RailSizer`'s hidden rows
+(one per instance, filtered out or not) give the panel a width, between
+256px and 25%. When a list row's contents or padding change, change
+`RailSizer` / `InstanceLabelSizer` with them. A dragged width is kept in
+localStorage (`lib/side-panel-width.ts`) and limited to 50% in CSS, so a
+smaller window doesn't overwrite it.
+
 ### Error log
 
 `crates/panel/src/events.rs`; rows in stats.db's `events` table.
