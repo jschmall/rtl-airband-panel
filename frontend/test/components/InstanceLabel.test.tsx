@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
-import { formatCenterMHz, InstanceLabel, instanceDescription } from "../../src/components/layout/InstanceLabel.js";
+import { formatCenterMHz, InstanceLabel, InstanceLabelSizer, instanceDescription } from "../../src/components/layout/InstanceLabel.js";
 import type { DeviceSummary } from "../../src/api/client.js";
 
 // Which parts fit is layout, checked in a browser; this covers what's there to fit.
@@ -21,6 +21,14 @@ describe("InstanceLabel", () => {
   it("shows the first of several SDRs and how many more", () => {
     expect(text([{ serial: "11", centerFreqHz: 151e6 }, { serial: "12" }])).toBe("rtl_151 - 11 +1 - 151.000");
     expect(text([{}, {}, {}])).toBe("rtl_151 - +2");
+  });
+
+  it("is measured with the same text", () => {
+    const cases: DeviceSummary[][] = [[], [{}], [{ serial: "11" }], [{ serial: "11", centerFreqHz: 151_752_500 }, { serial: "12" }]];
+    for (const devices of cases) {
+      const sizer = render(<InstanceLabelSizer name="rtl_151" devices={devices} />).container.textContent;
+      expect(sizer).toBe(text(devices));
+    }
   });
 
   it("formats and describes", () => {

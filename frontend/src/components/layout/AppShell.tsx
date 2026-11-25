@@ -4,11 +4,12 @@ import { useCompact } from "../../lib/use-media.js";
 import { useMobileNav } from "../../state/MobileNavContext.js";
 import { StatusBanners } from "../StatusBanners.js";
 import { Rail } from "./Rail.js";
+import { SidePanel } from "./SidePanel.js";
 import { TabNav } from "./TabNav.js";
 
 /**
- * Banners above the routed page, with the navigation beside it: the Rail on a
- * wide screen; on a compact one (below lg:) tabs for the sections (TabNav)
+ * Banners above the routed page, with the navigation beside it: the SidePanel
+ * on a wide screen; on a compact one (below lg:) tabs for the sections (TabNav)
  * and a slide-over drawer for the instances.
  */
 export function AppShell() {
@@ -57,9 +58,7 @@ export function AppShell() {
           </div>
         </div>
       ) : (
-        <aside className="w-64 flex-shrink-0 border-r border-slate-800">
-          <Rail />
-        </aside>
+        <SidePanel />
       )}
 
       {compact && drawerOpen && (
