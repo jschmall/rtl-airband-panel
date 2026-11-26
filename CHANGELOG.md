@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.75] - 2026-11-26
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.6.1 to v7.7.0.** One new config key,
+  `tx_tag_idle_text` (0.6.74). No new CMake options or dependencies.
+  - **Stream titles work on Icecast 2.5.** libshout 2.4.6 sends its title request
+    without credentials and retries with them only when the server closes the
+    connection, which Icecast 2.5 doesn't do, so every Send tx tags and Send scan freq
+    tags update failed there. rtl_airband now sends the request itself, with the
+    login, on outputs without TLS. TLS outputs still use libshout.
+  - A cleared title is sent as a space. Icecast 2.5 accepts an empty title but
+    keeps the old one.
+  - Title updates that fail now log `Failed to set Icecast metadata for …` with the
+    server's answer (outputs without TLS).
+
 ## [0.6.74] - 2026-11-26
 
 ### Added
