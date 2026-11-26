@@ -308,6 +308,11 @@ pub const ISSUE_HINTS: &[IssueHint] = &[
         "Tx tags put the channel's fixed frequency and label in the stream's Now Playing. A scan channel's frequency changes as it scans, and Send scan freq tags updates the title with whichever frequency is active.",
     ),
     h(
+        "tx-tag-idle-text-needs-send-tx-tags",
+        "Turn on Send tx tags on this output, or clear Title when quiet.",
+        "Title when quiet is what Send tx tags shows between transmissions. Without Send tx tags, rtl_airband has no title to replace and refuses the setting.",
+    ),
+    h(
         "rdio-scanner-requires-split-on-transmission",
         "Turn on Split on transmission for this file output, or turn off Upload to rdio-scanner.",
         "rdio-scanner receives one recording per call. Only split_on_transmission produces a finished file for each transmission that can be uploaded.",

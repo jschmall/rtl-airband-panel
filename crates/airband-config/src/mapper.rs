@@ -565,6 +565,7 @@ fn to_output(g: &[Setting], path: String) -> Result<Output> {
                 description: r.optional_string("description")?,
                 send_scan_freq_tags: r.optional_bool("send_scan_freq_tags")?,
                 send_tx_tags: r.optional_bool("send_tx_tags")?,
+                tx_tag_idle_text: r.optional_string("tx_tag_idle_text")?,
                 ..Default::default()
             };
             if let Some(tls) = r.optional_string("tls")? {
@@ -947,7 +948,8 @@ fn output_from_domain(output: &Output) -> Value {
                 .opt_string("genre", &o.genre)
                 .opt_string("description", &o.description)
                 .opt_bool("send_scan_freq_tags", o.send_scan_freq_tags)
-                .opt_bool("send_tx_tags", o.send_tx_tags);
+                .opt_bool("send_tx_tags", o.send_tx_tags)
+                .opt_string("tx_tag_idle_text", &o.tx_tag_idle_text);
             if let Some(tls) = o.tls {
                 m.string("tls", tls.as_str());
             }

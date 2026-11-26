@@ -60,6 +60,7 @@ const CHECKS: &[Check] = &[
     whole_numbers::whole_numbers,
     fork_v6::auto_ppm,
     globals::fm_demod,
+    outputs::tx_tag_idle_text,
 ];
 
 pub fn validate_config(config: &RtlAirbandConfig) -> ValidationResult {

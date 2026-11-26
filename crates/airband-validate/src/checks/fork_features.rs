@@ -192,8 +192,18 @@ pub fn check(config: &RtlAirbandConfig, features: &[String], issues: &mut Issues
                         g.ignored("post_write_script", format!("{path}.min_rx_seconds"), "short recordings are kept");
                     }
                 }
-                Output::Icecast(o) if o.send_tx_tags.is_some() => {
-                    g.ignored("send_tx_tags", format!("{path}.send_tx_tags"), "no Now Playing tags are sent");
+                Output::Icecast(o) if o.send_tx_tags.is_some() || o.tx_tag_idle_text.is_some() => {
+                    if o.send_tx_tags.is_some() {
+                        g.ignored("send_tx_tags", format!("{path}.send_tx_tags"), "no Now Playing tags are sent");
+                    }
+                    if o.tx_tag_idle_text.is_some() {
+                        g.ignored_needs(
+                            "tx_tag_idle_text",
+                            "Needs jschmall RTLSDR-Airband fork v7.7.0 or newer.",
+                            format!("{path}.tx_tag_idle_text"),
+                            "the title is cleared between transmissions instead",
+                        );
+                    }
                 }
                 Output::UdpStream(o) if o.bit_depth.is_some() => {
                     g.ignored("fork", format!("{path}.bit_depth"), "the stream uses the default sample format");

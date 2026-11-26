@@ -5,6 +5,48 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.76] - 2026-11-26
+
+### Changed
+
+- **Merged the `tx-tag-idle-text` branch into `master` (0.6.74, 0.6.75).** Icecast
+  outputs get *Title when quiet*, and the bundled rtl_airband moves to fork v7.7.0,
+  whose stream titles work on Icecast 2.5. See those entries for details.
+
+## [0.6.75] - 2026-11-26
+
+### Changed
+
+- **Bundled rtl_airband moves from fork v7.6.1 to v7.7.0.** One new config key,
+  `tx_tag_idle_text` (0.6.74). No new CMake options or dependencies.
+  - **Stream titles work on Icecast 2.5.** libshout 2.4.6 sends its title request
+    without credentials and retries with them only when the server closes the
+    connection, which Icecast 2.5 doesn't do, so every Send tx tags and Send scan freq
+    tags update failed there. rtl_airband now sends the request itself, with the
+    login, on outputs without TLS. TLS outputs still use libshout.
+  - A cleared title is sent as a space. Icecast 2.5 accepts an empty title but
+    keeps the old one.
+  - Title updates that fail now log `Failed to set Icecast metadata for …` with the
+    server's answer (outputs without TLS).
+
+## [0.6.74] - 2026-11-26
+
+### Added
+
+- **Title when quiet, for an Icecast output with Send tx tags** (`tx_tag_idle_text`,
+  fork v7.7.0). The stream's title shows this text, such as *Scanning*, between
+  transmissions instead of going blank. The field appears while Send tx tags is on,
+  or while it still has a value. Turning Send tx tags off with a value left is an
+  error, because rtl_airband won't start with it. On an instance whose rtl_airband
+  predates v7.7.0, the field says it needs the fork, and validation warns that the
+  title is cleared instead.
+
+### Changed
+
+- The rtl_airband log line `Failed to set Icecast metadata for …` (fork v7.7.0, which
+  sends titles on plain connections itself) is classed as an Icecast warning, as the
+  libshout wording already was.
+
 ## [0.6.73] - 2026-11-25
 
 ### Changed

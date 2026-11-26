@@ -121,6 +121,14 @@ mod tests {
         let warning = Some((LogSeverity::Warning, true));
         assert_eq!(class(None, "Icecast metadata for example:8000/tower: Invalid parameter"), warning);
         assert_eq!(class(None, "Failed to set shout metadata for example:8000/tower: Socket error"), warning);
+        // Fork v7.7.0 sends plain-connection metadata itself.
+        assert_eq!(
+            class(
+                None,
+                "Failed to set Icecast metadata for example:8000/tower: the server answered HTTP/1.1 401 Authentication Required"
+            ),
+            warning
+        );
     }
 
     #[test]
