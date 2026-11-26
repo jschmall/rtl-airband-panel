@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this
 project doesn't publish to a registry, so versions are tracked via git tags
 (`vX.Y.Z`) rather than npm releases. Versions before 0.3.0 predate this file.
 
+## [0.6.74] - 2026-11-26
+
+### Added
+
+- **Title when quiet, for an Icecast output with Send tx tags** (`tx_tag_idle_text`,
+  fork v7.7.0). The stream's title shows this text, such as *Scanning*, between
+  transmissions instead of going blank. The field appears while Send tx tags is on,
+  or while it still has a value. Turning Send tx tags off with a value left is an
+  error, because rtl_airband won't start with it. On an instance whose rtl_airband
+  predates v7.7.0, the field says it needs the fork, and validation warns that the
+  title is cleared instead.
+
+### Changed
+
+- The rtl_airband log line `Failed to set Icecast metadata for …` (fork v7.7.0, which
+  sends titles on plain connections itself) is classed as an Icecast warning, as the
+  libshout wording already was.
+
 ## [0.6.73] - 2026-11-25
 
 ### Changed

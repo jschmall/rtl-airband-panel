@@ -626,6 +626,22 @@ function IcecastFields({
           onChange={(v) => onChange({ ...output, send_scan_freq_tags: v })}
         />
       </div>
+      {/* Shown while it means something, or while it has a value that can be cleared. */}
+      {(output.send_tx_tags || output.tx_tag_idle_text !== undefined) && (
+        <Field
+          label="Title when quiet (optional; blank clears the title)"
+          tooltip={OUTPUT_TOOLTIPS.txTagIdleText}
+          requires="tx_tag_idle_text"
+          hasValue={output.tx_tag_idle_text !== undefined}
+        >
+          <input
+            className={inputClass}
+            placeholder="e.g. Scanning"
+            value={output.tx_tag_idle_text ?? ""}
+            onChange={(e) => onChange({ ...output, tx_tag_idle_text: e.target.value || undefined })}
+          />
+        </Field>
+      )}
     </div>
   );
 }

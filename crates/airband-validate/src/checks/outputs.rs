@@ -28,6 +28,26 @@ pub fn send_tx_tags(config: &RtlAirbandConfig, issues: &mut Issues) {
     }
 }
 
+/// tx_tag_idle_text only means something with send_tx_tags, and rtl_airband
+/// refuses to start without it.
+pub fn tx_tag_idle_text(config: &RtlAirbandConfig, issues: &mut Issues) {
+    for_each_output_list(config, |prefix, outputs, _| {
+        for (oi, output) in outputs.iter().enumerate() {
+            if let Output::Icecast(o) = output
+                && o.tx_tag_idle_text.is_some()
+                && o.send_tx_tags != Some(true)
+                && o.disable != Some(true)
+            {
+                issues.error(
+                    "tx-tag-idle-text-needs-send-tx-tags",
+                    format!("{prefix}.outputs[{oi}].tx_tag_idle_text"),
+                    "Title when quiet needs Send tx tags on this output; rtl_airband won't start without it",
+                );
+            }
+        }
+    });
+}
+
 /// rdio_scanner needs split_on_transmission, isn't allowed on scan-mode
 /// channels, and has timeout/retry/queue-depth bounds.
 pub fn rdio_scanner(config: &RtlAirbandConfig, issues: &mut Issues) {

@@ -4,6 +4,12 @@ import type { TlsMode } from "./TlsMode";
 
 export type IcecastOutput = { server: string, port: number, mountpoint: string, username: string, password: string, name?: string, genre?: string, description?: string, send_scan_freq_tags?: boolean, send_tx_tags?: boolean, 
 /**
+ * With send_tx_tags: the stream title between transmissions (e.g.
+ * "Scanning"); unset or empty clears it. Fork v7.7.0+ (`tx_tag_idle_text`);
+ * rtl_airband refuses it without send_tx_tags = true.
+ */
+tx_tag_idle_text?: string, 
+/**
  * Errors at startup when rtl_airband was built against a libshout
  * without TLS support (RTLSDR-Airband v6.3).
  */
